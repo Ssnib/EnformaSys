@@ -1817,8 +1817,13 @@ if (!function_exists('registrar_enroll_student_in_term')) {
     }
 }
 
-// Automatically initialize decoupled schema and sync existing records
-if (isset($conn) && $conn instanceof mysqli) {
+// Automatically initialize decoupled schema and sync existing records in local/migration contexts
+$__is_serverless_or_prod = function_exists('enformasys_env')
+    && (enformasys_is_production()
+        || enformasys_env('VERCEL', '') !== ''
+        || enformasys_env('VERCEL_ENV', '') !== ''
+        || strtolower(trim((string)enformasys_env('DB_SKIP_SCHEMA_SYNC', 'false'))) === 'true');
+if (isset($conn) && $conn instanceof mysqli && (defined('ENFORMASYS_ALLOW_RUNTIME_SCHEMA_SYNC') || !$__is_serverless_or_prod)) {
     registrar_sync_and_migrate($conn, false);
 }
 

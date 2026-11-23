@@ -84,6 +84,9 @@ $dbName = (string)enformasys_env('DB_NAME', 'seminary_db');
 // Load includes/db.php only AFTER verifying whether ADMIN_INITIAL_PASSWORD is set;
 // includes/db.php idempotently ensures schema + canonical subjects + curricula + 4 pillar questionnaires.
 // Notice: includes/db.php respects ALLOW_DEFAULT_SEED and no longer creates any Student users.
+if (!defined('ENFORMASYS_ALLOW_RUNTIME_SCHEMA_SYNC')) {
+    define('ENFORMASYS_ALLOW_RUNTIME_SCHEMA_SYNC', true);
+}
 require_once __DIR__ . '/../includes/db.php';
 
 echo "============================================================\n";

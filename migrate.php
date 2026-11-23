@@ -5,6 +5,9 @@ if (!isset($_SESSION['user']) || !in_array($_SESSION['role'], ['Registrar', 'Dea
     exit;
 }
 
+if (!defined('ENFORMASYS_ALLOW_RUNTIME_SCHEMA_SYNC')) {
+    define('ENFORMASYS_ALLOW_RUNTIME_SCHEMA_SYNC', true);
+}
 include __DIR__ . '/includes/db.php';
 
 function ensure_schema_migrations_table(mysqli $conn): void

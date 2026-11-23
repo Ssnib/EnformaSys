@@ -134,10 +134,26 @@ if (!class_exists('EnformasysDbSessionHandler')) {
     {
         private ?mysqli $conn = null;
         private int $lifetime = 3600;
+        private ?string $lastReadId = null;
+        private ?string $lastReadHash = null;
+        private int $lastReadAt = 0;
 
         public function __construct(int $lifetime = 3600)
         {
             $this->lifetime = max(300, $lifetime);
+        }
+
+        private function ensureTable(mysqli $c): void
+        {
+            @$c->query(
+                "CREATE TABLE IF NOT EXISTS `php_sessions` (
+                    `id` VARCHAR(128) NOT NULL,
+                    `data` MEDIUMTEXT NOT NULL,
+                    `last_accessed` INT UNSIGNED NOT NULL,
+                    PRIMARY KEY (`id`),
+                    KEY `idx_php_sessions_last_accessed` (`last_accessed`)
+                ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4"
+            );
         }
 
         private function connect(): ?mysqli
@@ -153,6 +169,10 @@ if (!class_exists('EnformasysDbSessionHandler')) {
             if ($host === '' || $user === '' || $db === '') {
                 return null;
             }
+
+            $isVercel = (enformasys_env('VERCEL', '') !== '' || enformasys_env('VERCEL_ENV', '') !== '');
+            $usePersistent = $isVercel || strtolower(trim((string)enformasys_env('DB_PERSISTENT', 'false'))) === 'true';
+            $connectHost = ($usePersistent && stripos($host, 'p:') !== 0) ? ('p:' . $host) : $host;
 
             $sslRaw = strtolower(trim((string)enformasys_env('DB_SSL', 'false')));
             $sslEnabled = in_array($sslRaw, ['1', 'true', 'yes', 'on', 'required'], true);
@@ -173,7 +193,7 @@ if (!class_exists('EnformasysDbSessionHandler')) {
                 if (!$c) {
                     return null;
                 }
-                $c->options(MYSQLI_OPT_CONNECT_TIMEOUT, 10);
+                $c->options(MYSQLI_OPT_CONNECT_TIMEOUT, 5);
                 $flags = 0;
                 if ($sslEnabled || $caPath !== null) {
                     $c->ssl_set(null, null, $caPath, null, null);
@@ -182,19 +202,10 @@ if (!class_exists('EnformasysDbSessionHandler')) {
                         $c->options(MYSQLI_OPT_SSL_VERIFY_SERVER_CERT, true);
                     }
                 }
-                if (!@$c->real_connect($host, $user, $pass, $db, $port > 0 ? $port : 3306, null, $flags)) {
+                if (!@$c->real_connect($connectHost, $user, $pass, $db, $port > 0 ? $port : 3306, null, $flags)) {
                     return null;
                 }
                 $c->set_charset('utf8mb4');
-                @$c->query(
-                    "CREATE TABLE IF NOT EXISTS `php_sessions` (
-                        `id` VARCHAR(128) NOT NULL,
-                        `data` MEDIUMTEXT NOT NULL,
-                        `last_accessed` INT UNSIGNED NOT NULL,
-                        PRIMARY KEY (`id`),
-                        KEY `idx_php_sessions_last_accessed` (`last_accessed`)
-                    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4"
-                );
                 $this->conn = $c;
                 return $this->conn;
             } catch (Throwable $e) {
@@ -219,12 +230,20 @@ if (!class_exists('EnformasysDbSessionHandler')) {
 
         public function read(string $id): string|false
         {
+            $this->lastReadId = null;
+            $this->lastReadHash = null;
+            $this->lastReadAt = 0;
+
             $c = $this->connect();
             if (!$c) {
                 return '';
             }
             $cutoff = time() - $this->lifetime;
             $stmt = @$c->prepare("SELECT data, last_accessed FROM php_sessions WHERE id = ? LIMIT 1");
+            if (!$stmt && $c->errno === 1146) {
+                $this->ensureTable($c);
+                $stmt = @$c->prepare("SELECT data, last_accessed FROM php_sessions WHERE id = ? LIMIT 1");
+            }
             if (!$stmt) {
                 return '';
             }
@@ -238,31 +257,60 @@ if (!class_exists('EnformasysDbSessionHandler')) {
             if (!$row || (int)$row['last_accessed'] < $cutoff) {
                 return '';
             }
-            return (string)$row['data'];
+            $data = (string)$row['data'];
+            $this->lastReadId = $id;
+            $this->lastReadHash = hash('sha256', $data);
+            $this->lastReadAt = (int)$row['last_accessed'];
+            return $data;
         }
 
         public function write(string $id, string $data): bool
         {
+            $now = time();
+            $newHash = hash('sha256', $data);
+            if (
+                $this->lastReadId === $id
+                && $this->lastReadHash === $newHash
+                && ($now - $this->lastReadAt) < 60
+            ) {
+                return true;
+            }
+
             $c = $this->connect();
             if (!$c) {
                 return false;
             }
-            $now = time();
             $stmt = @$c->prepare(
                 "INSERT INTO php_sessions (id, data, last_accessed) VALUES (?, ?, ?)
                  ON DUPLICATE KEY UPDATE data = VALUES(data), last_accessed = VALUES(last_accessed)"
             );
+            if (!$stmt && $c->errno === 1146) {
+                $this->ensureTable($c);
+                $stmt = @$c->prepare(
+                    "INSERT INTO php_sessions (id, data, last_accessed) VALUES (?, ?, ?)
+                     ON DUPLICATE KEY UPDATE data = VALUES(data), last_accessed = VALUES(last_accessed)"
+                );
+            }
             if (!$stmt) {
                 return false;
             }
             $stmt->bind_param('ssi', $id, $data, $now);
             $ok = $stmt->execute();
             $stmt->close();
+            if ($ok) {
+                $this->lastReadId = $id;
+                $this->lastReadHash = $newHash;
+                $this->lastReadAt = $now;
+            }
             return (bool)$ok;
         }
 
         public function destroy(string $id): bool
         {
+            $this->lastReadId = null;
+            $this->lastReadHash = null;
+            $this->lastReadAt = 0;
+
             $c = $this->connect();
             if (!$c) {
                 return true;

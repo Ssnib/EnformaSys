@@ -5,6 +5,9 @@ if (isset($_SESSION['role']) && (string)$_SESSION['role'] === 'Rector') {
 }
 require_roles(['Registrar', 'Dean']);
 include '../includes/db.php';
+if (strtoupper((string)($_SERVER['REQUEST_METHOD'] ?? 'GET')) === 'POST' && function_exists('enformasys_invalidate_ay_cache')) {
+    enformasys_invalidate_ay_cache();
+}
 
 if (isset($_POST['create_ay'])) {
     if (!verify_csrf_token($_POST['csrf_token'] ?? '')) {

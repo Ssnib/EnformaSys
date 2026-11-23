@@ -665,24 +665,32 @@ $sb_role_label = function_exists('get_header_user_label') ? get_header_user_labe
 $sb_initial = strtoupper(substr($sb_username, 0, 1));
 $sb_avatar_url = null;
 if (!empty($is_student) && isset($_SESSION['user'])) {
-    if (!isset($conn) || !($conn instanceof mysqli)) {
-        @require_once __DIR__ . '/db.php';
-    }
-    if (!function_exists('get_seminarian_avatar_url')) {
-        @require_once __DIR__ . '/seminarian_profile_helper.php';
-    }
-    if (isset($conn) && $conn instanceof mysqli && function_exists('get_seminarian_avatar_url')) {
-        $uid_tmp = (int)$_SESSION['user'];
-        $stmt_sb_pic = $conn->prepare("SELECT profile_picture FROM seminarians WHERE user_id = ? LIMIT 1");
-        if ($stmt_sb_pic) {
-            $stmt_sb_pic->bind_param("i", $uid_tmp);
-            $stmt_sb_pic->execute();
-            $sp = $stmt_sb_pic->get_result()->fetch_assoc();
-            $stmt_sb_pic->close();
-            if ($sp) {
-                $sb_avatar_url = get_seminarian_avatar_url($sp['profile_picture'] ?? null);
+    if (isset($_SESSION['cached_user_profile']) && is_array($_SESSION['cached_user_profile']) && array_key_exists('avatar_url', $_SESSION['cached_user_profile'])) {
+        $sb_avatar_url = $_SESSION['cached_user_profile']['avatar_url'];
+    } else {
+        if (!isset($conn) || !($conn instanceof mysqli)) {
+            @require_once __DIR__ . '/db.php';
+        }
+        if (!function_exists('get_seminarian_avatar_url')) {
+            @require_once __DIR__ . '/seminarian_profile_helper.php';
+        }
+        if (isset($conn) && $conn instanceof mysqli && function_exists('get_seminarian_avatar_url')) {
+            $uid_tmp = (int)$_SESSION['user'];
+            $stmt_sb_pic = $conn->prepare("SELECT profile_picture FROM seminarians WHERE user_id = ? LIMIT 1");
+            if ($stmt_sb_pic) {
+                $stmt_sb_pic->bind_param("i", $uid_tmp);
+                $stmt_sb_pic->execute();
+                $sp = $stmt_sb_pic->get_result()->fetch_assoc();
+                $stmt_sb_pic->close();
+                if ($sp) {
+                    $sb_avatar_url = get_seminarian_avatar_url($sp['profile_picture'] ?? null);
+                }
             }
         }
+        if (!isset($_SESSION['cached_user_profile']) || !is_array($_SESSION['cached_user_profile'])) {
+            $_SESSION['cached_user_profile'] = [];
+        }
+        $_SESSION['cached_user_profile']['avatar_url'] = $sb_avatar_url;
     }
 }
 ?>

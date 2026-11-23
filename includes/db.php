@@ -2,6 +2,9 @@
 require_once __DIR__ . '/env.php';
 
 $is_prod_db = enformasys_is_production();
+$is_vercel_db = (enformasys_env('VERCEL', '') !== '' || enformasys_env('VERCEL_ENV', '') !== '');
+$use_persistent_db = $is_vercel_db || strtolower(trim((string)enformasys_env('DB_PERSISTENT', 'false'))) === 'true';
+
 $servername = (string)enformasys_env('DB_HOST', $is_prod_db ? '' : '127.0.0.1');
 $port = (int)enformasys_env('DB_PORT', '3306');
 $username = (string)enformasys_env('DB_USER', $is_prod_db ? '' : 'root');
@@ -32,12 +35,16 @@ if ($servername === '' || $username === '' || $dbname === '') {
     die('Service temporarily unavailable.');
 }
 
+$connect_host = ($use_persistent_db && stripos($servername, 'p:') !== 0)
+    ? ('p:' . $servername)
+    : $servername;
+
 try {
     $conn = mysqli_init();
     if (!$conn) {
         throw new RuntimeException('mysqli_init failed.');
     }
-    $conn->options(MYSQLI_OPT_CONNECT_TIMEOUT, 10);
+    $conn->options(MYSQLI_OPT_CONNECT_TIMEOUT, 5);
     $connect_flags = 0;
     if ($db_ssl_enabled || $db_ssl_ca !== null) {
         $conn->ssl_set(null, null, $db_ssl_ca, null, null);
@@ -46,7 +53,7 @@ try {
             $conn->options(MYSQLI_OPT_SSL_VERIFY_SERVER_CERT, true);
         }
     }
-    $connected = @$conn->real_connect($servername, $username, $password, $dbname, $port > 0 ? $port : 3306, null, $connect_flags);
+    $connected = @$conn->real_connect($connect_host, $username, $password, $dbname, $port > 0 ? $port : 3306, null, $connect_flags);
     if (!$connected) {
         throw new RuntimeException($conn->connect_error ?: 'Database connection failed.');
     }
@@ -64,6 +71,11 @@ if ($conn->connect_error) {
 $conn->set_charset("utf8mb4");
 
 require_once __DIR__ . '/seminarian_assignments.php';
+
+$skip_runtime_schema_sync = !defined('ENFORMASYS_ALLOW_RUNTIME_SCHEMA_SYNC')
+    && ($is_vercel_db || $is_prod_db || strtolower(trim((string)enformasys_env('DB_SKIP_SCHEMA_SYNC', 'false'))) === 'true');
+
+if (!$skip_runtime_schema_sync) {
 
 $role_col = $conn->query("SELECT COLUMN_TYPE FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'users' AND COLUMN_NAME = 'role' LIMIT 1");
 if ($role_col && $r = $role_col->fetch_assoc()) {
@@ -2123,6 +2135,8 @@ if ($pq_count_res && (int)($pq_count_res->fetch_assoc()['c'] ?? 0) === 0) {
     }
 }
 
+} // End !$skip_runtime_schema_sync
+
 // ---- Module 2: Student ID helpers ----
 if (!function_exists('is_student_id_taken')) {
     /**
@@ -2171,7 +2185,11 @@ if (!function_exists('generate_unique_student_id')) {
 
 require_once __DIR__ . '/registrar_decoupling.php';
 require_once __DIR__ . '/audit_trail.php';
-ensure_audit_trail_schema($conn);
+if (!$skip_runtime_schema_sync) {
+    ensure_audit_trail_schema($conn);
+}
 require_once __DIR__ . '/seminarian_profile_helper.php';
-ensure_seminarian_profile_schema($conn);
+if (!$skip_runtime_schema_sync) {
+    ensure_seminarian_profile_schema($conn);
+}
 ?>

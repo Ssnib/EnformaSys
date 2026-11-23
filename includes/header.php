@@ -59,10 +59,12 @@ $selected_header_sem = isset($_GET['semester']) && in_array(trim((string)$_GET['
     ? trim((string)$_GET['semester'])
     : (isset($filter_sem) && in_array($filter_sem, ['1st', '2nd', 'Summer'], true) ? $filter_sem : (function_exists('get_active_semester') ? get_active_semester() : '1st'));
 
-// Populate Academic Year options
+// Populate Academic Year options (cached in $_SESSION via get_all_academic_years)
 $header_ay_list = [];
 if (!empty($ay_options) && is_array($ay_options)) {
     $header_ay_list = $ay_options;
+} elseif (function_exists('get_all_academic_years')) {
+    $header_ay_list = get_all_academic_years(false);
 } else {
     global $conn;
     if (isset($conn) && $conn instanceof mysqli) {

@@ -75,6 +75,9 @@ if (isset($_POST['login'])) {
                 $_SESSION['role'] = (string)$user['role'];
                 $_SESSION['last_activity'] = time();
                 $_SESSION['csrf_token'] = bin2hex(random_bytes(32));
+                if (function_exists('enformasys_warm_session_cache')) {
+                    enformasys_warm_session_cache($conn, $uid, $username, (string)$user['role']);
+                }
 
                 enformasys_audit_log(
                     $conn,

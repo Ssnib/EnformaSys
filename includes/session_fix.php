@@ -34,7 +34,10 @@ if (isset($_SESSION['user'])) {
         @session_destroy();
         @session_start();
     } else {
-        $_SESSION['last_activity'] = time();
+        $nowTs = time();
+        if ($lastActivity === 0 || ($nowTs - $lastActivity) >= 60) {
+            $_SESSION['last_activity'] = $nowTs;
+        }
     }
 }
 
@@ -113,10 +116,132 @@ if (!function_exists('require_roles')) {
 
 // Auto-persist active academic term in session so users don't need to re-select term across modules
 if (isset($_GET['academic_year']) && trim((string)$_GET['academic_year']) !== '') {
-    $_SESSION['active_academic_year'] = trim((string)$_GET['academic_year']);
+    $__ayParam = trim((string)$_GET['academic_year']);
+    if ((string)($_SESSION['active_academic_year'] ?? '') !== $__ayParam) {
+        $_SESSION['active_academic_year'] = $__ayParam;
+    }
 }
 if (isset($_GET['semester']) && trim((string)$_GET['semester']) !== '') {
-    $_SESSION['active_semester'] = trim((string)$_GET['semester']);
+    $__semParam = trim((string)$_GET['semester']);
+    if ((string)($_SESSION['active_semester'] ?? '') !== $__semParam) {
+        $_SESSION['active_semester'] = $__semParam;
+    }
+}
+
+if (!function_exists('enformasys_invalidate_ay_cache')) {
+    function enformasys_invalidate_ay_cache(): void {
+        unset(
+            $_SESSION['cached_current_ay'],
+            $_SESSION['cached_active_ays'],
+            $_SESSION['cached_all_ays'],
+            $_SESSION['cached_ay_ts']
+        );
+    }
+}
+
+if (!function_exists('enformasys_refresh_ay_cache')) {
+    function enformasys_refresh_ay_cache(?mysqli $conn = null): void {
+        if (!$conn instanceof mysqli) {
+            global $conn;
+        }
+        if (!($conn instanceof mysqli)) {
+            return;
+        }
+        $cur = '';
+        $active = [];
+        $all = [];
+        $res = @$conn->query("SELECT label, is_active, is_current, archived_at FROM academic_years ORDER BY start_year DESC, end_year DESC");
+        if ($res) {
+            while ($row = $res->fetch_assoc()) {
+                $lbl = trim((string)($row['label'] ?? ''));
+                if ($lbl === '') {
+                    continue;
+                }
+                $all[] = ['label' => $lbl, 'archived' => $row['archived_at'] !== null];
+                if ($row['archived_at'] === null) {
+                    if ((int)($row['is_active'] ?? 0) === 1) {
+                        $active[] = $lbl;
+                    }
+                    if ($cur === '' && (int)($row['is_current'] ?? 0) === 1) {
+                        $cur = $lbl;
+                    }
+                }
+            }
+        }
+        if ($cur === '') {
+            $y = (int)date('Y');
+            $m = (int)date('n');
+            $start = $m >= 6 ? $y : ($y - 1);
+            $cur = $start . '-' . ($start + 1);
+        }
+        if (empty($active)) {
+            $active[] = $cur;
+        }
+        $allUnarchived = [];
+        $allIncludingArchived = [];
+        foreach ($all as $item) {
+            $allIncludingArchived[] = $item['label'];
+            if (!$item['archived']) {
+                $allUnarchived[] = $item['label'];
+            }
+        }
+        if (empty($allUnarchived)) {
+            $allUnarchived = [$cur];
+        }
+        if (empty($allIncludingArchived)) {
+            $allIncludingArchived = [$cur];
+        }
+
+        $_SESSION['cached_current_ay'] = $cur;
+        $_SESSION['cached_active_ays'] = $active;
+        $_SESSION['cached_all_ays'] = [
+            'active_only' => $allUnarchived,
+            'all' => $allIncludingArchived,
+        ];
+        $_SESSION['cached_ay_ts'] = time();
+    }
+}
+
+if (!function_exists('enformasys_warm_session_cache')) {
+    /**
+     * Preloads academic-year lookups and role/student profile attributes into $_SESSION
+     * upon login so shared layout components (header/sidebar) avoid repeated queries.
+     */
+    function enformasys_warm_session_cache(mysqli $conn, int $uid, string $username, string $role): void {
+        enformasys_refresh_ay_cache($conn);
+
+        $profile = [
+            'id' => $uid,
+            'username' => $username,
+            'role' => $role,
+            'label' => get_header_user_label(),
+            'seminarian_id' => 0,
+            'avatar_url' => null,
+        ];
+
+        if ($role === 'Student' && $uid > 0) {
+            $stmt = @$conn->prepare("SELECT id, profile_picture FROM seminarians WHERE user_id = ? LIMIT 1");
+            if ($stmt) {
+                $stmt->bind_param('i', $uid);
+                if ($stmt->execute()) {
+                    $row = $stmt->get_result()->fetch_assoc();
+                    if ($row) {
+                        $profile['seminarian_id'] = (int)($row['id'] ?? 0);
+                        $_SESSION['seminarian_id'] = $profile['seminarian_id'];
+                        if (!function_exists('get_seminarian_avatar_url')) {
+                            @require_once __DIR__ . '/seminarian_profile_helper.php';
+                        }
+                        if (function_exists('get_seminarian_avatar_url')) {
+                            $profile['avatar_url'] = get_seminarian_avatar_url($row['profile_picture'] ?? null);
+                        }
+                    }
+                }
+                $stmt->close();
+            }
+        }
+
+        $_SESSION['cached_user_profile'] = $profile;
+    }
 }
 
 function get_active_academic_year(): string {
@@ -134,15 +259,16 @@ function get_active_semester(): string {
 }
 
 function get_current_academic_year(): string {
+    $cacheTs = (int)($_SESSION['cached_ay_ts'] ?? 0);
+    if (!empty($_SESSION['cached_current_ay']) && $cacheTs > 0 && (time() - $cacheTs) < 300) {
+        return (string)$_SESSION['cached_current_ay'];
+    }
+
     global $conn;
     if (isset($conn) && $conn instanceof mysqli) {
-        $res = $conn->query("SELECT label FROM academic_years WHERE is_current = 1 AND archived_at IS NULL LIMIT 1");
-        if ($res) {
-            $row = $res->fetch_assoc();
-            $label = trim((string)($row['label'] ?? ''));
-            if ($label !== '') {
-                return $label;
-            }
+        enformasys_refresh_ay_cache($conn);
+        if (!empty($_SESSION['cached_current_ay'])) {
+            return (string)$_SESSION['cached_current_ay'];
         }
     }
 
@@ -153,48 +279,41 @@ function get_current_academic_year(): string {
 }
 
 function get_active_academic_years(): array {
+    $cacheTs = (int)($_SESSION['cached_ay_ts'] ?? 0);
+    if (!empty($_SESSION['cached_active_ays']) && is_array($_SESSION['cached_active_ays']) && $cacheTs > 0 && (time() - $cacheTs) < 300) {
+        return $_SESSION['cached_active_ays'];
+    }
+
     global $conn;
-    $years = [];
     if (isset($conn) && $conn instanceof mysqli) {
-        $res = $conn->query("SELECT label FROM academic_years WHERE archived_at IS NULL AND is_active = 1 ORDER BY start_year DESC, end_year DESC");
-        if ($res) {
-            while ($row = $res->fetch_assoc()) {
-                $v = trim((string)($row['label'] ?? ''));
-                if ($v !== '') {
-                    $years[] = $v;
-                }
-            }
+        enformasys_refresh_ay_cache($conn);
+        if (!empty($_SESSION['cached_active_ays']) && is_array($_SESSION['cached_active_ays'])) {
+            return $_SESSION['cached_active_ays'];
         }
     }
-    if (count($years) === 0) {
-        $years[] = get_current_academic_year();
-    }
-    return $years;
+    return [get_current_academic_year()];
 }
 
 function get_all_academic_years(bool $include_archived = true): array {
+    $key = $include_archived ? 'all' : 'active_only';
+    $cacheTs = (int)($_SESSION['cached_ay_ts'] ?? 0);
+    if (
+        !empty($_SESSION['cached_all_ays'][$key])
+        && is_array($_SESSION['cached_all_ays'][$key])
+        && $cacheTs > 0
+        && (time() - $cacheTs) < 300
+    ) {
+        return $_SESSION['cached_all_ays'][$key];
+    }
+
     global $conn;
-    $years = [];
     if (isset($conn) && $conn instanceof mysqli) {
-        $sql = "SELECT label FROM academic_years";
-        if (!$include_archived) {
-            $sql .= " WHERE archived_at IS NULL";
-        }
-        $sql .= " ORDER BY start_year DESC, end_year DESC";
-        $res = $conn->query($sql);
-        if ($res) {
-            while ($row = $res->fetch_assoc()) {
-                $v = trim((string)($row['label'] ?? ''));
-                if ($v !== '') {
-                    $years[] = $v;
-                }
-            }
+        enformasys_refresh_ay_cache($conn);
+        if (!empty($_SESSION['cached_all_ays'][$key]) && is_array($_SESSION['cached_all_ays'][$key])) {
+            return $_SESSION['cached_all_ays'][$key];
         }
     }
-    if (count($years) === 0) {
-        $years[] = get_current_academic_year();
-    }
-    return $years;
+    return [get_current_academic_year()];
 }
 
 if (!function_exists('capstone_format_units')) {
