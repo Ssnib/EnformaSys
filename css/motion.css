@@ -1,0 +1,83 @@
+@keyframes capstone-fade-up {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes capstone-fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * { animation: none !important; transition-duration: 0.01ms !important; scroll-behavior: auto !important; }
+}
+
+/* Note: Avoid persistent animation-fill-mode/opacity/transform on body or <main>,
+   as CSS animations with fill-mode/opacity create stacking contexts that trap fixed modals. */
+body {
+  animation: none;
+}
+
+.capstone-animate-in {
+  animation: none;
+}
+
+.card,
+.table-container,
+.stats-grid > div,
+.stat-card {
+  animation: capstone-fade-up 420ms cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+.stat-card {
+  transition: transform 160ms ease, box-shadow 160ms ease, background-color 160ms ease;
+  will-change: transform;
+}
+
+.stat-card:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 18px 40px -22px rgba(2, 6, 23, 0.45);
+}
+
+.stat-card:active {
+  transform: translateY(-1px);
+}
+
+.card {
+  will-change: transform;
+}
+
+.card:hover {
+  transform: translateY(-2px);
+}
+
+#sidebar nav a i {
+  transition: transform 160ms ease;
+}
+
+#sidebar nav a:hover i {
+  transform: translateX(1px);
+}
+
+button,
+.btn,
+input,
+select,
+textarea,
+a {
+  transition: transform 140ms ease, box-shadow 140ms ease, background-color 140ms ease, color 140ms ease, border-color 140ms ease, opacity 140ms ease;
+}
+
+button:hover,
+.btn:hover {
+  transform: translateY(-1px);
+}
+
+button:active,
+.btn:active {
+  transform: translateY(0);
+}
+
+tbody tr {
+  transition: background-color 140ms ease;
+}

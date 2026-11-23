@@ -1,0 +1,38 @@
+# Environment & Secrets
+.env
+.env.*
+!.env.example
+
+# Dependencies
+node_modules/
+vendor/
+
+# Runtime Sessions & Logs
+sessions/*
+!sessions/.gitkeep
+*.log
+error_log
+php_errors.log
+
+# Database Backups & Dumps
+backups/*.json
+backups/*.sql
+backups/*.zip
+!backups/.gitkeep
+
+# Uploaded User Content
+uploads/documents/*
+!uploads/documents/index.html
+uploads/profile_pictures/*
+!uploads/profile_pictures/index.html
+
+# Local Scratch, Temp & OS / IDE Files
+scratch/
+tmp/
+.DS_Store
+Thumbs.db
+desktop.ini
+.vscode/
+.idea/
+*.swp
+*.swo
