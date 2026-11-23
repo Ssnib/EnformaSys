@@ -584,11 +584,14 @@ if ($is_student) {
     <title><?php echo htmlspecialchars($pageTitle === $appName ? $appName : ($pageTitle . ' - ' . $appName)); ?></title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link rel="preconnect" href="https://cdn.tailwindcss.com" crossorigin>
+    <link rel="preconnect" href="https://cdnjs.cloudflare.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Plus+Jakarta+Sans:wght@500;600;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="<?php echo htmlspecialchars(capstone_url('css/style.css')); ?>?v=<?php echo (int)@filemtime(__DIR__ . '/../css/style.css'); ?>">
     <link rel="stylesheet" href="<?php echo htmlspecialchars(capstone_url('css/motion.css')); ?>?v=<?php echo (int)@filemtime(__DIR__ . '/../css/motion.css'); ?>">
     <link rel="stylesheet" href="<?php echo htmlspecialchars(capstone_url('css/floating_theme.css')); ?>?v=<?php echo (int)@filemtime(__DIR__ . '/../css/floating_theme.css'); ?>">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" media="print" onload="this.media='all'">
+    <noscript><link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"></noscript>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         /* Sidebar Collapsible Accordion Dropdowns */

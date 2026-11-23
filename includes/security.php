@@ -125,10 +125,109 @@ if (!function_exists('enformasys_apply_security_headers')) {
     }
 }
 
+if (!function_exists('enformasys_get_db')) {
+    /**
+     * Returns a single shared persistent mysqli connection per request,
+     * eliminating duplicate cross-region TCP/TLS handshakes between the
+     * session handler and application queries.
+     */
+    function enformasys_get_db(bool $dieOnError = false): ?mysqli
+    {
+        static $sharedConn = null;
+        static $lastConnectError = '';
+
+        if ($sharedConn instanceof mysqli) {
+            return $sharedConn;
+        }
+
+        if (!isset($GLOBALS['ENFORMASYS_TIMINGS']) || !is_array($GLOBALS['ENFORMASYS_TIMINGS'])) {
+            $GLOBALS['ENFORMASYS_TIMINGS'] = ['session_ms' => 0.0, 'db_connect_ms' => 0.0];
+        }
+
+        $isProd = enformasys_is_production();
+        $isVercel = (enformasys_env('VERCEL', '') !== '' || enformasys_env('VERCEL_ENV', '') !== '');
+        $usePersistent = $isVercel || strtolower(trim((string)enformasys_env('DB_PERSISTENT', 'false'))) === 'true';
+
+        $servername = (string)enformasys_env('DB_HOST', $isProd ? '' : '127.0.0.1');
+        $port = (int)enformasys_env('DB_PORT', '3306');
+        $username = (string)enformasys_env('DB_USER', $isProd ? '' : 'root');
+        $password = (string)enformasys_env('DB_PASS', enformasys_env('DB_PASSWORD', ''));
+        $dbname = (string)enformasys_env('DB_NAME', $isProd ? '' : 'seminary_db');
+
+        if ($servername === '' || $username === '' || $dbname === '') {
+            error_log('EnformaSys DB configuration incomplete: DB_HOST, DB_USER, or DB_NAME missing.');
+            if ($dieOnError) {
+                http_response_code(500);
+                die('Service temporarily unavailable.');
+            }
+            return null;
+        }
+
+        $sslRaw = strtolower(trim((string)enformasys_env('DB_SSL', 'false')));
+        $sslEnabled = in_array($sslRaw, ['1', 'true', 'yes', 'on', 'required'], true);
+        $caRaw = trim((string)enformasys_env('DB_SSL_CA', ''));
+        $caPath = null;
+        if ($caRaw !== '') {
+            $isAbs = (preg_match('/^([A-Za-z]:[\\\\\\/]|\\/)/', $caRaw) === 1);
+            $cand = $isAbs
+                ? $caRaw
+                : (dirname(__DIR__) . DIRECTORY_SEPARATOR . ltrim(str_replace(['/', '\\'], DIRECTORY_SEPARATOR, $caRaw), DIRECTORY_SEPARATOR));
+            if (is_file($cand)) {
+                $caPath = $cand;
+            } elseif ($sslEnabled) {
+                error_log('EnformaSys DB SSL CA file not found: ' . $cand);
+                if ($dieOnError) {
+                    http_response_code(500);
+                    die($isProd ? 'Service temporarily unavailable.' : ('SSL CA file not found: ' . htmlspecialchars($cand, ENT_QUOTES, 'UTF-8')));
+                }
+                return null;
+            }
+        }
+
+        $connectHost = ($usePersistent && stripos($servername, 'p:') !== 0)
+            ? ('p:' . $servername)
+            : $servername;
+
+        $t0 = microtime(true);
+        try {
+            $c = mysqli_init();
+            if (!$c) {
+                throw new RuntimeException('mysqli_init failed.');
+            }
+            $c->options(MYSQLI_OPT_CONNECT_TIMEOUT, 5);
+            $flags = 0;
+            if ($sslEnabled || $caPath !== null) {
+                $c->ssl_set(null, null, $caPath, null, null);
+                $flags = MYSQLI_CLIENT_SSL;
+                if ($caPath !== null && defined('MYSQLI_OPT_SSL_VERIFY_SERVER_CERT')) {
+                    $c->options(MYSQLI_OPT_SSL_VERIFY_SERVER_CERT, true);
+                }
+            }
+            $ok = @$c->real_connect($connectHost, $username, $password, $dbname, $port > 0 ? $port : 3306, null, $flags);
+            if (!$ok || $c->connect_error) {
+                throw new RuntimeException($c->connect_error ?: 'Database connection failed.');
+            }
+            $c->set_charset('utf8mb4');
+            $GLOBALS['ENFORMASYS_TIMINGS']['db_connect_ms'] += (microtime(true) - $t0) * 1000.0;
+            $sharedConn = $c;
+            return $sharedConn;
+        } catch (Throwable $e) {
+            $GLOBALS['ENFORMASYS_TIMINGS']['db_connect_ms'] += (microtime(true) - $t0) * 1000.0;
+            $lastConnectError = $e->getMessage();
+            error_log('EnformaSys DB connection error: ' . $lastConnectError);
+            if ($dieOnError) {
+                http_response_code(500);
+                die($isProd ? 'Service temporarily unavailable.' : ('Connection failed: ' . htmlspecialchars($lastConnectError, ENT_QUOTES, 'UTF-8')));
+            }
+            return null;
+        }
+    }
+}
+
 if (!class_exists('EnformasysDbSessionHandler')) {
     /**
      * Stateless-friendly MySQL SessionHandler for Vercel serverless containers,
-     * keeping sessions consistent across ephemeral Lambda instances.
+     * reusing the shared singleton connection so only one TLS handshake occurs.
      */
     class EnformasysDbSessionHandler implements SessionHandlerInterface
     {
@@ -161,57 +260,8 @@ if (!class_exists('EnformasysDbSessionHandler')) {
             if ($this->conn instanceof mysqli) {
                 return $this->conn;
             }
-            $host = (string)enformasys_env('DB_HOST', '');
-            $user = (string)enformasys_env('DB_USER', '');
-            $pass = (string)enformasys_env('DB_PASS', enformasys_env('DB_PASSWORD', ''));
-            $db   = (string)enformasys_env('DB_NAME', '');
-            $port = (int)enformasys_env('DB_PORT', '3306');
-            if ($host === '' || $user === '' || $db === '') {
-                return null;
-            }
-
-            $isVercel = (enformasys_env('VERCEL', '') !== '' || enformasys_env('VERCEL_ENV', '') !== '');
-            $usePersistent = $isVercel || strtolower(trim((string)enformasys_env('DB_PERSISTENT', 'false'))) === 'true';
-            $connectHost = ($usePersistent && stripos($host, 'p:') !== 0) ? ('p:' . $host) : $host;
-
-            $sslRaw = strtolower(trim((string)enformasys_env('DB_SSL', 'false')));
-            $sslEnabled = in_array($sslRaw, ['1', 'true', 'yes', 'on', 'required'], true);
-            $caRaw = trim((string)enformasys_env('DB_SSL_CA', ''));
-            $caPath = null;
-            if ($caRaw !== '') {
-                $isAbs = (preg_match('/^([A-Za-z]:[\\\\\\/]|\\/)/', $caRaw) === 1);
-                $cand = $isAbs
-                    ? $caRaw
-                    : (dirname(__DIR__) . DIRECTORY_SEPARATOR . ltrim(str_replace(['/', '\\'], DIRECTORY_SEPARATOR, $caRaw), DIRECTORY_SEPARATOR));
-                if (is_file($cand)) {
-                    $caPath = $cand;
-                }
-            }
-
-            try {
-                $c = mysqli_init();
-                if (!$c) {
-                    return null;
-                }
-                $c->options(MYSQLI_OPT_CONNECT_TIMEOUT, 5);
-                $flags = 0;
-                if ($sslEnabled || $caPath !== null) {
-                    $c->ssl_set(null, null, $caPath, null, null);
-                    $flags = MYSQLI_CLIENT_SSL;
-                    if ($caPath !== null && defined('MYSQLI_OPT_SSL_VERIFY_SERVER_CERT')) {
-                        $c->options(MYSQLI_OPT_SSL_VERIFY_SERVER_CERT, true);
-                    }
-                }
-                if (!@$c->real_connect($connectHost, $user, $pass, $db, $port > 0 ? $port : 3306, null, $flags)) {
-                    return null;
-                }
-                $c->set_charset('utf8mb4');
-                $this->conn = $c;
-                return $this->conn;
-            } catch (Throwable $e) {
-                error_log('EnformasysDbSessionHandler connect failed: ' . $e->getMessage());
-                return null;
-            }
+            $this->conn = enformasys_get_db(false);
+            return $this->conn;
         }
 
         public function open(string $path, string $name): bool
@@ -221,10 +271,8 @@ if (!class_exists('EnformasysDbSessionHandler')) {
 
         public function close(): bool
         {
-            if ($this->conn instanceof mysqli) {
-                @$this->conn->close();
-                $this->conn = null;
-            }
+            // Never close the shared singleton connection here; PHP/pages reuse it until request end.
+            $this->conn = null;
             return true;
         }
 

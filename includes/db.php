@@ -1,74 +1,14 @@
 <?php
 require_once __DIR__ . '/env.php';
+require_once __DIR__ . '/security.php';
 
 $is_prod_db = enformasys_is_production();
 $is_vercel_db = (enformasys_env('VERCEL', '') !== '' || enformasys_env('VERCEL_ENV', '') !== '');
-$use_persistent_db = $is_vercel_db || strtolower(trim((string)enformasys_env('DB_PERSISTENT', 'false'))) === 'true';
-
-$servername = (string)enformasys_env('DB_HOST', $is_prod_db ? '' : '127.0.0.1');
-$port = (int)enformasys_env('DB_PORT', '3306');
-$username = (string)enformasys_env('DB_USER', $is_prod_db ? '' : 'root');
-$password = (string)enformasys_env('DB_PASS', enformasys_env('DB_PASSWORD', ''));
-$dbname = (string)enformasys_env('DB_NAME', $is_prod_db ? '' : 'seminary_db');
-
-$db_ssl_raw = strtolower(trim((string)enformasys_env('DB_SSL', 'false')));
-$db_ssl_enabled = in_array($db_ssl_raw, ['1', 'true', 'yes', 'on', 'required'], true);
-$db_ssl_ca_raw = trim((string)enformasys_env('DB_SSL_CA', ''));
-$db_ssl_ca = null;
-if ($db_ssl_ca_raw !== '') {
-    $is_abs = (preg_match('/^([A-Za-z]:[\\\\\\/]|\\/)/', $db_ssl_ca_raw) === 1);
-    $candidate = $is_abs
-        ? $db_ssl_ca_raw
-        : (dirname(__DIR__) . DIRECTORY_SEPARATOR . ltrim(str_replace(['/', '\\'], DIRECTORY_SEPARATOR, $db_ssl_ca_raw), DIRECTORY_SEPARATOR));
-    if (is_file($candidate)) {
-        $db_ssl_ca = $candidate;
-    } elseif ($db_ssl_enabled) {
-        error_log('EnformaSys DB SSL CA file not found: ' . $candidate);
-        http_response_code(500);
-        die($is_prod_db ? 'Service temporarily unavailable.' : ('SSL CA file not found: ' . htmlspecialchars($candidate, ENT_QUOTES, 'UTF-8')));
-    }
-}
-
-if ($servername === '' || $username === '' || $dbname === '') {
-    error_log('EnformaSys DB configuration incomplete: DB_HOST, DB_USER, or DB_NAME missing.');
+$conn = enformasys_get_db(true);
+if (!($conn instanceof mysqli)) {
     http_response_code(500);
     die('Service temporarily unavailable.');
 }
-
-$connect_host = ($use_persistent_db && stripos($servername, 'p:') !== 0)
-    ? ('p:' . $servername)
-    : $servername;
-
-try {
-    $conn = mysqli_init();
-    if (!$conn) {
-        throw new RuntimeException('mysqli_init failed.');
-    }
-    $conn->options(MYSQLI_OPT_CONNECT_TIMEOUT, 5);
-    $connect_flags = 0;
-    if ($db_ssl_enabled || $db_ssl_ca !== null) {
-        $conn->ssl_set(null, null, $db_ssl_ca, null, null);
-        $connect_flags = MYSQLI_CLIENT_SSL;
-        if ($db_ssl_ca !== null && defined('MYSQLI_OPT_SSL_VERIFY_SERVER_CERT')) {
-            $conn->options(MYSQLI_OPT_SSL_VERIFY_SERVER_CERT, true);
-        }
-    }
-    $connected = @$conn->real_connect($connect_host, $username, $password, $dbname, $port > 0 ? $port : 3306, null, $connect_flags);
-    if (!$connected) {
-        throw new RuntimeException($conn->connect_error ?: 'Database connection failed.');
-    }
-} catch (Throwable $e) {
-    error_log('EnformaSys DB connection error: ' . $e->getMessage());
-    http_response_code(500);
-    die($is_prod_db ? 'Service temporarily unavailable.' : ('Connection failed: ' . htmlspecialchars($e->getMessage(), ENT_QUOTES, 'UTF-8')));
-}
-
-if ($conn->connect_error) {
-    error_log('EnformaSys DB connect_error: ' . $conn->connect_error);
-    http_response_code(500);
-    die($is_prod_db ? 'Service temporarily unavailable.' : ('Connection failed: ' . htmlspecialchars($conn->connect_error, ENT_QUOTES, 'UTF-8')));
-}
-$conn->set_charset("utf8mb4");
 
 require_once __DIR__ . '/seminarian_assignments.php';
 

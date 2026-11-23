@@ -8,8 +8,12 @@ $role = (string)($_SESSION['role'] ?? '');
 $is_registrar = ($role === 'Registrar');
 $actor_id = (int)($_SESSION['user'] ?? 0);
 
-// Ensure decoupled tables are synced
-registrar_sync_and_migrate($conn, false);
+// Sync decoupled tables only in local/non-serverless mode
+$__sp_skip_sync = function_exists('enformasys_env')
+    && (enformasys_is_production() || enformasys_env('VERCEL', '') !== '' || enformasys_env('VERCEL_ENV', '') !== '');
+if (!$__sp_skip_sync) {
+    registrar_sync_and_migrate($conn, false);
+}
 
 $success = null;
 $error = null;
@@ -259,30 +263,20 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['update_static_profile
     }
 }
 
-// Filters
+// Filters & Pagination
 $search = trim((string)($_GET['q'] ?? ''));
 $filter_program = trim((string)($_GET['program'] ?? ''));
 $filter_status = trim((string)($_GET['status'] ?? ''));
+$page = max(1, (int)($_GET['page'] ?? 1));
+$per_page = 25;
+$offset = ($page - 1) * $per_page;
 
-// Fetch all static student profiles + count of historical terms on file
-$sql = "SELECT
-            s.*,
-            u.username AS linked_username,
-            v.current_academic_year,
-            v.current_semester,
-            v.year_level AS latest_year_level,
-            v.enrollment_status AS latest_enrollment_status,
-            (SELECT COUNT(*) FROM enrollments e WHERE e.student_id = s.id) AS total_terms_count
-        FROM students s
-        LEFT JOIN users u ON u.id = s.user_id
-        LEFT JOIN v_student_current_status v ON v.student_id = s.id
-        WHERE 1=1";
-
+$whereSql = " WHERE 1=1";
 $params = [];
 $types = '';
 
 if ($search !== '') {
-    $sql .= " AND (s.full_name LIKE ? OR s.student_no LIKE ? OR s.email LIKE ? OR s.contact_number LIKE ?)";
+    $whereSql .= " AND (s.full_name LIKE ? OR s.student_no LIKE ? OR s.email LIKE ? OR s.contact_number LIKE ?)";
     $like = '%' . $search . '%';
     $params[] = $like;
     $params[] = $like;
@@ -292,45 +286,97 @@ if ($search !== '') {
 }
 
 if ($filter_program !== '') {
-    $sql .= " AND s.default_program = ?";
+    $whereSql .= " AND s.default_program = ?";
     $params[] = $filter_program;
     $types .= 's';
 }
 
 if ($filter_status !== '') {
     if ($filter_status === 'Graduated') {
-        $sql .= " AND (s.is_graduate = 1 OR LOWER(TRIM(COALESCE(s.formation_status, ''))) IN ('graduated', 'graduate', 'completed', 'complete', 'alumni'))";
+        $whereSql .= " AND (s.is_graduate = 1 OR LOWER(TRIM(COALESCE(s.formation_status, ''))) IN ('graduated', 'graduate', 'completed', 'complete', 'alumni'))";
     } else {
-        $sql .= " AND s.formation_status = ? AND s.is_graduate = 0";
+        $whereSql .= " AND s.formation_status = ? AND s.is_graduate = 0";
         $params[] = $filter_status;
         $types .= 's';
     }
 }
 
-$sql .= " ORDER BY s.last_name ASC, s.first_name ASC";
+$total_filtered = 0;
+$stmtCount = $conn->prepare("SELECT COUNT(*) AS c FROM students s" . $whereSql);
+if ($stmtCount) {
+    if ($types !== '') {
+        $bindC = [&$types];
+        foreach ($params as $k => $v) {
+            $bindC[] = &$params[$k];
+        }
+        call_user_func_array([$stmtCount, 'bind_param'], $bindC);
+    }
+    $stmtCount->execute();
+    $total_filtered = (int)($stmtCount->get_result()->fetch_assoc()['c'] ?? 0);
+    $stmtCount->close();
+}
+$total_pages = max(1, (int)ceil($total_filtered / $per_page));
+if ($page > $total_pages) {
+    $page = $total_pages;
+    $offset = ($page - 1) * $per_page;
+}
+
+// Single JOIN query (avoids correlated subquery & view re-scan) with LIMIT/OFFSET pagination
+$sql = "SELECT
+            s.*,
+            u.username AS linked_username,
+            le.academic_year AS current_academic_year,
+            le.semester AS current_semester,
+            le.year_level AS latest_year_level,
+            le.enrollment_status AS latest_enrollment_status,
+            COALESCE(ec.total_terms_count, 0) AS total_terms_count
+        FROM students s
+        LEFT JOIN users u ON u.id = s.user_id
+        LEFT JOIN enrollments le ON le.id = (
+            SELECT e2.id FROM enrollments e2
+            WHERE e2.student_id = s.id
+            ORDER BY e2.academic_year DESC, FIELD(e2.semester, 'Summer', '2nd', '1st') ASC, e2.id DESC
+            LIMIT 1
+        )
+        LEFT JOIN (
+            SELECT student_id, COUNT(*) AS total_terms_count
+            FROM enrollments
+            GROUP BY student_id
+        ) ec ON ec.student_id = s.id"
+    . $whereSql
+    . " ORDER BY s.last_name ASC, s.first_name ASC LIMIT ? OFFSET ?";
 
 $students = [];
 $stmt = $conn->prepare($sql);
 if ($stmt) {
-    if ($types !== '') {
-        $bind = [&$types];
-        foreach ($params as $k => $v) {
-            $bind[] = &$params[$k];
-        }
-        call_user_func_array([$stmt, 'bind_param'], $bind);
+    $listParams = $params;
+    $listParams[] = $per_page;
+    $listParams[] = $offset;
+    $listTypes = $types . 'ii';
+    $bind = [&$listTypes];
+    foreach ($listParams as $k => $v) {
+        $bind[] = &$listParams[$k];
     }
+    call_user_func_array([$stmt, 'bind_param'], $bind);
     $stmt->execute();
     $res = $stmt->get_result();
     while ($row = $res->fetch_assoc()) {
         $students[] = $row;
     }
+    $stmt->close();
 }
 
-// Summary KPIs from `students`
-$kpi_total = (int)($conn->query("SELECT COUNT(*) AS c FROM students")->fetch_assoc()['c'] ?? 0);
-$kpi_active = (int)($conn->query("SELECT COUNT(*) AS c FROM students WHERE is_graduate = 0 AND formation_status = 'Active'")->fetch_assoc()['c'] ?? 0);
-$kpi_philo = (int)($conn->query("SELECT COUNT(*) AS c FROM students WHERE is_graduate = 0 AND default_program = 'Bachelor of Arts in Philosophy'")->fetch_assoc()['c'] ?? 0);
-$kpi_graduates = (int)($conn->query("SELECT COUNT(*) AS c FROM students WHERE is_graduate = 1")->fetch_assoc()['c'] ?? 0);
+// Single aggregate KPI query (replaces 4 separate round-trips)
+$kpi_row = $conn->query("SELECT
+    COUNT(*) AS kpi_total,
+    COALESCE(SUM(CASE WHEN is_graduate = 0 AND formation_status = 'Active' THEN 1 ELSE 0 END), 0) AS kpi_active,
+    COALESCE(SUM(CASE WHEN is_graduate = 0 AND default_program = 'Bachelor of Arts in Philosophy' THEN 1 ELSE 0 END), 0) AS kpi_philo,
+    COALESCE(SUM(CASE WHEN is_graduate = 1 THEN 1 ELSE 0 END), 0) AS kpi_graduates
+    FROM students")->fetch_assoc() ?: [];
+$kpi_total = (int)($kpi_row['kpi_total'] ?? 0);
+$kpi_active = (int)($kpi_row['kpi_active'] ?? 0);
+$kpi_philo = (int)($kpi_row['kpi_philo'] ?? 0);
+$kpi_graduates = (int)($kpi_row['kpi_graduates'] ?? 0);
 
 $pageTitle = 'Student Information (Static Profiles)';
 $activeNav = 'student_profiles';
@@ -433,7 +479,7 @@ require_once __DIR__ . '/../includes/layout_app_start.php';
                 <div class="text-xs font-extrabold uppercase tracking-wider text-[#59443F] flex items-center gap-2">
                     <span>Static Student Profiles</span>
                     <span class="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-bold bg-[#E8C7C5]/60 text-[#59443F]">
-                        <?php echo count($students); ?> Found
+                        <?php echo (int)$total_filtered; ?> Found
                     </span>
                 </div>
                 <div class="text-[11px] text-[#8B7168] mt-0.5">
@@ -628,6 +674,19 @@ require_once __DIR__ . '/../includes/layout_app_start.php';
                 </tbody>
             </table>
         </div>
+        <?php if ($total_pages > 1): ?>
+            <div class="px-6 py-3 border-t border-slate-100 bg-slate-50/50 flex items-center justify-between gap-3 text-xs">
+                <span class="text-slate-500 font-semibold">Page <?php echo (int)$page; ?> of <?php echo (int)$total_pages; ?></span>
+                <div class="flex items-center gap-2">
+                    <?php if ($page > 1): ?>
+                        <a href="?<?php echo htmlspecialchars(http_build_query(array_merge($_GET, ['page' => $page - 1])), ENT_QUOTES, 'UTF-8'); ?>" class="px-3 py-1.5 rounded-lg bg-white border border-slate-200 font-bold text-slate-700 hover:bg-slate-100 no-underline">Prev</a>
+                    <?php endif; ?>
+                    <?php if ($page < $total_pages): ?>
+                        <a href="?<?php echo htmlspecialchars(http_build_query(array_merge($_GET, ['page' => $page + 1])), ENT_QUOTES, 'UTF-8'); ?>" class="px-3 py-1.5 rounded-lg bg-white border border-slate-200 font-bold text-slate-700 hover:bg-slate-100 no-underline">Next</a>
+                    <?php endif; ?>
+                </div>
+            </div>
+        <?php endif; ?>
     </div>
 </div>
 

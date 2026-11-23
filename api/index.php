@@ -78,5 +78,32 @@ $_SERVER['PHP_SELF'] = $reqPath;
 $_SERVER['SCRIPT_NAME'] = $reqPath;
 $_SERVER['SCRIPT_FILENAME'] = $target;
 
+$__enformasys_req_start = microtime(true);
+$GLOBALS['ENFORMASYS_TIMINGS'] = [
+    'session_ms' => 0.0,
+    'db_connect_ms' => 0.0,
+    'req_start' => $__enformasys_req_start,
+];
+
+if (function_exists('header_register_callback')) {
+    header_register_callback(static function () use ($__enformasys_req_start): void {
+        if (headers_sent()) {
+            return;
+        }
+        $timings = $GLOBALS['ENFORMASYS_TIMINGS'] ?? [];
+        $sessionMs = (float)($timings['session_ms'] ?? 0.0);
+        $dbMs = (float)($timings['db_connect_ms'] ?? 0.0);
+        $totalMs = max(0.0, (microtime(true) - $__enformasys_req_start) * 1000.0);
+        $renderMs = max(0.0, $totalMs - $sessionMs - $dbMs);
+        header(sprintf(
+            'Server-Timing: session_start;dur=%.2f, db_connect;dur=%.2f, page_render;dur=%.2f, total;dur=%.2f',
+            $sessionMs,
+            $dbMs,
+            $renderMs,
+            $totalMs
+        ));
+    });
+}
+
 chdir(dirname($target));
 require $target;

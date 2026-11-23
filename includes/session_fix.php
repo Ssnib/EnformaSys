@@ -10,8 +10,16 @@ enformasys_apply_security_headers();
 $sessions_dir = __DIR__ . '/../sessions';
 enformasys_configure_session($sessions_dir);
 
+if (!isset($GLOBALS['ENFORMASYS_TIMINGS']) || !is_array($GLOBALS['ENFORMASYS_TIMINGS'])) {
+    $GLOBALS['ENFORMASYS_TIMINGS'] = ['session_ms' => 0.0, 'db_connect_ms' => 0.0];
+}
+
 if (session_status() === PHP_SESSION_NONE) {
+    $__tSess0 = microtime(true);
+    $__dbBefore = (float)($GLOBALS['ENFORMASYS_TIMINGS']['db_connect_ms'] ?? 0.0);
     session_start();
+    $__dbDuringSess = max(0.0, (float)($GLOBALS['ENFORMASYS_TIMINGS']['db_connect_ms'] ?? 0.0) - $__dbBefore);
+    $GLOBALS['ENFORMASYS_TIMINGS']['session_ms'] += max(0.0, ((microtime(true) - $__tSess0) * 1000.0) - $__dbDuringSess);
 }
 
 // Enforce idle session timeout when authenticated

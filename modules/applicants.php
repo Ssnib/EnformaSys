@@ -23,23 +23,30 @@ if (!in_array($current_ay, $ay_options, true)) {
 
 $enroll_students = [];
 $res_enroll_students = $conn->query(
-    "SELECT s.id as seminarian_id, u.username, COALESCE(up.full_name, u.username) as full_name, s.program, s.year_level, s.academic_status\n"
-    . "FROM seminarians s\n"
-    . "JOIN users u ON u.id = s.user_id\n"
-    . "LEFT JOIN user_profiles up ON up.user_id = u.id\n"
-    . "ORDER BY full_name ASC"
+    "SELECT s.id AS seminarian_id, u.username, COALESCE(up.full_name, u.username) AS full_name,
+            s.program, s.year_level, s.academic_status,
+            le.year_level AS last_enr_year_level, le.academic_year AS last_enr_ay, le.semester AS last_enr_sem
+     FROM seminarians s
+     JOIN users u ON u.id = s.user_id
+     LEFT JOIN user_profiles up ON up.user_id = u.id
+     LEFT JOIN enrollments le ON le.id = (
+         SELECT e2.id FROM enrollments e2
+         WHERE e2.student_id = s.id
+         ORDER BY e2.academic_year DESC, FIELD(e2.semester, 'Summer', '2nd', '1st') ASC, e2.id DESC
+         LIMIT 1
+     )
+     ORDER BY full_name ASC
+     LIMIT 500"
 );
 if ($res_enroll_students) {
     while ($r = $res_enroll_students->fetch_assoc()) {
-        $sid = (int)($r['seminarian_id'] ?? 0);
-        $last_rec = get_student_last_enrollment_record($sid);
-        $last_yl = !empty($last_rec['year_level']) ? $last_rec['year_level'] : (string)($r['year_level'] ?? '');
+        $last_yl = !empty($r['last_enr_year_level']) ? (string)$r['last_enr_year_level'] : (string)($r['year_level'] ?? '');
         $norm_last_yl = normalize_year_level($last_yl);
         $next_yl = get_next_year_level($norm_last_yl);
 
         $r['last_year_level'] = $norm_last_yl;
-        $r['last_academic_year'] = $last_rec['academic_year'] ?? '';
-        $r['last_semester'] = $last_rec['semester'] ?? '';
+        $r['last_academic_year'] = (string)($r['last_enr_ay'] ?? '');
+        $r['last_semester'] = (string)($r['last_enr_sem'] ?? '');
         $r['next_year_level'] = $next_yl;
         $r['next_year_level_display'] = get_year_level_display($next_yl);
         $r['last_year_level_display'] = get_year_level_display($norm_last_yl);
