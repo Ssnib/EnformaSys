@@ -1,5 +1,16 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
+  "functions": {
+    "api/index.php": {
+      "runtime": "vercel-php@0.7.4"
+    }
+  },
+  "rewrites": [
+    {
+      "source": "/((?!assets/|css/|uploads/).*)",
+      "destination": "/api/index.php"
+    }
+  ],
   "headers": [
     {
       "source": "/(.*)",

@@ -1,0 +1,15 @@
+# Exclude local secrets, backups, runtime temp directories, and dev scratch from Vercel bundles
+.env
+.env.local
+.env.*.local
+.git/
+backups/*.sql
+backups/*.json
+backups/*.zip
+sessions/*
+!sessions/.gitkeep
+scratch/
+tmp/
+*.log
+error_log
+php_errors.log

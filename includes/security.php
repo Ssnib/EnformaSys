@@ -125,22 +125,213 @@ if (!function_exists('enformasys_apply_security_headers')) {
     }
 }
 
+if (!class_exists('EnformasysDbSessionHandler')) {
+    /**
+     * Stateless-friendly MySQL SessionHandler for Vercel serverless containers,
+     * keeping sessions consistent across ephemeral Lambda instances.
+     */
+    class EnformasysDbSessionHandler implements SessionHandlerInterface
+    {
+        private ?mysqli $conn = null;
+        private int $lifetime = 3600;
+
+        public function __construct(int $lifetime = 3600)
+        {
+            $this->lifetime = max(300, $lifetime);
+        }
+
+        private function connect(): ?mysqli
+        {
+            if ($this->conn instanceof mysqli) {
+                return $this->conn;
+            }
+            $host = (string)enformasys_env('DB_HOST', '');
+            $user = (string)enformasys_env('DB_USER', '');
+            $pass = (string)enformasys_env('DB_PASS', enformasys_env('DB_PASSWORD', ''));
+            $db   = (string)enformasys_env('DB_NAME', '');
+            $port = (int)enformasys_env('DB_PORT', '3306');
+            if ($host === '' || $user === '' || $db === '') {
+                return null;
+            }
+
+            $sslRaw = strtolower(trim((string)enformasys_env('DB_SSL', 'false')));
+            $sslEnabled = in_array($sslRaw, ['1', 'true', 'yes', 'on', 'required'], true);
+            $caRaw = trim((string)enformasys_env('DB_SSL_CA', ''));
+            $caPath = null;
+            if ($caRaw !== '') {
+                $isAbs = (preg_match('/^([A-Za-z]:[\\\\\\/]|\\/)/', $caRaw) === 1);
+                $cand = $isAbs
+                    ? $caRaw
+                    : (dirname(__DIR__) . DIRECTORY_SEPARATOR . ltrim(str_replace(['/', '\\'], DIRECTORY_SEPARATOR, $caRaw), DIRECTORY_SEPARATOR));
+                if (is_file($cand)) {
+                    $caPath = $cand;
+                }
+            }
+
+            try {
+                $c = mysqli_init();
+                if (!$c) {
+                    return null;
+                }
+                $c->options(MYSQLI_OPT_CONNECT_TIMEOUT, 10);
+                $flags = 0;
+                if ($sslEnabled || $caPath !== null) {
+                    $c->ssl_set(null, null, $caPath, null, null);
+                    $flags = MYSQLI_CLIENT_SSL;
+                    if ($caPath !== null && defined('MYSQLI_OPT_SSL_VERIFY_SERVER_CERT')) {
+                        $c->options(MYSQLI_OPT_SSL_VERIFY_SERVER_CERT, true);
+                    }
+                }
+                if (!@$c->real_connect($host, $user, $pass, $db, $port > 0 ? $port : 3306, null, $flags)) {
+                    return null;
+                }
+                $c->set_charset('utf8mb4');
+                @$c->query(
+                    "CREATE TABLE IF NOT EXISTS `php_sessions` (
+                        `id` VARCHAR(128) NOT NULL,
+                        `data` MEDIUMTEXT NOT NULL,
+                        `last_accessed` INT UNSIGNED NOT NULL,
+                        PRIMARY KEY (`id`),
+                        KEY `idx_php_sessions_last_accessed` (`last_accessed`)
+                    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4"
+                );
+                $this->conn = $c;
+                return $this->conn;
+            } catch (Throwable $e) {
+                error_log('EnformasysDbSessionHandler connect failed: ' . $e->getMessage());
+                return null;
+            }
+        }
+
+        public function open(string $path, string $name): bool
+        {
+            return true;
+        }
+
+        public function close(): bool
+        {
+            if ($this->conn instanceof mysqli) {
+                @$this->conn->close();
+                $this->conn = null;
+            }
+            return true;
+        }
+
+        public function read(string $id): string|false
+        {
+            $c = $this->connect();
+            if (!$c) {
+                return '';
+            }
+            $cutoff = time() - $this->lifetime;
+            $stmt = @$c->prepare("SELECT data, last_accessed FROM php_sessions WHERE id = ? LIMIT 1");
+            if (!$stmt) {
+                return '';
+            }
+            $stmt->bind_param('s', $id);
+            if (!$stmt->execute()) {
+                $stmt->close();
+                return '';
+            }
+            $row = $stmt->get_result()->fetch_assoc();
+            $stmt->close();
+            if (!$row || (int)$row['last_accessed'] < $cutoff) {
+                return '';
+            }
+            return (string)$row['data'];
+        }
+
+        public function write(string $id, string $data): bool
+        {
+            $c = $this->connect();
+            if (!$c) {
+                return false;
+            }
+            $now = time();
+            $stmt = @$c->prepare(
+                "INSERT INTO php_sessions (id, data, last_accessed) VALUES (?, ?, ?)
+                 ON DUPLICATE KEY UPDATE data = VALUES(data), last_accessed = VALUES(last_accessed)"
+            );
+            if (!$stmt) {
+                return false;
+            }
+            $stmt->bind_param('ssi', $id, $data, $now);
+            $ok = $stmt->execute();
+            $stmt->close();
+            return (bool)$ok;
+        }
+
+        public function destroy(string $id): bool
+        {
+            $c = $this->connect();
+            if (!$c) {
+                return true;
+            }
+            $stmt = @$c->prepare("DELETE FROM php_sessions WHERE id = ?");
+            if ($stmt) {
+                $stmt->bind_param('s', $id);
+                @$stmt->execute();
+                $stmt->close();
+            }
+            return true;
+        }
+
+        public function gc(int $max_lifetime): int|false
+        {
+            $c = $this->connect();
+            if (!$c) {
+                return 0;
+            }
+            $cutoff = time() - max($max_lifetime, $this->lifetime);
+            $stmt = @$c->prepare("DELETE FROM php_sessions WHERE last_accessed < ?");
+            if (!$stmt) {
+                return 0;
+            }
+            $stmt->bind_param('i', $cutoff);
+            @$stmt->execute();
+            $deleted = max(0, (int)$stmt->affected_rows);
+            $stmt->close();
+            return $deleted;
+        }
+    }
+}
+
 if (!function_exists('enformasys_configure_session')) {
     function enformasys_configure_session(string $sessionsDir): void
     {
         if (session_status() !== PHP_SESSION_NONE) {
             return;
         }
-        if (!is_dir($sessionsDir)) {
-            @mkdir($sessionsDir, 0750, true);
+
+        $isVercel = (enformasys_env('VERCEL', '') !== '' || enformasys_env('VERCEL_ENV', '') !== '');
+        $tmpSessionsDir = rtrim(sys_get_temp_dir(), '/\\') . DIRECTORY_SEPARATOR . 'enformasys_sessions';
+
+        // On Vercel or read-only deployments, never try writing sessions into the bundle directory; use /tmp
+        $targetDir = $sessionsDir;
+        if ($isVercel) {
+            $targetDir = $tmpSessionsDir;
+        } else {
+            if (!is_dir($targetDir)) {
+                @mkdir($targetDir, 0750, true);
+            }
+            if (!is_dir($targetDir) || !is_writable($targetDir)) {
+                $targetDir = $tmpSessionsDir;
+            }
         }
-        @session_save_path($sessionsDir);
+        if (!is_dir($targetDir)) {
+            @mkdir($targetDir, 0700, true);
+        }
+        if (is_dir($targetDir) && is_writable($targetDir)) {
+            @session_save_path($targetDir);
+        } else {
+            @session_save_path(sys_get_temp_dir());
+        }
 
         @ini_set('session.use_strict_mode', '1');
         @ini_set('session.use_only_cookies', '1');
         @ini_set('session.cookie_httponly', '1');
 
-        $isSecure = enformasys_is_https_request() || enformasys_is_production();
+        $isSecure = enformasys_is_https_request() || enformasys_is_production() || $isVercel;
         @ini_set('session.cookie_secure', $isSecure ? '1' : '0');
 
         @session_set_cookie_params([
@@ -151,6 +342,14 @@ if (!function_exists('enformasys_configure_session')) {
             'httponly' => true,
             'samesite' => 'Strict',
         ]);
+
+        // Use MySQL-backed sessions on Vercel (or SESSION_DRIVER=database) so sessions persist across Lambdas
+        $sessionDriver = strtolower(trim((string)enformasys_env('SESSION_DRIVER', $isVercel ? 'database' : 'files')));
+        if (PHP_SAPI !== 'cli' && $sessionDriver === 'database' && enformasys_env('DB_HOST', '') !== '') {
+            $lifetime = max(300, (int)enformasys_env('SESSION_LIFETIME', '3600'));
+            @ini_set('session.gc_maxlifetime', (string)$lifetime);
+            @session_set_save_handler(new EnformasysDbSessionHandler($lifetime), true);
+        }
     }
 }
 
