@@ -2957,19 +2957,36 @@ function eval_report_access_config_for_role(?string $role): ?array
  * Fetches seminarians along with the current formator role's report access flag,
  * optionally filtered by canonical Year Level option.
  */
-function eval_fetch_report_access_students(mysqli $conn, string $role, string $year_level_filter = ''): array
-{
+function eval_fetch_report_access_students(
+    mysqli $conn,
+    string $role,
+    string $year_level_filter = '',
+    string $academic_year = '',
+    string $semester = ''
+): array {
     $cfg = eval_report_access_config_for_role($role);
     if (!$cfg) {
         return [];
     }
 
-    $col = $cfg['view_col']; // Safe allowlisted column from eval_report_access_config_for_role()
+    require_once __DIR__ . '/access_requests.php';
+    $authTerm = eval_get_authoritative_active_term($conn);
+    $termAy = trim($academic_year) !== '' ? trim($academic_year) : $authTerm['academic_year'];
+    $termSem = capstone_access_normalize_semester($semester);
+    if (!in_array($termSem, ['1st', '2nd', 'Summer'], true)) {
+        $termSem = capstone_access_normalize_semester($authTerm['semester']);
+        if (!in_array($termSem, ['1st', '2nd', 'Summer'], true)) {
+            $termSem = '1st';
+        }
+    }
+
+    $col = $cfg['view_col'];
+    $accessMap = capstone_access_get_term_eval_access_map($conn, (string)$cfg['assignment_type'], $termAy, $termSem);
     $year_level_filter = eval_normalize_year_level_option($year_level_filter);
     $yl_aliases = eval_year_level_sql_aliases($year_level_filter);
 
     $students = [];
-    $sql = "SELECT s.id, s.year_level, s.{$col}, u.username, up.full_name
+    $sql = "SELECT s.id, s.year_level, u.username, up.full_name
         FROM seminarians s
         JOIN users u ON u.id = s.user_id
         LEFT JOIN user_profiles up ON up.user_id = u.id
@@ -2984,6 +3001,10 @@ function eval_fetch_report_access_students(mysqli $conn, string $role, string $y
             $res = $stmt->get_result();
             if ($res) {
                 while ($row = $res->fetch_assoc()) {
+                    $sid = (int)($row['id'] ?? 0);
+                    $row[$col] = !empty($accessMap[$sid]) ? 1 : 0;
+                    $row['access_academic_year'] = $termAy;
+                    $row['access_semester'] = $termSem;
                     $students[] = $row;
                 }
             }
@@ -2994,6 +3015,10 @@ function eval_fetch_report_access_students(mysqli $conn, string $role, string $y
         $res = $conn->query($sql);
         if ($res) {
             while ($row = $res->fetch_assoc()) {
+                $sid = (int)($row['id'] ?? 0);
+                $row[$col] = !empty($accessMap[$sid]) ? 1 : 0;
+                $row['access_academic_year'] = $termAy;
+                $row['access_semester'] = $termSem;
                 $students[] = $row;
             }
         }
@@ -3004,8 +3029,14 @@ function eval_fetch_report_access_students(mysqli $conn, string $role, string $y
 /**
  * Render table body rows for Seminarian Report Access.
  */
-function eval_render_report_access_rows(array $students, string $view_col, string $csrf, string $year_level_filter = ''): string
-{
+function eval_render_report_access_rows(
+    array $students,
+    string $view_col,
+    string $csrf,
+    string $year_level_filter = '',
+    string $academic_year = '',
+    string $semester = ''
+): string {
     ob_start();
     if (count($students) === 0) { ?>
         <tr>
@@ -3025,6 +3056,8 @@ function eval_render_report_access_rows(array $students, string $view_col, strin
             $name = $full_name !== '' ? $full_name : $username;
             $initials = eval_initials($name);
             $enabled = (int)($s[$view_col] ?? 0) === 1;
+            $rowAy = $academic_year !== '' ? $academic_year : (string)($s['access_academic_year'] ?? '');
+            $rowSem = $semester !== '' ? $semester : (string)($s['access_semester'] ?? '');
         ?>
             <tr class="s-row transition-colors duration-150 hover:bg-pink-50/50"
                 data-seminarian-id="<?php echo $sid; ?>"
@@ -3049,19 +3082,26 @@ function eval_render_report_access_rows(array $students, string $view_col, strin
                     </div>
                 </td>
                 <td class="px-6 py-4 whitespace-nowrap">
-                    <?php if ($enabled) { ?>
-                        <span data-status-badge
-                              class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-green-100 text-green-700 border border-green-200/80">
-                            <span data-status-dot class="w-1.5 h-1.5 rounded-full bg-green-500"></span>
-                            <span data-status-text>Enabled</span>
-                        </span>
-                    <?php } else { ?>
-                        <span data-status-badge
-                              class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-gray-100 text-gray-500 border border-gray-200/80">
-                            <span data-status-dot class="w-1.5 h-1.5 rounded-full bg-gray-400"></span>
-                            <span data-status-text>Disabled</span>
-                        </span>
-                    <?php } ?>
+                    <div class="flex flex-wrap items-center gap-2">
+                        <?php if ($enabled) { ?>
+                            <span data-status-badge
+                                  class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-green-100 text-green-700 border border-green-200/80">
+                                <span data-status-dot class="w-1.5 h-1.5 rounded-full bg-green-500"></span>
+                                <span data-status-text>Enabled</span>
+                            </span>
+                        <?php } else { ?>
+                            <span data-status-badge
+                                  class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-gray-100 text-gray-500 border border-gray-200/80">
+                                <span data-status-dot class="w-1.5 h-1.5 rounded-full bg-gray-400"></span>
+                                <span data-status-text>Disabled</span>
+                            </span>
+                        <?php } ?>
+                        <?php if ($rowAy !== '' && $rowSem !== '') { ?>
+                            <span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-bold bg-[#F8EEEE] text-[#59443F] border border-[#E6CECD]">
+                                <?php echo htmlspecialchars($rowAy . ' · ' . $rowSem . ' Sem', ENT_QUOTES, 'UTF-8'); ?>
+                            </span>
+                        <?php } ?>
+                    </div>
                 </td>
                 <td class="px-6 py-4 whitespace-nowrap text-right">
                     <form method="post"
@@ -3070,6 +3110,8 @@ function eval_render_report_access_rows(array $students, string $view_col, strin
                         <input type="hidden" name="action" value="toggle_report_access">
                         <input type="hidden" name="csrf_token" value="<?php echo htmlspecialchars($csrf, ENT_QUOTES, 'UTF-8'); ?>">
                         <input type="hidden" name="seminarian_id" value="<?php echo $sid; ?>">
+                        <input type="hidden" name="academic_year" value="<?php echo htmlspecialchars($rowAy, ENT_QUOTES, 'UTF-8'); ?>">
+                        <input type="hidden" name="semester" value="<?php echo htmlspecialchars($rowSem, ENT_QUOTES, 'UTF-8'); ?>">
                         <input type="hidden" name="new_value" value="<?php echo $enabled ? 0 : 1; ?>">
                         <button type="submit"
                                 name="toggle_view"
@@ -3095,14 +3137,17 @@ function eval_render_report_access_rows(array $students, string $view_col, strin
 }
 
 /**
- * Dynamically updates report view permission in `seminarians` according to the
- * authenticated Formator's session role (`$_SESSION['role']`).
+ * Dynamically updates term-scoped report view permission in `seminarian_eval_access`
+ * according to the authenticated Formator's session role (`$_SESSION['role']`)
+ * and target (academic_year, semester).
  */
 function eval_handle_report_access_update(
     mysqli $conn,
     string $role,
     int $seminarian_id,
-    int $new_value
+    int $new_value,
+    string $academic_year = '',
+    string $semester = ''
 ): array {
     $cfg = eval_report_access_config_for_role($role);
     if (!$cfg) {
@@ -3120,8 +3165,21 @@ function eval_handle_report_access_update(
         ];
     }
 
+    require_once __DIR__ . '/access_requests.php';
+    $authTerm = eval_get_authoritative_active_term($conn);
+    $termAy = trim($academic_year) !== '' ? trim($academic_year) : $authTerm['academic_year'];
+    $termSem = capstone_access_normalize_semester($semester);
+    if (!in_array($termSem, ['1st', '2nd', 'Summer'], true)) {
+        $termSem = capstone_access_normalize_semester($authTerm['semester']);
+        if (!in_array($termSem, ['1st', '2nd', 'Summer'], true)) {
+            $termSem = '1st';
+        }
+    }
+
     $enabled = ($new_value === 1) ? 1 : 0;
-    $col = $cfg['view_col']; // Safe allowlisted column from eval_report_access_config_for_role()
+    $col = $cfg['view_col'];
+    $formatorType = (string)$cfg['assignment_type'];
+    $actorId = (int)($_SESSION['user'] ?? 0);
 
     $stmt_chk = $conn->prepare("SELECT s.id, COALESCE(NULLIF(TRIM(up.full_name), ''), u.username) AS display_name
         FROM seminarians s
@@ -3141,10 +3199,15 @@ function eval_handle_report_access_update(
         ];
     }
 
-    $stmt = $conn->prepare("UPDATE seminarians SET {$col} = ? WHERE id = ?");
-    $stmt->bind_param('ii', $enabled, $seminarian_id);
-    $executed = $stmt->execute();
-    $stmt->close();
+    $executed = capstone_access_set_term_eval_access(
+        $conn,
+        $seminarian_id,
+        $formatorType,
+        $termAy,
+        $termSem,
+        $enabled === 1,
+        $actorId
+    );
     if (!$executed) {
         return [
             'ok' => false,
@@ -3156,13 +3219,15 @@ function eval_handle_report_access_update(
     $display_name = trim((string)($sem_row['display_name'] ?? ''));
     $state_word = $enabled === 1 ? 'enabled' : 'disabled';
     $message = $display_name !== ''
-        ? "Report access {$state_word} for {$display_name}."
-        : "Report access {$state_word}.";
+        ? "Report access {$state_word} for {$display_name} (AY {$termAy} · {$termSem} Sem)."
+        : "Report access {$state_word} (AY {$termAy} · {$termSem} Sem).";
 
     return [
         'ok' => true,
         'status' => 200,
         'seminarian_id' => $seminarian_id,
+        'academic_year' => $termAy,
+        'semester' => $termSem,
         'enabled' => $enabled === 1,
         'new_value' => $enabled,
         'next_value' => $enabled === 1 ? 0 : 1,
@@ -3175,7 +3240,8 @@ function eval_handle_report_access_update(
 
 /**
  * Handles both AJAX toggle submissions and standard POST form fallback for
- * whichever Formator role is currently logged in, then loads the student list.
+ * whichever Formator role is currently logged in, then loads the student list
+ * scoped to the selected Academic Year and Semester.
  */
 function eval_handle_report_access_request(mysqli $conn, string $role): array
 {
@@ -3187,6 +3253,20 @@ function eval_handle_report_access_request(mysqli $conn, string $role): array
             'success' => null,
             'error' => 'Unauthorized formator role.',
         ];
+    }
+
+    require_once __DIR__ . '/access_requests.php';
+    $authTerm = eval_get_authoritative_active_term($conn);
+    $filter_ay = isset($_GET['academic_year']) && trim((string)$_GET['academic_year']) !== ''
+        ? trim((string)$_GET['academic_year'])
+        : $authTerm['academic_year'];
+    $filter_sem_raw = isset($_GET['semester']) ? (string)$_GET['semester'] : '';
+    $filter_sem = capstone_access_normalize_semester($filter_sem_raw);
+    if (!in_array($filter_sem, ['1st', '2nd', 'Summer'], true)) {
+        $filter_sem = capstone_access_normalize_semester($authTerm['semester']);
+        if (!in_array($filter_sem, ['1st', '2nd', 'Summer'], true)) {
+            $filter_sem = '1st';
+        }
     }
 
     $success = null;
@@ -3215,7 +3295,12 @@ function eval_handle_report_access_request(mysqli $conn, string $role): array
 
         $sid = (int)($_POST['seminarian_id'] ?? 0);
         $val = (int)($_POST['new_value'] ?? 0);
-        $result = eval_handle_report_access_update($conn, $role, $sid, $val);
+        $postAy = trim((string)($_POST['academic_year'] ?? $filter_ay));
+        $postSem = capstone_access_normalize_semester((string)($_POST['semester'] ?? $filter_sem));
+        if ($postAy !== '') $filter_ay = $postAy;
+        if (in_array($postSem, ['1st', '2nd', 'Summer'], true)) $filter_sem = $postSem;
+
+        $result = eval_handle_report_access_update($conn, $role, $sid, $val, $filter_ay, $filter_sem);
 
         if ($is_ajax) {
             http_response_code((int)($result['status'] ?? ($result['ok'] ? 200 : 400)));
@@ -3232,7 +3317,7 @@ function eval_handle_report_access_request(mysqli $conn, string $role): array
     }
 
     $year_level_filter = eval_normalize_year_level_option($_GET['year_level'] ?? '');
-    $students = eval_fetch_report_access_students($conn, $role, $year_level_filter);
+    $students = eval_fetch_report_access_students($conn, $role, $year_level_filter, $filter_ay, $filter_sem);
 
     if (isset($_GET['ajax']) && (string)$_GET['ajax'] === '1') {
         $view_col = $cfg['view_col'];
@@ -3245,12 +3330,14 @@ function eval_handle_report_access_request(mysqli $conn, string $role): array
         }
         $disabled_count = max(0, $total_count - $enabled_count);
         $csrf = (string)($_SESSION['csrf_token'] ?? '');
-        $rows_html = eval_render_report_access_rows($students, $view_col, $csrf, $year_level_filter);
+        $rows_html = eval_render_report_access_rows($students, $view_col, $csrf, $year_level_filter, $filter_ay, $filter_sem);
 
         header('Content-Type: application/json; charset=utf-8');
         echo json_encode([
             'ok' => true,
             'success' => true,
+            'academic_year' => $filter_ay,
+            'semester' => $filter_sem,
             'year_level' => $year_level_filter,
             'year_level_label' => $year_level_filter !== '' ? $year_level_filter : 'All Year Levels',
             'total_count' => $total_count,
@@ -3268,6 +3355,8 @@ function eval_handle_report_access_request(mysqli $conn, string $role): array
         'success' => $success,
         'error' => $error,
         'year_level_filter' => $year_level_filter,
+        'academic_year' => $filter_ay,
+        'semester' => $filter_sem,
     ];
 }
 
@@ -3300,6 +3389,29 @@ function eval_render_report_access_page(
     }
     $year_level_options = eval_year_level_filter_options();
     $year_level_filter = eval_normalize_year_level_option($_GET['year_level'] ?? '');
+    require_once __DIR__ . '/access_requests.php';
+    global $conn;
+    $firstAy = !empty($students[0]['access_academic_year']) ? (string)$students[0]['access_academic_year'] : '';
+    $firstSem = !empty($students[0]['access_semester']) ? (string)$students[0]['access_semester'] : '';
+    $authFallback = ($conn instanceof mysqli) ? eval_get_authoritative_active_term($conn) : ['academic_year' => date('Y') . '-' . (date('Y') + 1), 'semester' => '1st'];
+    $access_ay = trim((string)($_GET['academic_year'] ?? $firstAy));
+    if ($access_ay === '') $access_ay = $authFallback['academic_year'];
+    $access_sem = capstone_access_normalize_semester((string)($_GET['semester'] ?? $firstSem));
+    if (!in_array($access_sem, ['1st', '2nd', 'Summer'], true)) {
+        $access_sem = capstone_access_normalize_semester($authFallback['semester']);
+        if (!in_array($access_sem, ['1st', '2nd', 'Summer'], true)) $access_sem = '1st';
+    }
+    $ay_options = [$authFallback['academic_year']];
+    if ($conn instanceof mysqli) {
+        $ayRes = @$conn->query("SELECT label FROM academic_years WHERE archived_at IS NULL AND is_active = 1 ORDER BY (is_current = 1) DESC, start_year DESC");
+        while ($ayRes && ($ar = $ayRes->fetch_assoc())) {
+            $lbl = trim((string)($ar['label'] ?? ''));
+            if ($lbl !== '' && !in_array($lbl, $ay_options, true)) $ay_options[] = $lbl;
+        }
+    }
+    if (!in_array($access_ay, $ay_options, true)) {
+        array_unshift($ay_options, $access_ay);
+    }
 
     $initial_has_error = ($error !== null && $error !== '');
     $initial_has_success = (!$initial_has_error && $success !== null && $success !== '');
@@ -3332,6 +3444,10 @@ function eval_render_report_access_page(
                             Seminarian Report Access
                         </h1>
                         <div class="flex flex-wrap items-center gap-2 mt-2">
+                            <span id="reportAccessTermPill" class="inline-flex items-center gap-1.5 px-3 py-0.5 rounded-full text-xs font-bold bg-amber-50 text-amber-800 border border-amber-200/80">
+                                <i class="fas fa-calendar-days text-[11px] text-amber-600" aria-hidden="true"></i>
+                                <span data-access-term-label>AY <?php echo htmlspecialchars($access_ay, ENT_QUOTES, 'UTF-8'); ?> &middot; <?php echo htmlspecialchars($access_sem, ENT_QUOTES, 'UTF-8'); ?> Sem</span>
+                            </span>
                             <span id="reportAccessEnabledPill" class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-bold bg-green-100 text-green-700">
                                 <span class="w-1.5 h-1.5 rounded-full bg-green-500"></span>
                                 <span data-count-enabled><?php echo $enabled_count; ?></span> Enabled
@@ -3374,6 +3490,17 @@ function eval_render_report_access_page(
                 </div>
 
                 <form method="get" id="reportAccessFilterForm" class="capstone-form-row capstone-filter-bar inline-flex flex-wrap items-center gap-2 m-0 p-0 bg-transparent border-0 shadow-none" style="margin:0;padding:0;background:transparent;border:none;box-shadow:none;display:inline-flex;align-items:center;gap:0.5rem;">
+                    <label for="accessAcademicYearFilter" class="text-xs font-extrabold uppercase tracking-wider text-[#8B7168] m-0">Term</label>
+                    <select name="academic_year" id="accessAcademicYearFilter" aria-label="Academic Year" class="px-3 py-2 text-xs font-bold text-[#59443F] bg-[#FDF9F9] border border-[#E2C9C8] rounded-xl focus:outline-none focus:border-[#59443F] cursor-pointer" style="width:auto;min-width:120px;margin:0;">
+                        <?php foreach ($ay_options as $ay_opt) { ?>
+                            <option value="<?php echo htmlspecialchars($ay_opt, ENT_QUOTES, 'UTF-8'); ?>" <?php echo $ay_opt === $access_ay ? 'selected' : ''; ?>><?php echo htmlspecialchars($ay_opt, ENT_QUOTES, 'UTF-8'); ?></option>
+                        <?php } ?>
+                    </select>
+                    <select name="semester" id="accessSemesterFilter" aria-label="Semester" class="px-3 py-2 text-xs font-bold text-[#59443F] bg-[#FDF9F9] border border-[#E2C9C8] rounded-xl focus:outline-none focus:border-[#59443F] cursor-pointer" style="width:auto;min-width:105px;margin:0;">
+                        <?php foreach (['1st', '2nd', 'Summer'] as $sem_opt) { ?>
+                            <option value="<?php echo $sem_opt; ?>" <?php echo $sem_opt === $access_sem ? 'selected' : ''; ?>><?php echo $sem_opt; ?> Sem</option>
+                        <?php } ?>
+                    </select>
                     <label for="yearLevelFilter" class="text-xs font-extrabold uppercase tracking-wider text-[#8B7168] m-0">Year Level</label>
                     <select name="year_level" id="yearLevelFilter" aria-label="Year Level" class="px-3.5 py-2 text-xs font-bold text-[#59443F] bg-[#FDF9F9] border border-[#E2C9C8] rounded-xl focus:outline-none focus:border-[#59443F] cursor-pointer" style="width:auto;min-width:175px;margin:0;">
                         <?php foreach ($year_level_options as $yl_opt) { ?>
@@ -3394,12 +3521,12 @@ function eval_render_report_access_page(
                     <thead>
                         <tr class="bg-[#FDF7F7] border-b border-[#EFE0DF]">
                             <th scope="col" class="px-6 py-3.5 text-[11px] font-extrabold uppercase tracking-wider text-[#8B7168]">Seminarian</th>
-                            <th scope="col" class="px-6 py-3.5 text-[11px] font-extrabold uppercase tracking-wider text-[#8B7168]">View Reports</th>
+                            <th scope="col" class="px-6 py-3.5 text-[11px] font-extrabold uppercase tracking-wider text-[#8B7168]">View Reports (Academic Year &amp; Semester)</th>
                             <th scope="col" class="px-6 py-3.5 text-[11px] font-extrabold uppercase tracking-wider text-[#8B7168] text-right">Action</th>
                         </tr>
                     </thead>
                     <tbody id="reportAccessTbody" class="divide-y divide-[#F5EAE9] bg-white">
-                        <?php echo eval_render_report_access_rows($students, $view_col, $csrf, $year_level_filter); ?>
+                        <?php echo eval_render_report_access_rows($students, $view_col, $csrf, $year_level_filter, $access_ay, $access_sem); ?>
                     </tbody>
                 </table>
             </div>
@@ -3415,14 +3542,23 @@ function eval_render_report_access_page(
         const enabledCounterEl = root.querySelector('[data-count-enabled]');
         const disabledCounterEl = root.querySelector('[data-count-disabled]');
         const totalCounterEl = root.querySelector('[data-count-total]');
+        const termLabelEl = root.querySelector('[data-access-term-label]');
         const tbody = document.getElementById('reportAccessTbody');
         const filterForm = document.getElementById('reportAccessFilterForm');
+        const aySelect = document.getElementById('accessAcademicYearFilter');
+        const semSelect = document.getElementById('accessSemesterFilter');
         const yearLevelSelect = document.getElementById('yearLevelFilter');
         const resetBtn = document.getElementById('reportAccessResetBtn');
         let activeFilterCtrl = null;
 
         function fetchFilteredReportAccess(yearLevel) {
             const url = new URL(window.location.pathname, window.location.href);
+            if (aySelect && aySelect.value) {
+                url.searchParams.set('academic_year', aySelect.value);
+            }
+            if (semSelect && semSelect.value) {
+                url.searchParams.set('semester', semSelect.value);
+            }
             if (yearLevel) {
                 url.searchParams.set('year_level', yearLevel);
             } else {
@@ -3450,6 +3586,9 @@ function eval_render_report_access_page(
                 if (tbody && typeof data.rows_html === 'string') {
                     tbody.innerHTML = data.rows_html;
                 }
+                if (termLabelEl && data.academic_year && data.semester) {
+                    termLabelEl.textContent = 'AY ' + data.academic_year + ' \u00B7 ' + data.semester + ' Sem';
+                }
                 if (totalCounterEl && typeof data.total_count === 'number') {
                     totalCounterEl.textContent = String(data.total_count);
                 }
@@ -3474,6 +3613,16 @@ function eval_render_report_access_page(
             });
         }
 
+        if (aySelect) {
+            aySelect.addEventListener('change', function () {
+                fetchFilteredReportAccess(yearLevelSelect ? yearLevelSelect.value : '');
+            });
+        }
+        if (semSelect) {
+            semSelect.addEventListener('change', function () {
+                fetchFilteredReportAccess(yearLevelSelect ? yearLevelSelect.value : '');
+            });
+        }
         if (yearLevelSelect) {
             yearLevelSelect.addEventListener('change', function () {
                 fetchFilteredReportAccess(yearLevelSelect.value);

@@ -310,9 +310,12 @@ foreach ($students as $s) {
     if ((int)$s['id'] === (int)$student_id) {
         $student_label = trim((string)($s['full_name'] ?? ''));
         if ($student_label === '') $student_label = (string)($s['username'] ?? '');
-        $student_view_enabled = (int)($s['human_eval_view_enabled'] ?? 0);
         break;
     }
+}
+if ($student_id > 0) {
+    require_once __DIR__ . '/../includes/access_requests.php';
+    $student_view_enabled = capstone_access_can_view_evaluation($conn, $student_id, 'Human', $filter_academic_year, $filter_semester) ? 1 : 0;
 }
 
 $grouped = [];

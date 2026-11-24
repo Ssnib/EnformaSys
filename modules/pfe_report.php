@@ -51,14 +51,15 @@ if (($_SESSION['role'] ?? '') === 'PastoralFormator') {
 
 if (($_SESSION['role'] ?? '') === 'Student') {
     $uid = (int)($_SESSION['user'] ?? 0);
-    $stmt_sem = $conn->prepare("SELECT id, pastoral_eval_view_enabled FROM seminarians WHERE user_id = ? LIMIT 1");
+    require_once __DIR__ . '/../includes/access_requests.php';
+    $stmt_sem = $conn->prepare("SELECT id FROM seminarians WHERE user_id = ? LIMIT 1");
     $stmt_sem->bind_param('i', $uid);
     $stmt_sem->execute();
     $sem = $stmt_sem->get_result()->fetch_assoc();
     if (
         !$sem
         || (int)$sem['id'] !== (int)$eval['seminarian_id']
-        || (int)($sem['pastoral_eval_view_enabled'] ?? 0) !== 1
+        || !capstone_access_can_view_evaluation($conn, (int)$sem['id'], 'Pastoral', (string)($eval['academic_year'] ?? ''), (string)($eval['semester'] ?? ''))
     ) {
         header('Location: ../index.php');
         exit;

@@ -18,7 +18,24 @@ if (!$sem) {
     exit;
 }
 $student_id = (int)$sem['id'];
-$allowed = (int)($sem['human_eval_view_enabled'] ?? 0) === 1;
+$active_term_meta = capstone_access_resolve_active_term($conn);
+$filter_ay = isset($_GET['academic_year']) && trim((string)$_GET['academic_year']) !== ''
+    ? trim((string)$_GET['academic_year'])
+    : $active_term_meta['academic_year'];
+$filter_sem_raw = isset($_GET['semester']) ? (string)$_GET['semester'] : '';
+$filter_sem = capstone_access_normalize_semester($filter_sem_raw);
+if (!in_array($filter_sem, ['1st', '2nd', 'Summer'], true)) {
+    $filter_sem = $active_term_meta['semester'];
+}
+if (isset($_POST['request_access'])) {
+    $postAy = trim((string)($_POST['academic_year'] ?? ''));
+    $postSem = capstone_access_normalize_semester((string)($_POST['semester'] ?? ''));
+    if ($postAy !== '') $filter_ay = $postAy;
+    if (in_array($postSem, ['1st', '2nd', 'Summer'], true)) $filter_sem = $postSem;
+}
+
+$allowed = capstone_access_can_view_evaluation($conn, $student_id, 'Human', $filter_ay, $filter_sem);
+$approved_terms = capstone_access_get_approved_eval_terms($conn, $student_id, 'Human');
 
 $request_error = null;
 $request_success = null;
@@ -28,18 +45,32 @@ if (!$allowed) {
         if (!verify_csrf_token($_POST['csrf_token'] ?? '')) {
             die('CSRF token validation failed.');
         }
-        $result = capstone_access_request_create($conn, $student_id, 'Human', $user_id);
+        $result = capstone_access_request_create($conn, $student_id, 'Human', $user_id, null, 'whole', null, $filter_ay, $filter_sem);
         if ($result['ok']) {
-            $request_success = 'Request submitted. Please wait for your Human Formator to enable access.';
+            $request_success = "Request submitted for AY {$filter_ay} ({$filter_sem} Semester). Please wait for your Human Formator to enable access.";
         } else {
             $request_error = (string)($result['error'] ?? 'Failed to submit request.');
         }
     }
-    $pending_request = capstone_access_request_get_pending($conn, $student_id, 'Human');
+    $pending_request = capstone_access_request_get_pending($conn, $student_id, 'Human', $filter_ay, $filter_sem);
+}
+
+$ay_options = [$active_term_meta['academic_year']];
+$stmt_ay = $conn->prepare("SELECT DISTINCT academic_year FROM human_evaluations WHERE seminarian_id = ? AND archived_at IS NULL AND academic_year IS NOT NULL AND academic_year <> '' ORDER BY academic_year DESC");
+if ($stmt_ay) {
+    $stmt_ay->bind_param('i', $student_id);
+    if ($stmt_ay->execute()) {
+        $ar = $stmt_ay->get_result();
+        while ($ar && ($rowAy = $ar->fetch_assoc())) {
+            $v = trim((string)$rowAy['academic_year']);
+            if ($v !== '' && !in_array($v, $ay_options, true)) $ay_options[] = $v;
+        }
+    }
+    $stmt_ay->close();
 }
 
 $rows = null;
-if ($allowed) {
+if (!empty($approved_terms)) {
     $stmt = $conn->prepare("SELECT e.evaluation_id, e.academic_year, e.semester, e.evaluation_date,
             r.average_rating, r.interpretation,
             a.growth_status, a.growth_percentage
@@ -59,12 +90,27 @@ $activeNav = 'my_human_eval';
 require_once __DIR__ . '/../includes/layout_app_start.php';
 ?>
         <div class="content-body">
-            <h1 class="page-title"><i class="fas fa-user-check"></i> My Human Formation Evaluation</h1>
+            <div style="display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:0.75rem;">
+                <h1 class="page-title" style="margin:0;"><i class="fas fa-user-check"></i> My Human Formation Evaluation</h1>
+                <form method="get" style="display:flex;flex-wrap:wrap;align-items:center;gap:0.5rem;margin:0;padding:0;background:transparent;border:none;box-shadow:none;">
+                    <select name="academic_year" style="padding:0.4rem 0.75rem;border-radius:10px;border:1px solid #d1d5db;">
+                        <?php foreach ($ay_options as $ayOpt) { ?>
+                            <option value="<?php echo htmlspecialchars($ayOpt); ?>" <?php echo $ayOpt === $filter_ay ? 'selected' : ''; ?>><?php echo htmlspecialchars($ayOpt); ?></option>
+                        <?php } ?>
+                    </select>
+                    <select name="semester" style="padding:0.4rem 0.75rem;border-radius:10px;border:1px solid #d1d5db;">
+                        <?php foreach (['1st', '2nd', 'Summer'] as $semOpt) { ?>
+                            <option value="<?php echo $semOpt; ?>" <?php echo $semOpt === $filter_sem ? 'selected' : ''; ?>><?php echo $semOpt; ?> Sem</option>
+                        <?php } ?>
+                    </select>
+                    <button type="submit" class="capstone-btn-primary" style="width:auto;padding:0.45rem 0.9rem;">Filter</button>
+                </form>
+            </div>
 
             <?php if (!$allowed) { ?>
                 <div class="card" style="border-left: 6px solid #f59e0b; margin-top: 1.25rem;">
-                    <h3><i class="fas fa-lock"></i> Not Authorized</h3>
-                    <div style="margin-top: 0.5rem; color: var(--text-secondary); font-weight: 700;">Your Human Formation Evaluation reports are not yet enabled for viewing.</div>
+                    <h3><i class="fas fa-lock"></i> Access Locked (AY <?php echo htmlspecialchars($filter_ay . ' · ' . $filter_sem . ' Semester'); ?>)</h3>
+                    <div style="margin-top: 0.5rem; color: var(--text-secondary); font-weight: 700;">Your Human Formation Evaluation reports for AY <?php echo htmlspecialchars($filter_ay . ' (' . $filter_sem . ' Semester)'); ?> are locked until approved by your Human Formator.</div>
                     <?php if ($request_success) { ?>
                         <div style="margin-top: 0.75rem;" class="success"><?php echo htmlspecialchars($request_success); ?></div>
                     <?php } ?>
@@ -73,9 +119,11 @@ require_once __DIR__ . '/../includes/layout_app_start.php';
                     <?php } ?>
                     <form method="post" style="margin-top: 0.9rem; box-shadow: none; background: transparent; padding: 0; border: none;">
                         <input type="hidden" name="csrf_token" value="<?php echo htmlspecialchars($_SESSION['csrf_token']); ?>">
+                        <input type="hidden" name="academic_year" value="<?php echo htmlspecialchars($filter_ay); ?>">
+                        <input type="hidden" name="semester" value="<?php echo htmlspecialchars($filter_sem); ?>">
                         <button type="submit" name="request_access" class="capstone-btn-primary" <?php echo $pending_request ? 'disabled' : ''; ?>>
                             <i class="fas fa-paper-plane"></i>
-                            <?php echo $pending_request ? 'Request Sent' : 'Request Access'; ?>
+                            <?php echo $pending_request ? "Request Sent ({$filter_sem} Sem)" : "Request Evaluation Access ({$filter_sem} Semester)"; ?>
                         </button>
                         <?php if ($pending_request) { ?>
                             <div style="margin-top: 0.5rem; color: var(--text-secondary); font-weight: 700;">
@@ -84,7 +132,9 @@ require_once __DIR__ . '/../includes/layout_app_start.php';
                         <?php } ?>
                     </form>
                 </div>
-            <?php } else { ?>
+            <?php } ?>
+
+            <?php if (!empty($approved_terms)) { ?>
                 <div class="data-card" style="margin-top: 1.25rem;">
                     <div class="data-card-header">
                         <h3><i class="fas fa-list"></i> Evaluation History</h3>
@@ -107,6 +157,8 @@ require_once __DIR__ . '/../includes/layout_app_start.php';
                                     <tr><td colspan="7" style="color: var(--text-secondary);">No human evaluations yet.</td></tr>
                                 <?php } ?>
                                 <?php if ($rows) { while ($r = $rows->fetch_assoc()) {
+                                    $rowTermKey = trim((string)$r['academic_year']) . '|' . capstone_access_normalize_semester((string)$r['semester']);
+                                    if (empty($approved_terms[$rowTermKey])) continue;
                                     $row_interp = getFormationInterpretation($r['average_rating'] ?? null);
                                 ?>
                                     <tr>

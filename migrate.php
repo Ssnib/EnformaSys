@@ -404,6 +404,32 @@ function apply_term_scoped_grade_access_requests_migration(mysqli $conn): void
     }
 }
 
+function apply_term_scoped_eval_access_migration(mysqli $conn): void
+{
+    $conn->query("CREATE TABLE IF NOT EXISTS `seminarian_eval_access` (
+      `id` int(11) NOT NULL AUTO_INCREMENT,
+      `seminarian_id` int(11) NOT NULL,
+      `formator_type` enum('Academic','Human','Pastoral','Spiritual') NOT NULL,
+      `academic_year` varchar(20) NOT NULL,
+      `semester` varchar(20) NOT NULL,
+      `is_enabled` tinyint(1) NOT NULL DEFAULT 0,
+      `updated_by` int(11) DEFAULT NULL,
+      `updated_at` datetime NOT NULL DEFAULT current_timestamp() ON UPDATE current_timestamp(),
+      PRIMARY KEY (`id`),
+      UNIQUE KEY `uniq_sea_term` (`seminarian_id`, `formator_type`, `academic_year`, `semester`),
+      KEY `idx_sea_type_term` (`formator_type`, `academic_year`, `semester`, `is_enabled`)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
+
+    $ayRow = $conn->query("SELECT label FROM academic_years WHERE archived_at IS NULL AND is_active = 1 ORDER BY (is_current = 1) DESC, start_year DESC LIMIT 1")?->fetch_assoc();
+    $fallbackAy = trim((string)($ayRow['label'] ?? '2026-2027'));
+    $stmtFill = $conn->prepare("UPDATE seminarian_access_requests SET academic_year = ?, semester = '1st' WHERE (academic_year IS NULL OR academic_year = '' OR semester IS NULL OR semester = '')");
+    if ($stmtFill) {
+        $stmtFill->bind_param('s', $fallbackAy);
+        $stmtFill->execute();
+        $stmtFill->close();
+    }
+}
+
 ensure_schema_migrations_table($conn);
 
 $migrations = [
@@ -476,6 +502,13 @@ $migrations = [
         'name' => 'Scope grade viewing requests strictly per (seminarian_id, academic_year, semester)',
         'apply' => function (mysqli $conn): void {
             apply_term_scoped_grade_access_requests_migration($conn);
+        }
+    ],
+    [
+        'version' => '2026_11_24_term_scoped_eval_access',
+        'name' => 'Scope evaluation viewing access & requests per (seminarian_id, formator_type, academic_year, semester)',
+        'apply' => function (mysqli $conn): void {
+            apply_term_scoped_eval_access_migration($conn);
         }
     ],
 ];

@@ -29,23 +29,43 @@ if ($student_id > 0) {
     }
 }
 
-// Formation evaluation permissions per pillar (Academic is scoped strictly per term)
+// Formation evaluation permissions per pillar (strictly scoped per seminarian, pillar, academic_year, semester)
 $active_eval_term = capstone_access_resolve_active_term($conn);
-$active_eval_ay = $active_eval_term['academic_year'];
-$active_eval_sem = $active_eval_term['semester'];
+$filter_ay = isset($_GET['academic_year']) && trim((string)$_GET['academic_year']) !== ''
+    ? trim((string)$_GET['academic_year'])
+    : $active_eval_term['academic_year'];
+$filter_sem_raw = isset($_GET['semester']) ? (string)$_GET['semester'] : '';
+$filter_sem = capstone_access_normalize_semester($filter_sem_raw);
+if (!in_array($filter_sem, ['1st', '2nd', 'Summer'], true)) {
+    $filter_sem = $active_eval_term['semester'];
+}
+if (isset($_POST['request_access'])) {
+    $postAy = trim((string)($_POST['academic_year'] ?? ''));
+    $postSem = capstone_access_normalize_semester((string)($_POST['semester'] ?? ''));
+    if ($postAy !== '') $filter_ay = $postAy;
+    if (in_array($postSem, ['1st', '2nd', 'Summer'], true)) $filter_sem = $postSem;
+}
+
+$active_eval_ay = $filter_ay;
+$active_eval_sem = $filter_sem;
 $approved_academic_terms = capstone_access_get_approved_grade_terms($conn, $student_id);
-$active_academic_perm = capstone_access_get_grade_view_permission($conn, $student_id, $active_eval_ay, $active_eval_sem);
+$approved_spiritual_terms = capstone_access_get_approved_eval_terms($conn, $student_id, 'Spiritual');
+$approved_human_terms = capstone_access_get_approved_eval_terms($conn, $student_id, 'Human');
+$approved_pastoral_terms = capstone_access_get_approved_eval_terms($conn, $student_id, 'Pastoral');
+$active_academic_perm = capstone_access_get_grade_view_permission($conn, $student_id, $filter_ay, $filter_sem);
 
 $can_view_grades = !empty($active_academic_perm['can_view_any']);
 $allowed_academic = $can_view_grades;
-$allowed_spiritual = (int)($sem['spiritual_eval_view_enabled'] ?? 0) === 1;
-$allowed_human = (int)($sem['human_eval_view_enabled'] ?? 0) === 1;
-$allowed_pastoral = (int)($sem['pastoral_eval_view_enabled'] ?? 0) === 1;
+$allowed_spiritual = capstone_access_can_view_evaluation($conn, $student_id, 'Spiritual', $filter_ay, $filter_sem);
+$allowed_human = capstone_access_can_view_evaluation($conn, $student_id, 'Human', $filter_ay, $filter_sem);
+$allowed_pastoral = capstone_access_can_view_evaluation($conn, $student_id, 'Pastoral', $filter_ay, $filter_sem);
 $allowed = $allowed_academic; // backward compatibility
 
 $request_errors = [];
 $request_successes = [];
-$active_tab = 'academic';
+$active_tab = isset($_GET['tab']) && in_array($_GET['tab'], ['academic', 'spiritual', 'human', 'pastoral'], true)
+    ? (string)$_GET['tab']
+    : 'academic';
 
 if (isset($_POST['request_access'])) {
     if (!verify_csrf_token($_POST['csrf_token'] ?? '')) {
@@ -64,23 +84,35 @@ if (isset($_POST['request_access'])) {
         null,
         'whole',
         null,
-        $req_type === 'Academic' ? $active_eval_ay : null,
-        $req_type === 'Academic' ? $active_eval_sem : null
+        $filter_ay,
+        $filter_sem
     );
     if ($result['ok']) {
         $formator_title = $req_type === 'Spiritual' ? 'Spiritual Director' : ($req_type === 'Academic' ? 'Academic Formator' : "{$req_type} Formator");
-        $request_successes[$req_type] = "Request submitted. Please wait for your {$formator_title} to enable access.";
+        $request_successes[$req_type] = "Request submitted for AY {$filter_ay} ({$filter_sem} Semester). Please wait for your {$formator_title} to enable access.";
     } else {
         $request_errors[$req_type] = (string)($result['error'] ?? 'Failed to submit request.');
     }
 }
 
 $pending_requests = [
-    'Academic' => capstone_access_request_get_pending($conn, $student_id, 'Academic', $active_eval_ay, $active_eval_sem),
-    'Spiritual' => capstone_access_request_get_pending($conn, $student_id, 'Spiritual'),
-    'Human' => capstone_access_request_get_pending($conn, $student_id, 'Human'),
-    'Pastoral' => capstone_access_request_get_pending($conn, $student_id, 'Pastoral'),
+    'Academic' => capstone_access_request_get_pending($conn, $student_id, 'Academic', $filter_ay, $filter_sem),
+    'Spiritual' => capstone_access_request_get_pending($conn, $student_id, 'Spiritual', $filter_ay, $filter_sem),
+    'Human' => capstone_access_request_get_pending($conn, $student_id, 'Human', $filter_ay, $filter_sem),
+    'Pastoral' => capstone_access_request_get_pending($conn, $student_id, 'Pastoral', $filter_ay, $filter_sem),
 ];
+
+$ay_filter_options = [$active_eval_term['academic_year']];
+$ayResList = @$conn->query("SELECT label FROM academic_years WHERE archived_at IS NULL AND is_active = 1 ORDER BY (is_current = 1) DESC, start_year DESC");
+while ($ayResList && ($ayR = $ayResList->fetch_assoc())) {
+    $lbl = trim((string)($ayR['label'] ?? ''));
+    if ($lbl !== '' && !in_array($lbl, $ay_filter_options, true)) {
+        $ay_filter_options[] = $lbl;
+    }
+}
+if (!in_array($filter_ay, $ay_filter_options, true)) {
+    array_unshift($ay_filter_options, $filter_ay);
+}
 
 $request_error = $request_errors['Academic'] ?? null;
 $request_success = $request_successes['Academic'] ?? null;
@@ -267,9 +299,24 @@ require_once __DIR__ . '/../includes/layout_app_start.php';
                         <span>My Formation Evaluations</span>
                     </h1>
                     <p class="text-xs sm:text-sm font-medium text-[#8B7168] mt-1">
-                        Comprehensive assessments across the four pillars of priestly formation.
+                        Comprehensive assessments across the four pillars of priestly formation &mdash; scoped per Academic Year &amp; Semester.
                     </p>
                 </div>
+                <form method="get" class="flex flex-wrap items-center gap-2 m-0 p-0 bg-transparent border-none shadow-none">
+                    <select name="academic_year" class="px-3 py-1.5 rounded-xl text-xs font-semibold bg-white border border-[#E8C7C5]/70 text-[#59443F] focus:outline-none">
+                        <?php foreach ($ay_filter_options as $ayOpt) { ?>
+                            <option value="<?php echo htmlspecialchars($ayOpt); ?>" <?php echo $ayOpt === $filter_ay ? 'selected' : ''; ?>><?php echo htmlspecialchars($ayOpt); ?></option>
+                        <?php } ?>
+                    </select>
+                    <select name="semester" class="px-3 py-1.5 rounded-xl text-xs font-semibold bg-white border border-[#E8C7C5]/70 text-[#59443F] focus:outline-none">
+                        <?php foreach (['1st', '2nd', 'Summer'] as $semOpt) { ?>
+                            <option value="<?php echo $semOpt; ?>" <?php echo $semOpt === $filter_sem ? 'selected' : ''; ?>><?php echo $semOpt; ?> Sem</option>
+                        <?php } ?>
+                    </select>
+                    <button type="submit" class="px-3.5 py-1.5 rounded-xl text-xs font-bold bg-[#59443F] hover:bg-[#8B7168] text-white shadow-xs transition cursor-pointer">
+                        <i class="fa-solid fa-filter text-[10px] mr-1"></i> Filter
+                    </button>
+                </form>
             </div>
 
             <!-- 2. Modern Pill Tabs Navigation -->
@@ -338,9 +385,9 @@ require_once __DIR__ . '/../includes/layout_app_start.php';
                                     <i class="fa-solid fa-lock"></i>
                                 </div>
                                 <div>
-                                    <h3 class="font-heading font-extrabold text-base text-[#59443F]">Academic Evaluation Viewing Restricted</h3>
+                                    <h3 class="font-heading font-extrabold text-base text-[#59443F]">Academic Evaluation Viewing Restricted (AY <?php echo htmlspecialchars($filter_ay . ' · ' . $filter_sem . ' Sem'); ?>)</h3>
                                     <p class="text-xs sm:text-sm text-[#8B7168] mt-0.5 leading-relaxed">
-                                        Academic evaluations and rating summaries are locked until approved by your Academic Formator.
+                                        Academic evaluations and rating summaries for AY <?php echo htmlspecialchars($filter_ay . ' (' . $filter_sem . ' Semester)'); ?> are locked until approved by your Academic Formator.
                                     </p>
                                     <?php if (!empty($request_successes['Academic'])): ?>
                                         <div class="text-xs font-semibold text-emerald-700 mt-2 flex items-center gap-1.5">
@@ -360,15 +407,17 @@ require_once __DIR__ . '/../includes/layout_app_start.php';
                                 <?php if ($pending_requests['Academic']): ?>
                                     <span class="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold bg-[#F8EEEE] text-[#8B7168] border border-[#E8C7C5]/60 shadow-xs">
                                         <i class="fa-regular fa-clock text-amber-600"></i>
-                                        <span>Request Sent (Pending Approval)</span>
+                                        <span>Request Sent (<?php echo htmlspecialchars($filter_sem); ?> Sem &middot; Pending)</span>
                                     </span>
                                 <?php else: ?>
                                     <form method="post" class="inline m-0 p-0">
                                         <input type="hidden" name="csrf_token" value="<?php echo htmlspecialchars($_SESSION['csrf_token'] ?? ''); ?>">
                                         <input type="hidden" name="pillar_type" value="Academic">
+                                        <input type="hidden" name="academic_year" value="<?php echo htmlspecialchars($filter_ay); ?>">
+                                        <input type="hidden" name="semester" value="<?php echo htmlspecialchars($filter_sem); ?>">
                                         <button type="submit" name="request_access" class="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl text-xs font-bold bg-[#59443F] hover:bg-[#8B7168] text-white shadow-soft transition-all duration-200 cursor-pointer">
                                             <i class="fa-solid fa-key text-[#E8C7C5]"></i>
-                                            <span>Request Viewing</span>
+                                            <span>Request Viewing (<?php echo htmlspecialchars($filter_sem); ?> Semester)</span>
                                         </button>
                                     </form>
                                 <?php endif; ?>
@@ -500,9 +549,9 @@ require_once __DIR__ . '/../includes/layout_app_start.php';
                                     <i class="fa-solid fa-lock"></i>
                                 </div>
                                 <div>
-                                    <h3 class="font-heading font-extrabold text-base text-[#59443F]">Spiritual Evaluation Viewing Restricted</h3>
+                                    <h3 class="font-heading font-extrabold text-base text-[#59443F]">Spiritual Evaluation Viewing Restricted (AY <?php echo htmlspecialchars($filter_ay . ' · ' . $filter_sem . ' Sem'); ?>)</h3>
                                     <p class="text-xs sm:text-sm text-[#8B7168] mt-0.5 leading-relaxed">
-                                        Spiritual formation evaluations are locked until approved by your Spiritual Director.
+                                        Spiritual formation evaluations for AY <?php echo htmlspecialchars($filter_ay . ' (' . $filter_sem . ' Semester)'); ?> are locked until approved by your Spiritual Director.
                                     </p>
                                     <?php if (!empty($request_successes['Spiritual'])): ?>
                                         <div class="text-xs font-semibold text-emerald-700 mt-2 flex items-center gap-1.5">
@@ -522,15 +571,17 @@ require_once __DIR__ . '/../includes/layout_app_start.php';
                                 <?php if ($pending_requests['Spiritual']): ?>
                                     <span class="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold bg-[#F8EEEE] text-[#8B7168] border border-[#E8C7C5]/60 shadow-xs">
                                         <i class="fa-regular fa-clock text-amber-600"></i>
-                                        <span>Request Sent (Pending Approval)</span>
+                                        <span>Request Sent (<?php echo htmlspecialchars($filter_sem); ?> Sem &middot; Pending)</span>
                                     </span>
                                 <?php else: ?>
                                     <form method="post" class="inline m-0 p-0">
                                         <input type="hidden" name="csrf_token" value="<?php echo htmlspecialchars($_SESSION['csrf_token'] ?? ''); ?>">
                                         <input type="hidden" name="pillar_type" value="Spiritual">
+                                        <input type="hidden" name="academic_year" value="<?php echo htmlspecialchars($filter_ay); ?>">
+                                        <input type="hidden" name="semester" value="<?php echo htmlspecialchars($filter_sem); ?>">
                                         <button type="submit" name="request_access" class="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl text-xs font-bold bg-[#59443F] hover:bg-[#8B7168] text-white shadow-soft transition-all duration-200 cursor-pointer">
                                             <i class="fa-solid fa-key text-[#E8C7C5]"></i>
-                                            <span>Request Viewing</span>
+                                            <span>Request Viewing (<?php echo htmlspecialchars($filter_sem); ?> Semester)</span>
                                         </button>
                                     </form>
                                 <?php endif; ?>
@@ -570,12 +621,15 @@ require_once __DIR__ . '/../includes/layout_app_start.php';
                                 </tr>
                             </thead>
                             <tbody class="divide-y divide-[#E8C7C5]/20 text-sm font-medium text-[#59443F]">
-                                <?php foreach ($spiritual_list as $item): ?>
+                                <?php foreach ($spiritual_list as $item):
+                                    $item_key = trim((string)($item['academic_year'] ?? '')) . '|' . capstone_access_normalize_semester((string)($item['semester'] ?? ''));
+                                    $item_allowed = !empty($approved_spiritual_terms[$item_key]);
+                                ?>
                                     <tr class="hover:bg-[#F8EEEE]/40 transition-colors">
                                         <td class="px-6 py-4 font-bold text-[#59443F]"><?php echo htmlspecialchars($item['academic_year']); ?></td>
                                         <td class="px-6 py-4 text-[#8B7168]"><?php echo htmlspecialchars($item['semester']); ?></td>
                                         <td class="px-6 py-4">
-                                            <?php if ($allowed_spiritual): ?>
+                                            <?php if ($item_allowed): ?>
                                                 <span class="font-semibold text-[#59443F]"><?php echo htmlspecialchars($item['average']); ?></span>
                                             <?php else: ?>
                                                 <span class="inline-flex items-center gap-1.5 text-xs text-[#8B7168]">
@@ -585,7 +639,7 @@ require_once __DIR__ . '/../includes/layout_app_start.php';
                                             <?php endif; ?>
                                         </td>
                                         <td class="px-6 py-4">
-                                            <?php if ($allowed_spiritual): ?>
+                                            <?php if ($item_allowed): ?>
                                                 <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold <?php echo htmlspecialchars((string)($item['badge_class'] ?? 'bg-gray-100 text-gray-600')); ?>">
                                                     <?php echo htmlspecialchars($item['interpretation']); ?>
                                                 </span>
@@ -597,7 +651,7 @@ require_once __DIR__ . '/../includes/layout_app_start.php';
                                             <?php endif; ?>
                                         </td>
                                         <td class="px-6 py-4">
-                                            <?php if ($allowed_spiritual): ?>
+                                            <?php if ($item_allowed): ?>
                                                 <span class="font-semibold text-emerald-700"><?php echo htmlspecialchars($item['growth_status']); ?></span>
                                             <?php else: ?>
                                                 <span class="inline-flex items-center gap-1.5 text-xs text-[#8B7168]">
@@ -608,7 +662,7 @@ require_once __DIR__ . '/../includes/layout_app_start.php';
                                         </td>
                                         <td class="px-6 py-4 text-xs text-[#8B7168]"><?php echo htmlspecialchars($item['date']); ?></td>
                                         <td class="px-6 py-4 text-right">
-                                            <?php if ($allowed_spiritual): ?>
+                                            <?php if ($item_allowed): ?>
                                                 <a href="<?php echo htmlspecialchars($item['report_url']); ?>" class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold bg-[#F8EEEE] hover:bg-[#E8C7C5] text-[#59443F] border border-[#E8C7C5]/60 transition-all shadow-xs">
                                                     <i class="fa-solid fa-file-lines text-xs text-[#8B7168]"></i>
                                                     <span>View</span>
@@ -641,9 +695,9 @@ require_once __DIR__ . '/../includes/layout_app_start.php';
                                     <i class="fa-solid fa-lock"></i>
                                 </div>
                                 <div>
-                                    <h3 class="font-heading font-extrabold text-base text-[#59443F]">Human Evaluation Viewing Restricted</h3>
+                                    <h3 class="font-heading font-extrabold text-base text-[#59443F]">Human Evaluation Viewing Restricted (AY <?php echo htmlspecialchars($filter_ay . ' · ' . $filter_sem . ' Sem'); ?>)</h3>
                                     <p class="text-xs sm:text-sm text-[#8B7168] mt-0.5 leading-relaxed">
-                                        Human formation evaluations are locked until approved by your Human Formator.
+                                        Human formation evaluations for AY <?php echo htmlspecialchars($filter_ay . ' (' . $filter_sem . ' Semester)'); ?> are locked until approved by your Human Formator.
                                     </p>
                                     <?php if (!empty($request_successes['Human'])): ?>
                                         <div class="text-xs font-semibold text-emerald-700 mt-2 flex items-center gap-1.5">
@@ -663,15 +717,17 @@ require_once __DIR__ . '/../includes/layout_app_start.php';
                                 <?php if ($pending_requests['Human']): ?>
                                     <span class="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold bg-[#F8EEEE] text-[#8B7168] border border-[#E8C7C5]/60 shadow-xs">
                                         <i class="fa-regular fa-clock text-amber-600"></i>
-                                        <span>Request Sent (Pending Approval)</span>
+                                        <span>Request Sent (<?php echo htmlspecialchars($filter_sem); ?> Sem &middot; Pending)</span>
                                     </span>
                                 <?php else: ?>
                                     <form method="post" class="inline m-0 p-0">
                                         <input type="hidden" name="csrf_token" value="<?php echo htmlspecialchars($_SESSION['csrf_token'] ?? ''); ?>">
                                         <input type="hidden" name="pillar_type" value="Human">
+                                        <input type="hidden" name="academic_year" value="<?php echo htmlspecialchars($filter_ay); ?>">
+                                        <input type="hidden" name="semester" value="<?php echo htmlspecialchars($filter_sem); ?>">
                                         <button type="submit" name="request_access" class="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl text-xs font-bold bg-[#59443F] hover:bg-[#8B7168] text-white shadow-soft transition-all duration-200 cursor-pointer">
                                             <i class="fa-solid fa-key text-[#E8C7C5]"></i>
-                                            <span>Request Viewing</span>
+                                            <span>Request Viewing (<?php echo htmlspecialchars($filter_sem); ?> Semester)</span>
                                         </button>
                                     </form>
                                 <?php endif; ?>
@@ -711,12 +767,15 @@ require_once __DIR__ . '/../includes/layout_app_start.php';
                                 </tr>
                             </thead>
                             <tbody class="divide-y divide-[#E8C7C5]/20 text-sm font-medium text-[#59443F]">
-                                <?php foreach ($human_list as $item): ?>
+                                <?php foreach ($human_list as $item):
+                                    $item_key = trim((string)($item['academic_year'] ?? '')) . '|' . capstone_access_normalize_semester((string)($item['semester'] ?? ''));
+                                    $item_allowed = !empty($approved_human_terms[$item_key]);
+                                ?>
                                     <tr class="hover:bg-[#F8EEEE]/40 transition-colors">
                                         <td class="px-6 py-4 font-bold text-[#59443F]"><?php echo htmlspecialchars($item['academic_year']); ?></td>
                                         <td class="px-6 py-4 text-[#8B7168]"><?php echo htmlspecialchars($item['semester']); ?></td>
                                         <td class="px-6 py-4">
-                                            <?php if ($allowed_human): ?>
+                                            <?php if ($item_allowed): ?>
                                                 <span class="font-semibold text-[#59443F]"><?php echo htmlspecialchars($item['average']); ?></span>
                                             <?php else: ?>
                                                 <span class="inline-flex items-center gap-1.5 text-xs text-[#8B7168]">
@@ -726,7 +785,7 @@ require_once __DIR__ . '/../includes/layout_app_start.php';
                                             <?php endif; ?>
                                         </td>
                                         <td class="px-6 py-4">
-                                            <?php if ($allowed_human): ?>
+                                            <?php if ($item_allowed): ?>
                                                 <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold <?php echo htmlspecialchars((string)($item['badge_class'] ?? 'bg-gray-100 text-gray-600')); ?>">
                                                     <?php echo htmlspecialchars($item['interpretation']); ?>
                                                 </span>
@@ -738,7 +797,7 @@ require_once __DIR__ . '/../includes/layout_app_start.php';
                                             <?php endif; ?>
                                         </td>
                                         <td class="px-6 py-4">
-                                            <?php if ($allowed_human): ?>
+                                            <?php if ($item_allowed): ?>
                                                 <span class="font-semibold text-emerald-700"><?php echo htmlspecialchars($item['growth_status']); ?></span>
                                             <?php else: ?>
                                                 <span class="inline-flex items-center gap-1.5 text-xs text-[#8B7168]">
@@ -749,7 +808,7 @@ require_once __DIR__ . '/../includes/layout_app_start.php';
                                         </td>
                                         <td class="px-6 py-4 text-xs text-[#8B7168]"><?php echo htmlspecialchars($item['date']); ?></td>
                                         <td class="px-6 py-4 text-right">
-                                            <?php if ($allowed_human): ?>
+                                            <?php if ($item_allowed): ?>
                                                 <a href="<?php echo htmlspecialchars($item['report_url']); ?>" class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold bg-[#F8EEEE] hover:bg-[#E8C7C5] text-[#59443F] border border-[#E8C7C5]/60 transition-all shadow-xs">
                                                     <i class="fa-solid fa-file-lines text-xs text-[#8B7168]"></i>
                                                     <span>View</span>
@@ -782,9 +841,9 @@ require_once __DIR__ . '/../includes/layout_app_start.php';
                                     <i class="fa-solid fa-lock"></i>
                                 </div>
                                 <div>
-                                    <h3 class="font-heading font-extrabold text-base text-[#59443F]">Pastoral Evaluation Viewing Restricted</h3>
+                                    <h3 class="font-heading font-extrabold text-base text-[#59443F]">Pastoral Evaluation Viewing Restricted (AY <?php echo htmlspecialchars($filter_ay . ' · ' . $filter_sem . ' Sem'); ?>)</h3>
                                     <p class="text-xs sm:text-sm text-[#8B7168] mt-0.5 leading-relaxed">
-                                        Pastoral formation evaluations are locked until approved by your Pastoral Formator.
+                                        Pastoral formation evaluations for AY <?php echo htmlspecialchars($filter_ay . ' (' . $filter_sem . ' Semester)'); ?> are locked until approved by your Pastoral Formator.
                                     </p>
                                     <?php if (!empty($request_successes['Pastoral'])): ?>
                                         <div class="text-xs font-semibold text-emerald-700 mt-2 flex items-center gap-1.5">
@@ -804,15 +863,17 @@ require_once __DIR__ . '/../includes/layout_app_start.php';
                                 <?php if ($pending_requests['Pastoral']): ?>
                                     <span class="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold bg-[#F8EEEE] text-[#8B7168] border border-[#E8C7C5]/60 shadow-xs">
                                         <i class="fa-regular fa-clock text-amber-600"></i>
-                                        <span>Request Sent (Pending Approval)</span>
+                                        <span>Request Sent (<?php echo htmlspecialchars($filter_sem); ?> Sem &middot; Pending)</span>
                                     </span>
                                 <?php else: ?>
                                     <form method="post" class="inline m-0 p-0">
                                         <input type="hidden" name="csrf_token" value="<?php echo htmlspecialchars($_SESSION['csrf_token'] ?? ''); ?>">
                                         <input type="hidden" name="pillar_type" value="Pastoral">
+                                        <input type="hidden" name="academic_year" value="<?php echo htmlspecialchars($filter_ay); ?>">
+                                        <input type="hidden" name="semester" value="<?php echo htmlspecialchars($filter_sem); ?>">
                                         <button type="submit" name="request_access" class="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl text-xs font-bold bg-[#59443F] hover:bg-[#8B7168] text-white shadow-soft transition-all duration-200 cursor-pointer">
                                             <i class="fa-solid fa-key text-[#E8C7C5]"></i>
-                                            <span>Request Viewing</span>
+                                            <span>Request Viewing (<?php echo htmlspecialchars($filter_sem); ?> Semester)</span>
                                         </button>
                                     </form>
                                 <?php endif; ?>
@@ -852,12 +913,15 @@ require_once __DIR__ . '/../includes/layout_app_start.php';
                                 </tr>
                             </thead>
                             <tbody class="divide-y divide-[#E8C7C5]/20 text-sm font-medium text-[#59443F]">
-                                <?php foreach ($pastoral_list as $item): ?>
+                                <?php foreach ($pastoral_list as $item):
+                                    $item_key = trim((string)($item['academic_year'] ?? '')) . '|' . capstone_access_normalize_semester((string)($item['semester'] ?? ''));
+                                    $item_allowed = !empty($approved_pastoral_terms[$item_key]);
+                                ?>
                                     <tr class="hover:bg-[#F8EEEE]/40 transition-colors">
                                         <td class="px-6 py-4 font-bold text-[#59443F]"><?php echo htmlspecialchars($item['academic_year']); ?></td>
                                         <td class="px-6 py-4 text-[#8B7168]"><?php echo htmlspecialchars($item['semester']); ?></td>
                                         <td class="px-6 py-4">
-                                            <?php if ($allowed_pastoral): ?>
+                                            <?php if ($item_allowed): ?>
                                                 <span class="font-semibold text-[#59443F]"><?php echo htmlspecialchars($item['average']); ?></span>
                                             <?php else: ?>
                                                 <span class="inline-flex items-center gap-1.5 text-xs text-[#8B7168]">
@@ -867,7 +931,7 @@ require_once __DIR__ . '/../includes/layout_app_start.php';
                                             <?php endif; ?>
                                         </td>
                                         <td class="px-6 py-4">
-                                            <?php if ($allowed_pastoral): ?>
+                                            <?php if ($item_allowed): ?>
                                                 <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold <?php echo htmlspecialchars((string)($item['badge_class'] ?? 'bg-gray-100 text-gray-600')); ?>">
                                                     <?php echo htmlspecialchars($item['interpretation']); ?>
                                                 </span>
@@ -879,7 +943,7 @@ require_once __DIR__ . '/../includes/layout_app_start.php';
                                             <?php endif; ?>
                                         </td>
                                         <td class="px-6 py-4">
-                                            <?php if ($allowed_pastoral): ?>
+                                            <?php if ($item_allowed): ?>
                                                 <span class="font-semibold text-emerald-700"><?php echo htmlspecialchars($item['growth_status']); ?></span>
                                             <?php else: ?>
                                                 <span class="inline-flex items-center gap-1.5 text-xs text-[#8B7168]">
@@ -890,7 +954,7 @@ require_once __DIR__ . '/../includes/layout_app_start.php';
                                         </td>
                                         <td class="px-6 py-4 text-xs text-[#8B7168]"><?php echo htmlspecialchars($item['date']); ?></td>
                                         <td class="px-6 py-4 text-right">
-                                            <?php if ($allowed_pastoral): ?>
+                                            <?php if ($item_allowed): ?>
                                                 <a href="<?php echo htmlspecialchars($item['report_url']); ?>" class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold bg-[#F8EEEE] hover:bg-[#E8C7C5] text-[#59443F] border border-[#E8C7C5]/60 transition-all shadow-xs">
                                                     <i class="fa-solid fa-file-lines text-xs text-[#8B7168]"></i>
                                                     <span>View</span>

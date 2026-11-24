@@ -17,8 +17,8 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST' && isset($_POST['action']) && 
         echo json_encode(['success' => false, 'error' => 'Security token validation failed.']);
         exit;
     }
-    if (!$can_edit && !in_array($role, ['Registrar', 'Dean'], true)) {
-        echo json_encode(['success' => false, 'error' => 'Unauthorized action.']);
+    if (!$can_edit && $role !== 'Dean') {
+        echo json_encode(['success' => false, 'error' => 'Unauthorized action. Only the Academic Formator can approve or deny grade viewing requests.']);
         exit;
     }
 
@@ -35,8 +35,8 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST' && isset($_POST['action']) && 
     }
 
     $selCols = $hasSarTermCols
-        ? 'id, seminarian_id, status, academic_year, semester'
-        : 'id, seminarian_id, status';
+        ? 'id, seminarian_id, status, academic_year, semester, request_scope'
+        : 'id, seminarian_id, status, request_scope';
     $stmt_r = $conn->prepare("SELECT {$selCols} FROM seminarian_access_requests WHERE id = ? AND assignment_type = 'Academic' LIMIT 1");
     $stmt_r->bind_param('i', $request_id);
     $stmt_r->execute();
@@ -86,6 +86,9 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST' && isset($_POST['action']) && 
                 $stmt_res->bind_param('iii', $current_user_id, $current_user_id, $request_id);
             }
             $stmt_res->execute();
+            if (trim((string)($req['request_scope'] ?? 'whole')) === 'whole') {
+                capstone_access_set_term_eval_access($conn, $seminarian_id, 'Academic', $req_ay, $req_sem, true, $current_user_id);
+            }
             $msg = "Grade access approved for AY {$req_ay} ({$req_sem} Semester).";
         } else {
             // Mark request Rejected

@@ -1067,7 +1067,9 @@ try {
         $role = (string)($_SESSION['role'] ?? '');
         $sid = (int)($_POST['seminarian_id'] ?? 0);
         $val = (int)($_POST['new_value'] ?? 0);
-        $result = eval_handle_report_access_update($conn, $role, $sid, $val);
+        $ay = trim((string)($_POST['academic_year'] ?? ''));
+        $sem = trim((string)($_POST['semester'] ?? ''));
+        $result = eval_handle_report_access_update($conn, $role, $sid, $val, $ay, $sem);
         if (empty($result['ok'])) {
             ajax_error((string)($result['error'] ?? 'Failed to update report access.'), (int)($result['status'] ?? 400));
         }

@@ -17,7 +17,9 @@ if (isset($_POST['approve_access']) || isset($_POST['reject_access'])) {
     if ($rid <= 0) {
         $access_error = 'Invalid request.';
     } else {
-        $stmt_req = $conn->prepare("SELECT id, seminarian_id, assigned_user_id
+        $hasTermCols = function_exists('capstone_access_has_term_columns') && capstone_access_has_term_columns($conn);
+        $selTerm = $hasTermCols ? ', academic_year, semester' : '';
+        $stmt_req = $conn->prepare("SELECT id, seminarian_id, assigned_user_id{$selTerm}
             FROM seminarian_access_requests
             WHERE id = ? AND assignment_type = 'Human' AND status = 'Pending'
             LIMIT 1");
@@ -33,23 +35,37 @@ if (isset($_POST['approve_access']) || isset($_POST['reject_access'])) {
             } else {
                 $seminarian_id = (int)$req['seminarian_id'];
                 $note = trim((string)($_POST['resolution_note'] ?? ''));
+                $fallbackTerm = capstone_access_resolve_active_term($conn);
+                $req_ay = trim((string)($req['academic_year'] ?? '')) ?: $fallbackTerm['academic_year'];
+                $req_sem = capstone_access_normalize_semester((string)($req['semester'] ?? ''));
+                if (!in_array($req_sem, ['1st', '2nd', 'Summer'], true)) $req_sem = $fallbackTerm['semester'];
                 $conn->begin_transaction();
                 try {
                     if (isset($_POST['approve_access'])) {
-                        $stmt_upd = $conn->prepare("UPDATE seminarians SET human_eval_view_enabled = 1 WHERE id = ?");
-                        $stmt_upd->bind_param('i', $seminarian_id);
-                        $stmt_upd->execute();
-
-                        $stmt_res = $conn->prepare("UPDATE seminarian_access_requests
-                            SET status = 'Approved',
-                                assigned_user_id = COALESCE(assigned_user_id, ?),
-                                resolved_by = ?,
-                                resolved_at = NOW(),
-                                resolution_note = NULLIF(?, '')
-                            WHERE id = ?");
-                        $stmt_res->bind_param('iisi', $formator_id, $formator_id, $note, $rid);
+                        if ($hasTermCols) {
+                            $stmt_res = $conn->prepare("UPDATE seminarian_access_requests
+                                SET status = 'Approved',
+                                    academic_year = ?,
+                                    semester = ?,
+                                    assigned_user_id = COALESCE(assigned_user_id, ?),
+                                    resolved_by = ?,
+                                    resolved_at = NOW(),
+                                    resolution_note = NULLIF(?, '')
+                                WHERE id = ?");
+                            $stmt_res->bind_param('ssiisi', $req_ay, $req_sem, $formator_id, $formator_id, $note, $rid);
+                        } else {
+                            $stmt_res = $conn->prepare("UPDATE seminarian_access_requests
+                                SET status = 'Approved',
+                                    assigned_user_id = COALESCE(assigned_user_id, ?),
+                                    resolved_by = ?,
+                                    resolved_at = NOW(),
+                                    resolution_note = NULLIF(?, '')
+                                WHERE id = ?");
+                            $stmt_res->bind_param('iisi', $formator_id, $formator_id, $note, $rid);
+                        }
                         $stmt_res->execute();
-                        $access_success = 'Access enabled.';
+                        capstone_access_set_term_eval_access($conn, $seminarian_id, 'Human', $req_ay, $req_sem, true, $formator_id);
+                        $access_success = "Access enabled for AY {$req_ay} ({$req_sem} Semester).";
                     } else {
                         $stmt_res = $conn->prepare("UPDATE seminarian_access_requests
                             SET status = 'Rejected',
@@ -261,7 +277,9 @@ while ($row = $res_top->fetch_assoc()) {
 }
 
 $access_requests = [];
-$stmt_ar = $conn->prepare("SELECT r.id, r.seminarian_id, r.message, r.requested_at,
+$hasSarTermCols = function_exists('capstone_access_has_term_columns') && capstone_access_has_term_columns($conn);
+$sarTermCols = $hasSarTermCols ? 'r.academic_year, r.semester, ' : '';
+$stmt_ar = $conn->prepare("SELECT r.id, r.seminarian_id, {$sarTermCols}r.message, r.requested_at,
         u.username, up.full_name
     FROM seminarian_access_requests r
     JOIN seminarians s ON s.id = r.seminarian_id
@@ -550,6 +568,11 @@ require_once __DIR__ . '/../includes/layout_app_start.php';
                                                     <span class="font-bold text-xs text-[#59443F] block leading-snug"><?php echo htmlspecialchars($name); ?></span>
                                                     <span class="text-[10px] text-[#8B7168]">#<?php echo (int)$r['seminarian_id']; ?> · <?php echo htmlspecialchars(date('M d, Y', strtotime((string)$r['requested_at']))); ?></span>
                                                 </div>
+                                                <?php if (!empty($r['academic_year']) || !empty($r['semester'])) { ?>
+                                                    <span class="text-[10px] font-bold text-amber-800 bg-amber-50 border border-amber-200/80 px-2 py-0.5 rounded-full shrink-0">
+                                                        AY <?php echo htmlspecialchars((string)($r['academic_year'] ?? '')); ?> &middot; <?php echo htmlspecialchars((string)($r['semester'] ?? '')); ?> Sem
+                                                    </span>
+                                                <?php } ?>
                                             </div>
                                             <?php if (!empty($r['message'])) { ?>
                                                 <p class="text-[11px] text-[#8B7168] bg-[#F8EEEE]/60 rounded-xl p-2 my-1.5 border border-[#E8C7C5]/40 leading-relaxed"><?php echo htmlspecialchars((string)$r['message']); ?></p>

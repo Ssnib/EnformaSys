@@ -17,7 +17,9 @@ if (isset($_POST['approve_access']) || isset($_POST['reject_access'])) {
     if ($rid <= 0) {
         $access_error = 'Invalid request.';
     } else {
-        $stmt_req = $conn->prepare("SELECT id, seminarian_id, assigned_user_id
+        $hasTermCols = function_exists('capstone_access_has_term_columns') && capstone_access_has_term_columns($conn);
+        $selTerm = $hasTermCols ? ', academic_year, semester' : '';
+        $stmt_req = $conn->prepare("SELECT id, seminarian_id, assigned_user_id{$selTerm}
             FROM seminarian_access_requests
             WHERE id = ? AND assignment_type = 'Academic' AND status = 'Pending'
             LIMIT 1");
@@ -33,19 +35,37 @@ if (isset($_POST['approve_access']) || isset($_POST['reject_access'])) {
             } else {
                 $seminarian_id = (int)$req['seminarian_id'];
                 $note = trim((string)($_POST['resolution_note'] ?? ''));
+                $fallbackTerm = capstone_access_resolve_active_term($conn);
+                $req_ay = trim((string)($req['academic_year'] ?? '')) ?: $fallbackTerm['academic_year'];
+                $req_sem = capstone_access_normalize_semester((string)($req['semester'] ?? ''));
+                if (!in_array($req_sem, ['1st', '2nd', 'Summer'], true)) $req_sem = $fallbackTerm['semester'];
                 $conn->begin_transaction();
                 try {
                     if (isset($_POST['approve_access'])) {
-                        $stmt_res = $conn->prepare("UPDATE seminarian_access_requests
-                            SET status = 'Approved',
-                                assigned_user_id = COALESCE(assigned_user_id, ?),
-                                resolved_by = ?,
-                                resolved_at = NOW(),
-                                resolution_note = NULLIF(?, '')
-                            WHERE id = ?");
-                        $stmt_res->bind_param('iisi', $formator_id, $formator_id, $note, $rid);
+                        if ($hasTermCols) {
+                            $stmt_res = $conn->prepare("UPDATE seminarian_access_requests
+                                SET status = 'Approved',
+                                    academic_year = ?,
+                                    semester = ?,
+                                    assigned_user_id = COALESCE(assigned_user_id, ?),
+                                    resolved_by = ?,
+                                    resolved_at = NOW(),
+                                    resolution_note = NULLIF(?, '')
+                                WHERE id = ?");
+                            $stmt_res->bind_param('ssiisi', $req_ay, $req_sem, $formator_id, $formator_id, $note, $rid);
+                        } else {
+                            $stmt_res = $conn->prepare("UPDATE seminarian_access_requests
+                                SET status = 'Approved',
+                                    assigned_user_id = COALESCE(assigned_user_id, ?),
+                                    resolved_by = ?,
+                                    resolved_at = NOW(),
+                                    resolution_note = NULLIF(?, '')
+                                WHERE id = ?");
+                            $stmt_res->bind_param('iisi', $formator_id, $formator_id, $note, $rid);
+                        }
                         $stmt_res->execute();
-                        $access_success = 'Access enabled for requested term.';
+                        capstone_access_set_term_eval_access($conn, $seminarian_id, 'Academic', $req_ay, $req_sem, true, $formator_id);
+                        $access_success = "Access enabled for AY {$req_ay} ({$req_sem} Semester).";
                     } else {
                         $stmt_res = $conn->prepare("UPDATE seminarian_access_requests
                             SET status = 'Rejected',

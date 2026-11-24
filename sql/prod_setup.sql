@@ -2555,6 +2555,19 @@ CREATE INDEX `idx_grades_sem_archived` ON `grades` (`seminarian_id`, `archived_a
 CREATE INDEX `idx_eval_sem_arch_type` ON `evaluations` (`seminarian_id`, `archived_at`, `type`);
 CREATE INDEX `idx_sar_sem_type_status_read` ON `seminarian_access_requests` (`seminarian_id`, `assignment_type`, `status`, `is_read`);
 CREATE INDEX `idx_sar_sem_type_term_status` ON `seminarian_access_requests` (`seminarian_id`, `assignment_type`, `academic_year`, `semester`, `status`);
+CREATE TABLE IF NOT EXISTS `seminarian_eval_access` (
+  `id` int(11) NOT NULL AUTO_INCREMENT,
+  `seminarian_id` int(11) NOT NULL,
+  `formator_type` enum('Academic','Human','Pastoral','Spiritual') NOT NULL,
+  `academic_year` varchar(20) NOT NULL,
+  `semester` varchar(20) NOT NULL,
+  `is_enabled` tinyint(1) NOT NULL DEFAULT 0,
+  `updated_by` int(11) DEFAULT NULL,
+  `updated_at` datetime NOT NULL DEFAULT current_timestamp() ON UPDATE current_timestamp(),
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uniq_sea_term` (`seminarian_id`, `formator_type`, `academic_year`, `semester`),
+  KEY `idx_sea_type_term` (`formator_type`, `academic_year`, `semester`, `is_enabled`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 CREATE INDEX `idx_csr_sem_status_read` ON `cashier_soa_requests` (`seminarian_id`, `status`, `is_read`);
 CREATE INDEX `idx_ses_ay_sem_status` ON `student_enrolled_subjects` (`academic_year`, `semester`, `status`);
 CREATE INDEX `idx_ses_stu_ay_sem_status` ON `student_enrolled_subjects` (`student_id`, `academic_year`, `semester`, `status`);
