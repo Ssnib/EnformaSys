@@ -258,21 +258,21 @@ foreach ($questions as $q) {
                 <span><?php echo $evaluation_id > 0 ? 'Edit' : 'New'; ?></span>
             </nav>
 
-            <div style="display: flex; align-items: center; justify-content: space-between; gap: 1rem; flex-wrap: wrap; margin-bottom: 1.25rem;">
+            <div style="display: flex; align-items: center; justify-content: space-between; gap: 1rem; flex-wrap: wrap; margin-bottom: 1.15rem;">
                 <h1 class="page-title" style="margin: 0;"><i class="fas fa-clipboard-check"></i> <?php echo $evaluation_id > 0 ? 'Edit Academic Evaluation' : 'New Academic Evaluation'; ?></h1>
-                <a href="afe_evaluations.php" class="back-link print:hidden" style="margin: 0; white-space: nowrap;"><i class="fas fa-arrow-left"></i> Back</a>
+                <a href="afe_evaluations.php" class="eval-back-btn print:hidden"><i class="fas fa-arrow-left" aria-hidden="true"></i> <span>Back</span></a>
             </div>
 
             <?php if (isset($error)) echo "<p class='error'>" . htmlspecialchars($error) . "</p>"; ?>
             <?php eval_render_group_evaluation_header('academic', $group_ctx, $filter_academic_year, $filter_semester); ?>
 
             <?php if (!$is_group_mode) { ?>
-            <div class="card" style="margin-top: 0;">
-                <form method="get" style="display: flex; gap: 0.75rem; align-items: flex-end; flex-wrap: wrap; margin: 0; box-shadow: none; background: transparent; padding: 0; border: none;">
+            <div class="card eval-filter-card" style="margin-top: 0;">
+                <form method="get" class="eval-filter-grid">
                     <?php if ($evaluation_id > 0) { ?><input type="hidden" name="evaluation_id" value="<?php echo (int)$evaluation_id; ?>"><?php } ?>
-                    <div class="field" style="margin: 0; min-width: 260px;">
-                        <label>Seminarian</label>
-                        <select name="student_id" required>
+                    <div class="eval-filter-field">
+                        <label for="afeStudentSelect">Seminarian</label>
+                        <select id="afeStudentSelect" name="student_id" required>
                             <option value="">Select seminarian</option>
                             <?php foreach ($students as $s) {
                                 $name = trim((string)($s['full_name'] ?? ''));
@@ -285,34 +285,40 @@ foreach ($questions as $q) {
                             <?php } ?>
                         </select>
                     </div>
-                    <div class="field" style="margin: 0;">
-                        <label>Academic Year</label>
-                        <input type="text" name="academic_year" value="<?php echo htmlspecialchars($filter_academic_year); ?>" required>
+                    <div class="eval-filter-field">
+                        <label for="afeAcademicYearInput">Academic Year</label>
+                        <input id="afeAcademicYearInput" type="text" name="academic_year" value="<?php echo htmlspecialchars($filter_academic_year); ?>" required>
                     </div>
-                    <div class="field" style="margin: 0;">
-                        <label>Semester</label>
-                        <select name="semester" required>
+                    <div class="eval-filter-field">
+                        <label for="afeSemesterSelect">Semester</label>
+                        <select id="afeSemesterSelect" name="semester" required>
                             <?php foreach (['1st','2nd','Summer'] as $s) { ?>
                                 <option value="<?php echo $s; ?>" <?php echo $s === $filter_semester ? 'selected' : ''; ?>><?php echo $s; ?></option>
                             <?php } ?>
                         </select>
                     </div>
-                    <button type="submit" style="width: auto; padding: 0.55rem 0.9rem;"><i class="fas fa-sync"></i> Load</button>
+                    <div>
+                        <button type="submit" class="eval-load-btn"><i class="fas fa-sync" aria-hidden="true"></i> <span>Load</span></button>
+                    </div>
                 </form>
             </div>
             <?php } ?>
 
             <?php if ((($is_group_mode && !empty($group_ctx['has_recipients'])) || (!$is_group_mode && $student_id > 0)) && count($questions) > 0) { ?>
-                <div class="stat-grid" style="margin-top: 1.25rem;">
-                    <div class="stat-card">
-                        <div class="stat-icon" style="color: #0ea5e9;"><i class="fas <?php echo $is_group_mode ? 'fa-users' : 'fa-user-graduate'; ?>"></i></div>
-                        <div class="stat-value"><?php echo $is_group_mode ? ('Group (' . count($group_ctx['pending_items']) . ' Seminarians)') : htmlspecialchars($student_label !== '' ? $student_label : ('#' . (int)$student_id)); ?></div>
-                        <div class="stat-label"><?php echo $is_group_mode ? 'Evaluation Recipients' : 'Seminarian'; ?></div>
+                <div class="eval-summary-grid">
+                    <div class="eval-summary-card">
+                        <div class="eval-summary-icon bg-sky-50 text-sky-600 border border-sky-200/70"><i class="fas <?php echo $is_group_mode ? 'fa-users' : 'fa-user-graduate'; ?>" aria-hidden="true"></i></div>
+                        <div class="eval-summary-meta">
+                            <div class="eval-summary-label"><?php echo $is_group_mode ? 'Evaluation Recipients' : 'Seminarian'; ?></div>
+                            <div class="eval-summary-value"><?php echo $is_group_mode ? ('Group (' . count($group_ctx['pending_items']) . ' Seminarians)') : htmlspecialchars($student_label !== '' ? $student_label : ('#' . (int)$student_id)); ?></div>
+                        </div>
                     </div>
-                    <div class="stat-card">
-                        <div class="stat-icon" style="color: #10b981;"><i class="fas fa-graduation-cap"></i></div>
-                        <div class="stat-value"><?php echo $is_group_mode ? 'Per Seminarian' : ($gpa === null ? '-' : htmlspecialchars(number_format((float)$gpa, 2))); ?></div>
-                        <div class="stat-label">GPA (Auto-fetched)</div>
+                    <div class="eval-summary-card">
+                        <div class="eval-summary-icon bg-emerald-50 text-emerald-600 border border-emerald-200/70"><i class="fas fa-graduation-cap" aria-hidden="true"></i></div>
+                        <div class="eval-summary-meta">
+                            <div class="eval-summary-label">GPA (Auto-fetched)</div>
+                            <div class="eval-summary-value text-emerald-700"><?php echo $is_group_mode ? 'Per Seminarian' : ($gpa === null ? '-' : htmlspecialchars(number_format((float)$gpa, 2))); ?></div>
+                        </div>
                     </div>
                 </div>
 
@@ -369,8 +375,8 @@ foreach ($questions as $q) {
                             <div class="data-card-header">
                                 <h3><i class="fas fa-layer-group"></i> <?php echo htmlspecialchars($cat); ?></h3>
                             </div>
-                            <div style="overflow-x: auto;">
-                                <table>
+                            <div class="eval-criteria-table-wrap">
+                                <table class="eval-criteria-table">
                                     <thead>
                                         <tr>
                                             <th>Question</th>
@@ -408,10 +414,10 @@ foreach ($questions as $q) {
                         </div>
                     <?php } ?>
 
-                    <div class="card print:hidden" style="margin-top: 1.25rem; display: flex; justify-content: flex-end; gap: 0.75rem;">
-                        <a href="afe_evaluations.php" class="back-link print:hidden" style="margin: 0;">Cancel</a>
-                        <button type="submit" name="save_evaluation" class="print:hidden" style="width: auto; padding: 0.6rem 1rem;">
-                            <i class="fas fa-save"></i> <?php echo $is_group_mode ? ('Save Evaluation for All (' . count($group_ctx['pending_items']) . ')') : 'Save Evaluation'; ?>
+                    <div class="card eval-submit-bar print:hidden">
+                        <a href="afe_evaluations.php" class="eval-back-btn print:hidden">Cancel</a>
+                        <button type="submit" name="save_evaluation" class="eval-submit-btn print:hidden" data-confirm="Submit this academic evaluation? Once saved, results will be recorded for the selected term." data-confirm-title="Submit Evaluation" data-confirm-text="Submit Evaluation" data-confirm-variant="primary" data-confirm-loading="Saving...">
+                            <i class="fas fa-save" aria-hidden="true"></i> <span><?php echo $is_group_mode ? ('Save Evaluation for All (' . count($group_ctx['pending_items']) . ')') : 'Save Evaluation'; ?></span>
                         </button>
                     </div>
                 </form>

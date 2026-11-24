@@ -132,7 +132,7 @@ if ($selected_header_ay !== '' && !in_array($selected_header_ay, $header_ay_list
     </div>
 
     <!-- Academic Year & Semester Dropdown Filters (Neat 2-col row on mobile, inline on tablet/desktop) -->
-    <form method="GET" action="" id="topbarFilterForm" class="order-3 lg:order-4 grid grid-cols-2 sm:flex items-center gap-2 sm:gap-2.5 w-full sm:w-auto shrink-0 m-0 p-0">
+    <form method="GET" action="" id="topbarFilterForm" class="order-3 lg:order-4 grid grid-cols-2 sm:flex sm:flex-row items-center gap-2 sm:gap-2.5 w-full lg:w-auto shrink-0 m-0 p-0">
         <?php foreach ($_GET as $gk => $gv): ?>
             <?php if ($gk !== 'academic_year' && $gk !== 'semester' && is_scalar($gv)): ?>
                 <input type="hidden" name="<?= htmlspecialchars((string)$gk) ?>" value="<?= htmlspecialchars((string)$gv) ?>">

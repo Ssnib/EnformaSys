@@ -1144,6 +1144,12 @@ tr:hover td {
   margin-right: 0.5rem;
 }
 
+.back-link:has(i)::before,
+.eval-back-btn::before {
+  content: none !important;
+  margin-right: 0 !important;
+}
+
 .card {
   background: white;
   padding: 1.5rem;
