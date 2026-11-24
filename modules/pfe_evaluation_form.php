@@ -305,23 +305,9 @@ foreach ($questions as $q) {
 }
 ?>
         <div class="content-body">
-            <style>
-                .likert-btns { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 0.5rem; }
-                .likert-btn { width: 100%; border: 1px solid #e2e8f0; background: #fff; color: #0f172a; font-weight: 900; padding: 0.55rem 0.7rem; border-radius: 0.75rem; cursor: pointer; text-align: center; display: inline-flex; flex-direction: row; align-items: center; justify-content: center; gap: 0.4rem; }
-                .likert-btn.active { background: #0f766e; color: #fff; border-color: #0f766e; }
-                .likert-btn .likert-label { font-size: 0.78rem; font-weight: 900; color: #475569; white-space: nowrap; }
-                .likert-btn.active .likert-label { color: #fff; }
-                @media (max-width: 900px) {
-                    .likert-btns { grid-template-columns: repeat(3, minmax(0, 1fr)); }
-                }
-                @media (max-width: 560px) {
-                    .likert-btns { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-                }
-            </style>
-
-            <div style="display: flex; align-items: center; justify-content: space-between; gap: 1rem; flex-wrap: wrap; margin-bottom: 1.25rem;">
+            <div style="display: flex; align-items: center; justify-content: space-between; gap: 1rem; flex-wrap: wrap; margin-bottom: 1.15rem;">
                 <h1 class="page-title" style="margin: 0;"><i class="fas fa-user-check"></i> <?php echo $evaluation_id > 0 ? 'Edit Pastoral Evaluation' : 'New Pastoral Evaluation'; ?></h1>
-                <a href="pfe_evaluations.php" class="back-link print:hidden" style="margin: 0; white-space: nowrap;"><i class="fas fa-arrow-left"></i> Back</a>
+                <a href="pfe_evaluations.php" class="eval-back-btn print:hidden"><i class="fas fa-arrow-left" aria-hidden="true"></i> <span>Back</span></a>
             </div>
 
             <?php if (isset($error)) echo "<p class='error'>" . htmlspecialchars($error) . "</p>"; ?>
@@ -350,24 +336,24 @@ foreach ($questions as $q) {
                 // Header card already informs the Formator that no eligible recipients remain
             } else {
             ?>
-            <div class="card" style="margin-top: 0;">
-                <form method="post" id="pfeEvalForm">
+            <div class="card eval-filter-card" style="margin-top: 0;">
+                <form method="post" id="pfeEvalForm" style="margin: 0; padding: 0; background: transparent; border: none; box-shadow: none; gap: 0;">
                     <input type="hidden" name="csrf_token" value="<?php echo htmlspecialchars($_SESSION['csrf_token']); ?>">
                     <input type="hidden" name="evaluation_id" value="<?php echo (int)$evaluation_id; ?>">
                     <?php if ($is_group_mode) { eval_render_group_hidden_inputs($group_ctx); } ?>
 
-                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 0.75rem 1rem;">
+                    <div class="eval-filter-grid">
                         <?php if ($is_group_mode) { ?>
-                        <div class="field" style="margin: 0;">
+                        <div class="eval-filter-field">
                             <label>Group Recipients</label>
-                            <div style="padding: 0.65rem 0.85rem; border-radius: 0.75rem; background: #F8EEEE; border: 1px solid #E2C9C8; font-weight: 800; color: #59443F; font-size: 0.85rem;">
+                            <div style="min-height: 42px; display: flex; align-items: center; padding: 0 14px; border-radius: 10px; background: #F8EEEE; border: 1px solid #E2C9C8; font-weight: 800; color: #59443F; font-size: 0.85rem;">
                                 Applying to <?php echo count($group_ctx['pending_items']); ?> selected seminarians
                             </div>
                         </div>
                         <?php } else { ?>
-                        <div class="field" style="margin: 0;">
-                            <label>Seminarian</label>
-                            <select name="seminarian_id" required>
+                        <div class="eval-filter-field">
+                            <label for="pfeStudentSelect">Seminarian</label>
+                            <select id="pfeStudentSelect" name="seminarian_id" required>
                                 <option value="">Select seminarian</option>
                                 <?php foreach ($students as $s) {
                                     $name = trim((string)($s['full_name'] ?? ''));
@@ -379,48 +365,42 @@ foreach ($questions as $q) {
                                     </option>
                                 <?php } ?>
                             </select>
-                            <?php if ($student_id > 0) { ?>
-                                <div style="margin-top: 0.35rem; color: #64748b; font-weight: 800;">
-                                    Student view: <?php echo $student_view_enabled ? "<span class='badge badge-success'>Enabled</span>" : "<span class='badge badge-warning'>Disabled</span>"; ?>
-                                </div>
-                            <?php } ?>
                         </div>
                         <?php } ?>
-                        <div class="field" style="margin: 0;">
-                            <label>Academic Year</label>
-                            <input type="text" name="academic_year" value="<?php echo htmlspecialchars($filter_academic_year); ?>" required>
+                        <div class="eval-filter-field">
+                            <label for="pfeAcademicYearInput">Academic Year</label>
+                            <input id="pfeAcademicYearInput" type="text" name="academic_year" value="<?php echo htmlspecialchars($filter_academic_year); ?>" required>
                         </div>
-                        <div class="field" style="margin: 0;">
-                            <label>Semester</label>
-                            <select name="semester" required>
+                        <div class="eval-filter-field">
+                            <label for="pfeSemesterSelect">Semester</label>
+                            <select id="pfeSemesterSelect" name="semester" required>
                                 <?php foreach (['1st','2nd','Summer'] as $s) { ?>
                                     <option value="<?php echo $s; ?>" <?php echo $s === $filter_semester ? 'selected' : ''; ?>><?php echo $s; ?></option>
                                 <?php } ?>
                             </select>
                         </div>
-                        <div class="field" style="margin: 0;">
-                            <label>Evaluation Date</label>
-                            <input type="date" name="evaluation_date" value="<?php echo htmlspecialchars($edit ? (string)$edit['evaluation_date'] : date('Y-m-d')); ?>" required>
+                        <div class="eval-filter-field">
+                            <label for="pfeEvalDateInput">Evaluation Date</label>
+                            <input id="pfeEvalDateInput" type="date" name="evaluation_date" value="<?php echo htmlspecialchars($edit ? (string)$edit['evaluation_date'] : date('Y-m-d')); ?>" required>
                         </div>
                     </div>
 
-                    <div style="margin-top: 1rem; color: var(--text-secondary); font-weight: 800;">
-                        <ul style="margin: 0; padding-left: 1.25rem; line-height: 1.7;">
-                            <li>5 – Outstanding</li>
-                            <li>4 – Very Good</li>
-                            <li>3 – Satisfactory</li>
-                            <li>2 – Needs Improvement</li>
-                            <li>1 – Poor</li>
-                        </ul>
-                    </div>
+                    <?php
+                    eval_render_rating_scale_strip(
+                        [5 => 'Outstanding', 4 => 'Very Good', 3 => 'Satisfactory', 2 => 'Needs Improvement', 1 => 'Poor'],
+                        (!$is_group_mode && $student_id > 0) ? (bool)$student_view_enabled : null,
+                        '',
+                        'Rating Scale'
+                    );
+                    ?>
 
                     <?php foreach ($grouped as $cat => $qs) { ?>
-                        <div class="data-card" style="margin-top: 1.25rem;">
+                        <div class="data-card eval-criteria-card" style="margin-top: 1.25rem;">
                             <div class="data-card-header">
                                 <h3><i class="fas fa-layer-group"></i> <?php echo htmlspecialchars($cat); ?></h3>
                             </div>
-                            <div style="overflow-x: auto;">
-                                <table>
+                            <div class="eval-criteria-table-wrap">
+                                <table class="eval-criteria-table">
                                     <thead>
                                         <tr>
                                             <th>Question</th>
@@ -461,7 +441,7 @@ foreach ($questions as $q) {
                         <div class="data-card-header">
                             <h3><i class="fas fa-pen-to-square"></i> Formator Remarks</h3>
                         </div>
-                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem 1rem;">
+                        <div class="eval-remarks-grid">
                             <div class="field" style="margin: 0;">
                                 <label>Strengths in Ministry</label>
                                 <textarea name="strengths" rows="5"><?php echo htmlspecialchars($remarks['strengths']); ?></textarea>
@@ -489,9 +469,11 @@ foreach ($questions as $q) {
                         </div>
                     </div>
 
-                    <div class="print:hidden" style="display: flex; gap: 0.75rem; justify-content: flex-end; margin-top: 1rem;">
-                        <a href="pfe_evaluations.php" class="back-link print:hidden" style="margin: 0;">Cancel</a>
-                        <button type="submit" name="save_evaluation" class="print:hidden" style="width: auto; padding: 0.65rem 1rem;"><i class="fas fa-save"></i> <?php echo $is_group_mode ? ('Save Evaluation for All (' . count($group_ctx['pending_items']) . ')') : 'Save Evaluation'; ?></button>
+                    <div class="eval-submit-bar print:hidden">
+                        <a href="pfe_evaluations.php" class="eval-back-btn print:hidden">Cancel</a>
+                        <button type="submit" name="save_evaluation" class="eval-submit-btn print:hidden" data-confirm="Submit this pastoral evaluation? Once saved, results will be recorded for the selected term." data-confirm-title="Submit Evaluation" data-confirm-text="Submit Evaluation" data-confirm-variant="primary" data-confirm-loading="Saving...">
+                            <i class="fas fa-save" aria-hidden="true"></i> <span><?php echo $is_group_mode ? ('Save Evaluation for All (' . count($group_ctx['pending_items']) . ')') : 'Save Evaluation'; ?></span>
+                        </button>
                     </div>
                 </form>
             </div>
@@ -500,20 +482,5 @@ foreach ($questions as $q) {
             }
             ?>
         </div>
-
-        <script>
-        document.querySelectorAll('.likert-btns').forEach(function (wrap) {
-            wrap.querySelectorAll('.likert-btn').forEach(function (btn) {
-                btn.addEventListener('click', function () {
-                    const qid = wrap.getAttribute('data-qid');
-                    const val = this.getAttribute('data-value');
-                    const input = document.getElementById('rating_' + qid);
-                    if (input) input.value = val;
-                    wrap.querySelectorAll('.likert-btn').forEach(function (b) { b.classList.remove('active'); });
-                    this.classList.add('active');
-                });
-            });
-        });
-        </script>
 <?php require_once __DIR__ . '/../includes/layout_app_end.php'; ?>
 <?php exit; ?>

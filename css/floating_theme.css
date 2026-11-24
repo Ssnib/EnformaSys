@@ -657,9 +657,10 @@ h1, h2, h3, h4, h5, h6, .font-heading {
 .eval-back-btn {
     display: inline-flex;
     align-items: center;
+    justify-content: center;
     gap: 0.45rem;
-    padding: 0.5rem 1rem;
-    border-radius: 9999px;
+    padding: 8px 16px;
+    border-radius: 10px;
     border: 1px solid #d1d5db;
     background: #ffffff;
     color: #334155;
@@ -669,6 +670,11 @@ h1, h2, h3, h4, h5, h6, .font-heading {
     white-space: nowrap;
     box-shadow: 0 1px 3px rgba(15, 23, 42, 0.06);
     transition: background-color 150ms ease, border-color 150ms ease, color 150ms ease, transform 150ms ease;
+}
+
+.eval-back-btn::before {
+    content: none !important;
+    margin-right: 0 !important;
 }
 
 .eval-back-btn:hover {
@@ -684,7 +690,7 @@ h1, h2, h3, h4, h5, h6, .font-heading {
 
 .eval-filter-grid {
     display: grid !important;
-    grid-template-columns: 2fr 1fr 1fr auto;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
     gap: 1rem;
     align-items: end;
     margin: 0 !important;
@@ -692,6 +698,14 @@ h1, h2, h3, h4, h5, h6, .font-heading {
     background: transparent !important;
     border: none !important;
     box-shadow: none !important;
+    width: 100%;
+}
+
+.eval-meta-grid {
+    display: grid !important;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 1rem;
+    align-items: start;
     width: 100%;
 }
 
@@ -711,7 +725,11 @@ h1, h2, h3, h4, h5, h6, .font-heading {
 }
 
 .eval-filter-grid select,
-.eval-filter-grid input[type="text"] {
+.eval-filter-grid input[type="text"],
+.eval-filter-grid input[type="date"],
+.eval-meta-grid select,
+.eval-meta-grid input[type="text"],
+.eval-meta-grid input[type="date"] {
     height: 42px;
     padding: 0 14px;
     border-radius: 10px;
@@ -747,6 +765,66 @@ h1, h2, h3, h4, h5, h6, .font-heading {
 .eval-load-btn:hover {
     background: #0f172a;
     transform: translateY(-1px);
+}
+
+.eval-scale-bar {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px 16px;
+    margin-top: 1rem;
+    padding: 0.75rem 1rem;
+    border-radius: 12px;
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+}
+
+.eval-scale-meta {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px;
+    font-size: 0.82rem;
+    font-weight: 700;
+    color: #475569;
+}
+
+.eval-scale-title {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    font-size: 0.8rem;
+    font-weight: 800;
+    color: #334155;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+}
+
+.eval-scale-strip {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px;
+}
+
+.eval-scale-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 10px;
+    border-radius: 9999px;
+    background: #ffffff;
+    border: 1px solid #cbd5e1;
+    font-size: 0.78rem;
+    font-weight: 700;
+    color: #334155;
+    line-height: 1.25;
+}
+
+.eval-scale-num {
+    font-weight: 800;
+    color: #0f766e;
 }
 
 .eval-summary-grid {
@@ -803,13 +881,13 @@ h1, h2, h3, h4, h5, h6, .font-heading {
 
 .eval-criteria-table-wrap {
     width: 100%;
-    overflow-x: auto;
-    -webkit-overflow-scrolling: touch;
+    overflow-x: visible;
 }
 
 .eval-criteria-table {
     display: table !important;
     width: 100% !important;
+    table-layout: fixed;
     border-collapse: collapse;
     margin: 0 !important;
     border: none !important;
@@ -818,7 +896,69 @@ h1, h2, h3, h4, h5, h6, .font-heading {
 
 .eval-criteria-table th,
 .eval-criteria-table td {
+    width: 100%;
     white-space: normal !important;
+    overflow-wrap: break-word;
+    box-sizing: border-box;
+}
+
+.likert-btns {
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    gap: 8px;
+    width: 100%;
+}
+
+.likert-btn {
+    width: 100%;
+    min-width: 0;
+    min-height: 42px;
+    border: 1px solid #cbd5e1;
+    background: #ffffff;
+    color: #0f172a;
+    font-weight: 800;
+    padding: 0.5rem 0.65rem;
+    border-radius: 10px;
+    cursor: pointer;
+    text-align: center;
+    display: inline-flex;
+    flex-direction: row;
+    align-items: center;
+    justify-content: center;
+    gap: 0.4rem;
+    transition: background-color 150ms ease, border-color 150ms ease, color 150ms ease, transform 150ms ease;
+}
+
+.likert-btn:hover {
+    border-color: #0f766e;
+    background: #f0fdfa;
+}
+
+.likert-btn.active {
+    background: #0f766e;
+    color: #ffffff;
+    border-color: #0f766e;
+    box-shadow: 0 2px 8px rgba(15, 118, 110, 0.22);
+}
+
+.likert-btn .likert-label {
+    font-size: 0.78rem;
+    font-weight: 700;
+    color: #475569;
+    line-height: 1.2;
+    white-space: normal;
+    overflow-wrap: break-word;
+}
+
+.likert-btn.active .likert-label {
+    color: #ffffff;
+}
+
+.eval-remarks-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 1rem;
+    width: 100%;
 }
 
 .eval-submit-bar {
@@ -833,19 +973,43 @@ h1, h2, h3, h4, h5, h6, .font-heading {
     min-height: 44px;
     padding: 0 1.4rem;
     border-radius: 10px;
+    background: #1e293b;
+    color: #ffffff;
+    border: none;
+    cursor: pointer;
     font-weight: 700;
     display: inline-flex;
     align-items: center;
     justify-content: center;
     gap: 0.5rem;
+    box-shadow: 0 2px 8px rgba(15, 23, 42, 0.16);
+    transition: background-color 150ms ease, transform 150ms ease;
+}
+
+.eval-submit-btn:hover {
+    background: #0f172a;
+    transform: translateY(-1px);
 }
 
 @media (max-width: 767.98px) {
-    .eval-filter-grid {
+    .eval-filter-grid,
+    .eval-meta-grid,
+    .eval-remarks-grid {
         grid-template-columns: 1fr !important;
     }
     .eval-load-btn {
         width: 100% !important;
+        min-height: 44px;
+    }
+    .likert-btns {
+        grid-template-columns: repeat(2, 1fr);
+        gap: 8px;
+    }
+    .likert-btn {
+        min-height: 44px;
+        padding: 0.55rem 0.65rem;
+        justify-content: flex-start;
+        text-align: left;
     }
     .eval-submit-bar {
         flex-direction: column-reverse;

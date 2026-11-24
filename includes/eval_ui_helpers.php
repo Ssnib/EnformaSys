@@ -1816,7 +1816,7 @@ function eval_render_smart_validation_assets(string $form_id): void
                 el.classList.remove('eval-missed', 'eval-scroll-focus');
             });
 
-            const checkNodes = form.querySelectorAll('.field, .eval-field-wrap, .eval-question-row');
+            const checkNodes = form.querySelectorAll('.field, .eval-field-wrap, .eval-filter-field, .eval-question-row');
             checkNodes.forEach(function (node) {
                 if (node.classList.contains('eval-question-row')) {
                     const ratingInput = node.querySelector('input[type="hidden"][name^="rating["]');
@@ -1837,22 +1837,41 @@ function eval_render_smart_validation_assets(string $form_id): void
             return missed;
         }
 
-        form.addEventListener('submit', function (e) {
+        function runValidationAndScroll() {
             const missed = validateFormAndCollectMissed();
             if (missed.length > 0) {
-                e.preventDefault();
-                e.stopPropagation();
                 banner.classList.add('visible');
                 if (bannerText) {
                     bannerText.textContent = missed.length + (missed.length === 1 ? ' required item was missed. ' : ' required items were missed. ') + 'Scrolling to the first unanswered item.';
                 }
                 scrollToMissed(missed[0]);
+                return false;
+            }
+            refreshBannerVisibility();
+            return true;
+        }
+
+        form.__enformasysValidate = runValidationAndScroll;
+
+        form.addEventListener('submit', function (e) {
+            if (!runValidationAndScroll()) {
+                e.preventDefault();
+                e.stopPropagation();
             }
         });
 
         form.addEventListener('click', function (e) {
             const btn = e.target.closest('.likert-btn');
             if (!btn) return;
+            const wrap = btn.closest('.likert-btns');
+            if (wrap) {
+                const qid = wrap.getAttribute('data-qid');
+                const val = btn.getAttribute('data-value');
+                const input = qid ? document.getElementById('rating_' + qid) : null;
+                if (input) input.value = val;
+                wrap.querySelectorAll('.likert-btn').forEach(function (b) { b.classList.remove('active'); });
+                btn.classList.add('active');
+            }
             const row = btn.closest('.eval-question-row');
             if (row) {
                 row.classList.remove('eval-missed', 'eval-scroll-focus');
@@ -1864,7 +1883,7 @@ function eval_render_smart_validation_assets(string $form_id): void
         form.addEventListener('change', clearFieldError);
 
         function clearFieldError(e) {
-            const wrap = e.target.closest('.field, .eval-field-wrap');
+            const wrap = e.target.closest('.field, .eval-field-wrap, .eval-filter-field');
             if (wrap && String(e.target.value || '').trim() !== '') {
                 wrap.classList.remove('eval-missed', 'eval-scroll-focus');
                 refreshBannerVisibility();
@@ -1872,6 +1891,49 @@ function eval_render_smart_validation_assets(string $form_id): void
         }
     })();
     </script>
+    <?php
+}
+
+/**
+ * Renders a compact, horizontally wrapping rating scale legend strip
+ * optionally paired with the seminarian report-access badge.
+ *
+ * @param array<int,string>|null $labels
+ */
+function eval_render_rating_scale_strip(
+    ?array $labels = null,
+    ?bool $student_view_enabled = null,
+    string $student_label = '',
+    string $title = 'Rating Scale'
+): void {
+    $scale = $labels ?? [
+        5 => 'Outstanding',
+        4 => 'Very Good',
+        3 => 'Satisfactory',
+        2 => 'Needs Improvement',
+        1 => 'Poor',
+    ];
+    krsort($scale);
+    ?>
+    <div class="eval-scale-bar">
+        <div class="eval-scale-meta">
+            <span class="eval-scale-title"><i class="fas fa-circle-info" aria-hidden="true"></i> <?php echo htmlspecialchars($title); ?></span>
+            <?php if ($student_label !== '') { ?>
+                <span>&middot; Selected: <strong style="color:#0f172a;"><?php echo htmlspecialchars($student_label); ?></strong></span>
+            <?php } ?>
+            <?php if ($student_view_enabled !== null) { ?>
+                <span>&middot; Student view: <?php echo $student_view_enabled ? "<span class='badge badge-success'>Enabled</span>" : "<span class='badge badge-warning'>Disabled</span>"; ?></span>
+            <?php } ?>
+        </div>
+        <div class="eval-scale-strip" role="list" aria-label="<?php echo htmlspecialchars($title); ?>">
+            <?php foreach ($scale as $score => $desc) { ?>
+                <span class="eval-scale-pill" role="listitem">
+                    <span class="eval-scale-num"><?php echo (int)$score; ?></span>
+                    <span>&ndash; <?php echo htmlspecialchars((string)$desc); ?></span>
+                </span>
+            <?php } ?>
+        </div>
+    </div>
     <?php
 }
 

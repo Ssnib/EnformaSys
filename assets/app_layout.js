@@ -889,6 +889,9 @@ window.showToast.info = (msg, duration) => showToast(msg, 'info', duration);
 
       e.preventDefault();
       e.stopPropagation();
+      if (typeof form.__enformasysValidate === 'function' && !form.__enformasysValidate()) {
+        return;
+      }
       if (typeof form.reportValidity === 'function' && !form.reportValidity()) {
         return;
       }
@@ -909,6 +912,9 @@ window.showToast.info = (msg, duration) => showToast(msg, 'info', duration);
 
     e.preventDefault();
     e.stopImmediatePropagation();
+    if (typeof form.__enformasysValidate === 'function' && !form.__enformasysValidate()) {
+      return;
+    }
     if (typeof form.reportValidity === 'function' && !form.reportValidity()) {
       return;
     }

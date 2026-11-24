@@ -237,19 +237,6 @@ foreach ($questions as $q) {
 }
 ?>
         <div class="content-body">
-            <style>
-                .likert-btns { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 0.5rem; }
-                .likert-btn { width: 100%; border: 1px solid #e2e8f0; background: #fff; color: #0f172a; font-weight: 900; padding: 0.55rem 0.7rem; border-radius: 0.75rem; cursor: pointer; text-align: center; display: inline-flex; flex-direction: row; align-items: center; justify-content: center; gap: 0.4rem; }
-                .likert-btn.active { background: #0f766e; color: #fff; border-color: #0f766e; }
-                .likert-btn .likert-label { font-size: 0.78rem; font-weight: 900; color: #475569; white-space: nowrap; }
-                .likert-btn.active .likert-label { color: #fff; }
-                @media (max-width: 900px) {
-                    .likert-btns { grid-template-columns: repeat(3, minmax(0, 1fr)); }
-                }
-                @media (max-width: 560px) {
-                    .likert-btns { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-                }
-            </style>
             <nav class="breadcrumb" style="margin-bottom: 1rem; font-size: 0.85rem; color: var(--text-secondary);">
                 <a href="../index.php" style="color: var(--primary); text-decoration: none;">Dashboard</a>
                 <span style="margin: 0 0.5rem;">/</span>
@@ -322,16 +309,14 @@ foreach ($questions as $q) {
                     </div>
                 </div>
 
-                <div class="card" style="margin-top: 1.25rem;">
-                    <h3><i class="fas fa-circle-info"></i> Likert Scale</h3>
-                    <ul style="margin: 0.6rem 0 0; padding-left: 1.25rem; color: #334155; font-weight: 800; line-height: 1.7;">
-                        <li>5 – Excellent</li>
-                        <li>4 – Very Good</li>
-                        <li>3 – Good</li>
-                        <li>2 – Fair</li>
-                        <li>1 – Poor</li>
-                    </ul>
-                </div>
+                <?php
+                eval_render_rating_scale_strip(
+                    [5 => 'Excellent', 4 => 'Very Good', 3 => 'Good', 2 => 'Fair', 1 => 'Poor'],
+                    null,
+                    '',
+                    'Likert Scale'
+                );
+                ?>
 
                 <?php
                 $is_selected_graduated = (!$is_group_mode && $student_id > 0)
@@ -357,21 +342,21 @@ foreach ($questions as $q) {
                     <input type="hidden" name="academic_year" value="<?php echo htmlspecialchars($filter_academic_year); ?>">
                     <input type="hidden" name="semester" value="<?php echo htmlspecialchars($filter_semester); ?>">
 
-                    <div class="card" style="margin-top: 0;">
-                        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem;">
-                            <div class="field" style="margin: 0;">
-                                <label>Evaluation Date</label>
-                                <input type="date" name="evaluation_date" required value="<?php echo htmlspecialchars($edit ? (string)$edit['evaluation_date'] : date('Y-m-d')); ?>">
+                    <div class="card eval-filter-card" style="margin-top: 0;">
+                        <div class="eval-meta-grid">
+                            <div class="eval-filter-field">
+                                <label for="afeEvalDateInput">Evaluation Date</label>
+                                <input id="afeEvalDateInput" type="date" name="evaluation_date" required value="<?php echo htmlspecialchars($edit ? (string)$edit['evaluation_date'] : date('Y-m-d')); ?>">
                             </div>
-                            <div class="field" style="margin: 0;">
-                                <label>Assigned Evaluator Remarks</label>
-                                <input type="text" name="remarks" placeholder="Optional remarks..." value="<?php echo htmlspecialchars($edit ? (string)($edit['remarks'] ?? '') : ''); ?>">
+                            <div class="eval-filter-field">
+                                <label for="afeRemarksInput">Assigned Evaluator Remarks</label>
+                                <input id="afeRemarksInput" type="text" name="remarks" placeholder="Optional remarks..." value="<?php echo htmlspecialchars($edit ? (string)($edit['remarks'] ?? '') : ''); ?>">
                             </div>
                         </div>
                     </div>
 
                     <?php foreach ($grouped as $cat => $items) { ?>
-                        <div class="data-card" style="margin-top: 1.25rem;">
+                        <div class="data-card eval-criteria-card" style="margin-top: 1.25rem;">
                             <div class="data-card-header">
                                 <h3><i class="fas fa-layer-group"></i> <?php echo htmlspecialchars($cat); ?></h3>
                             </div>
@@ -438,19 +423,5 @@ foreach ($questions as $q) {
                 </div>
             <?php } ?>
         </div>
-        <script>
-        document.querySelectorAll('.likert-btns').forEach(function (wrap) {
-            wrap.querySelectorAll('.likert-btn').forEach(function (btn) {
-                btn.addEventListener('click', function () {
-                    const qid = wrap.getAttribute('data-qid');
-                    const val = this.getAttribute('data-value');
-                    const input = document.getElementById('rating_' + qid);
-                    if (input) input.value = val;
-                    wrap.querySelectorAll('.likert-btn').forEach(function (b) { b.classList.remove('active'); });
-                    this.classList.add('active');
-                });
-            });
-        });
-        </script>
 <?php require_once __DIR__ . '/../includes/layout_app_end.php'; ?>
 <?php exit; ?>
