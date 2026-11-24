@@ -83,7 +83,7 @@ if (!function_exists('enformasys_apply_security_headers')) {
         header('Permissions-Policy: camera=(), microphone=(), geolocation=()');
         header('X-XSS-Protection: 0');
 
-        if (enformasys_is_https_request() || enformasys_is_production()) {
+        if (enformasys_is_https_request()) {
             header('Strict-Transport-Security: max-age=31536000; includeSubDomains; preload');
         }
 
@@ -166,16 +166,16 @@ if (!function_exists('enformasys_get_db')) {
 
         $sslRaw = strtolower(trim((string)enformasys_env('DB_SSL', 'false')));
         $sslEnabled = in_array($sslRaw, ['1', 'true', 'yes', 'on', 'required'], true);
-        $caRaw = trim((string)enformasys_env('DB_SSL_CA', ''));
+        $caRaw = $sslEnabled ? trim((string)enformasys_env('DB_SSL_CA', '')) : '';
         $caPath = null;
-        if ($caRaw !== '') {
+        if ($sslEnabled && $caRaw !== '') {
             $isAbs = (preg_match('/^([A-Za-z]:[\\\\\\/]|\\/)/', $caRaw) === 1);
             $cand = $isAbs
                 ? $caRaw
                 : (dirname(__DIR__) . DIRECTORY_SEPARATOR . ltrim(str_replace(['/', '\\'], DIRECTORY_SEPARATOR, $caRaw), DIRECTORY_SEPARATOR));
             if (is_file($cand)) {
                 $caPath = $cand;
-            } elseif ($sslEnabled) {
+            } else {
                 error_log('EnformaSys DB SSL CA file not found: ' . $cand);
                 if ($dieOnError) {
                     http_response_code(500);
@@ -197,7 +197,7 @@ if (!function_exists('enformasys_get_db')) {
             }
             $c->options(MYSQLI_OPT_CONNECT_TIMEOUT, 5);
             $flags = 0;
-            if ($sslEnabled || $caPath !== null) {
+            if ($sslEnabled) {
                 $c->ssl_set(null, null, $caPath, null, null);
                 $flags = MYSQLI_CLIENT_SSL;
                 if ($caPath !== null && defined('MYSQLI_OPT_SSL_VERIFY_SERVER_CERT')) {
@@ -402,6 +402,9 @@ if (!function_exists('enformasys_configure_session')) {
         }
 
         $isVercel = (enformasys_env('VERCEL', '') !== '' || enformasys_env('VERCEL_ENV', '') !== '');
+        $dbSessionFlag = strtolower(trim((string)enformasys_env('DB_SESSION_HANDLER', '')));
+        $useDbSession = $isVercel || in_array($dbSessionFlag, ['1', 'true', 'yes', 'on'], true);
+
         $tmpSessionsDir = rtrim(sys_get_temp_dir(), '/\\') . DIRECTORY_SEPARATOR . 'enformasys_sessions';
 
         // On Vercel or read-only deployments, never try writing sessions into the bundle directory; use /tmp
@@ -422,14 +425,17 @@ if (!function_exists('enformasys_configure_session')) {
         if (is_dir($targetDir) && is_writable($targetDir)) {
             @session_save_path($targetDir);
         } else {
-            @session_save_path(sys_get_temp_dir());
+            $sysTmp = sys_get_temp_dir();
+            if (is_dir($sysTmp) && is_writable($sysTmp)) {
+                @session_save_path($sysTmp);
+            }
         }
 
         @ini_set('session.use_strict_mode', '1');
         @ini_set('session.use_only_cookies', '1');
         @ini_set('session.cookie_httponly', '1');
 
-        $isSecure = enformasys_is_https_request() || enformasys_is_production() || $isVercel;
+        $isSecure = enformasys_is_https_request() || $isVercel;
         @ini_set('session.cookie_secure', $isSecure ? '1' : '0');
 
         @session_set_cookie_params([
@@ -441,9 +447,8 @@ if (!function_exists('enformasys_configure_session')) {
             'samesite' => 'Strict',
         ]);
 
-        // Use MySQL-backed sessions on Vercel (or SESSION_DRIVER=database) so sessions persist across Lambdas
-        $sessionDriver = strtolower(trim((string)enformasys_env('SESSION_DRIVER', $isVercel ? 'database' : 'files')));
-        if (PHP_SAPI !== 'cli' && $sessionDriver === 'database' && enformasys_env('DB_HOST', '') !== '') {
+        // Only register MySQL-backed sessions on Vercel or when DB_SESSION_HANDLER=true; use native PHP file sessions otherwise
+        if (PHP_SAPI !== 'cli' && $useDbSession && enformasys_env('DB_HOST', '') !== '') {
             $lifetime = max(300, (int)enformasys_env('SESSION_LIFETIME', '3600'));
             @ini_set('session.gc_maxlifetime', (string)$lifetime);
             @session_set_save_handler(new EnformasysDbSessionHandler($lifetime), true);

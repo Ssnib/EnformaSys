@@ -2,10 +2,15 @@
 .env
 .env.*
 !.env.example
+includes/config.php
 
 # Dependencies
 node_modules/
 vendor/
+
+# Build & Migration Artifacts
+dist/
+sql/infinityfree_migration.sql
 
 # Runtime Sessions & Logs
 sessions/*
@@ -23,6 +28,8 @@ backups/*.zip
 # Uploaded User Content
 uploads/documents/*
 !uploads/documents/index.html
+uploads/avatars/*
+!uploads/avatars/index.html
 uploads/profile_pictures/*
 !uploads/profile_pictures/index.html
 

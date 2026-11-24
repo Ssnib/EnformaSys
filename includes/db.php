@@ -1,6 +1,9 @@
 <?php
 date_default_timezone_set('Asia/Manila');
 require_once __DIR__ . '/env.php';
+if (function_exists('enformasys_load_php_config')) {
+    enformasys_load_php_config(__DIR__ . '/config.php');
+}
 require_once __DIR__ . '/security.php';
 
 $is_prod_db = enformasys_is_production();

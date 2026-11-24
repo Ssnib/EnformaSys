@@ -76,7 +76,7 @@ if (!function_exists('ensure_seminarian_profile_schema')) {
             || !empty($_ENV['VERCEL'])
             || !empty($_SERVER['VERCEL']);
         if (!$is_vercel) {
-            $upload_dir = __DIR__ . '/../uploads/profile_pictures';
+            $upload_dir = __DIR__ . '/../uploads/avatars';
             if (!is_dir($upload_dir)) {
                 @mkdir($upload_dir, 0755, true);
             }
@@ -394,7 +394,7 @@ if (!function_exists('save_seminarian_profile_picture')) {
             || !empty($_ENV['VERCEL_ENV'])
             || !empty($_SERVER['VERCEL_ENV']);
 
-        $target_dir = __DIR__ . '/../uploads/profile_pictures/';
+        $target_dir = __DIR__ . '/../uploads/avatars/';
         $saved_rel_path = null;
 
         if (!$is_vercel) {
@@ -402,6 +402,10 @@ if (!function_exists('save_seminarian_profile_picture')) {
                 @mkdir($target_dir, 0755, true);
             }
             if (is_dir($target_dir) && is_writable($target_dir)) {
+                $idx = $target_dir . 'index.html';
+                if (!file_exists($idx)) {
+                    @file_put_contents($idx, '<!DOCTYPE html><html><head><title>403 Forbidden</title></head><body><h1>Directory access is forbidden.</h1></body></html>');
+                }
                 $unique_name = sprintf(
                     'seminarian_%d_%d_%s.%s',
                     $seminarian_id,
@@ -416,7 +420,7 @@ if (!function_exists('save_seminarian_profile_picture')) {
 
                 if ($moved && is_file($dest_path)) {
                     @chmod($dest_path, 0644);
-                    $saved_rel_path = 'uploads/profile_pictures/' . $unique_name;
+                    $saved_rel_path = 'uploads/avatars/' . $unique_name;
                 }
             }
         }
@@ -432,14 +436,21 @@ if (!function_exists('save_seminarian_profile_picture')) {
             $saved_rel_path = $data_uri;
         }
 
-        // Clean up previous local file picture if it exists inside writable uploads/profile_pictures
+        // Clean up previous local file picture if it exists inside writable uploads/avatars or uploads/profile_pictures
         if (!empty($old_picture)) {
-            $old_clean = ltrim(trim($old_picture), '/\\');
-            if (strpos($old_clean, 'uploads/profile_pictures/') === 0 && is_dir($target_dir) && is_writable($target_dir)) {
-                $old_full = realpath(__DIR__ . '/../' . $old_clean);
-                $allowed_dir = realpath($target_dir);
-                if ($old_full && $allowed_dir && strpos($old_full, $allowed_dir) === 0 && is_file($old_full)) {
-                    @unlink($old_full);
+            $old_clean = str_replace('\\', '/', ltrim(trim($old_picture), '/\\'));
+            $cleanup_dirs = [
+                'uploads/avatars/' => __DIR__ . '/../uploads/avatars/',
+                'uploads/profile_pictures/' => __DIR__ . '/../uploads/profile_pictures/',
+            ];
+            foreach ($cleanup_dirs as $prefix => $dir_path) {
+                if (strpos($old_clean, $prefix) === 0 && is_dir($dir_path) && is_writable($dir_path)) {
+                    $old_full = realpath(__DIR__ . '/../' . $old_clean);
+                    $allowed_dir = realpath($dir_path);
+                    if ($old_full && $allowed_dir && strpos($old_full, $allowed_dir) === 0 && is_file($old_full)) {
+                        @unlink($old_full);
+                    }
+                    break;
                 }
             }
         }

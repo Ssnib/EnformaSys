@@ -1,0 +1,49 @@
+# EnformaSys Apache Configuration (InfinityFree & Local Apache)
+
+DirectoryIndex index.php index.html
+
+# Disable directory listings across all folders
+<IfModule mod_autoindex.c>
+    Options -Indexes
+</IfModule>
+
+# Set Asia/Manila timezone (safe across CGI / FastCGI / mod_php setups)
+<IfModule mod_env.c>
+    SetEnv TZ Asia/Manila
+</IfModule>
+<IfModule mod_php7.c>
+    php_value date.timezone "Asia/Manila"
+</IfModule>
+<IfModule mod_php8.c>
+    php_value date.timezone "Asia/Manila"
+</IfModule>
+
+# Block direct web access to sensitive configuration, environment, certificates, and dumps
+<FilesMatch "^(\.env(\..*)?|config\.php|config\.example\.php|ca\.pem|vercel\.json|composer\.(json|lock)|setup\.sql)$|\.(sql|log|bak|sh|md)$">
+    <IfModule mod_authz_core.c>
+        Require all denied
+    </IfModule>
+    <IfModule !mod_authz_core.c>
+        Order allow,deny
+        Deny from all
+    </IfModule>
+</FilesMatch>
+
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+
+    # Block direct HTTP requests to internal directories
+    RewriteRule ^(includes|sessions|sql|backups|dist|scripts|scratch|\.git)(/|$) - [F,L,NC]
+
+    # Never serve PHP execution inside uploads/
+    RewriteRule ^uploads/.*\.(php|phtml|php[3-8]|phar)$ - [F,L,NC]
+
+    # Serve existing files and directories directly
+    RewriteCond %{REQUEST_FILENAME} -f [OR]
+    RewriteCond %{REQUEST_FILENAME} -d
+    RewriteRule ^ - [L]
+
+    # Clean extensionless PHP routing (e.g., /login -> login.php, /modules/student_profiles -> modules/student_profiles.php)
+    RewriteCond %{REQUEST_FILENAME}.php -f
+    RewriteRule ^(.*)$ $1.php [L,QSA]
+</IfModule>

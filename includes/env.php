@@ -49,10 +49,86 @@ if (!function_exists('enformasys_load_env_file')) {
     }
 }
 
+if (!function_exists('enformasys_set_env_default')) {
+    function enformasys_set_env_default(string $key, string $val, bool $override = false): void
+    {
+        if ($key === '') {
+            return;
+        }
+        $exists = (getenv($key) !== false || array_key_exists($key, $_ENV) || array_key_exists($key, $_SERVER));
+        if (!$exists || $override) {
+            $_ENV[$key] = $val;
+            $_SERVER[$key] = $val;
+            @putenv("{$key}={$val}");
+        }
+    }
+}
+
+if (!function_exists('enformasys_load_php_config')) {
+    /**
+     * Loads optional includes/config.php (used on shared hosting like InfinityFree)
+     * when not running inside Vercel serverless containers.
+     */
+    function enformasys_load_php_config(string $path): void
+    {
+        static $loadedPaths = [];
+        $normPath = str_replace('\\', '/', $path);
+        if (isset($loadedPaths[$normPath]) || !is_file($path) || !is_readable($path)) {
+            return;
+        }
+        $loadedPaths[$normPath] = true;
+
+        $isVercel = (getenv('VERCEL') !== false && getenv('VERCEL') !== '')
+            || (getenv('VERCEL_ENV') !== false && getenv('VERCEL_ENV') !== '')
+            || !empty($_ENV['VERCEL'])
+            || !empty($_SERVER['VERCEL']);
+        if ($isVercel) {
+            return;
+        }
+
+        $cfg = require $path;
+        if (is_array($cfg)) {
+            foreach ($cfg as $k => $v) {
+                $key = trim((string)$k);
+                if ($key === '' || $v === null) {
+                    continue;
+                }
+                if (is_bool($v)) {
+                    $strVal = $v ? 'true' : 'false';
+                } elseif (is_scalar($v)) {
+                    $strVal = (string)$v;
+                } else {
+                    continue;
+                }
+                enformasys_set_env_default($key, $strVal, true);
+            }
+        }
+
+        // Also support classic define('DB_HOST', '...') config files
+        $knownConsts = [
+            'APP_ENV', 'APP_URL', 'ALLOWED_ORIGINS',
+            'DB_HOST', 'DB_PORT', 'DB_USER', 'DB_PASS', 'DB_PASSWORD', 'DB_NAME',
+            'DB_SSL', 'DB_SSL_CA', 'DB_PERSISTENT', 'DB_SKIP_SCHEMA_SYNC',
+            'DB_SESSION_HANDLER', 'SESSION_DRIVER', 'SESSION_LIFETIME',
+        ];
+        foreach ($knownConsts as $cname) {
+            if (defined($cname)) {
+                $cv = constant($cname);
+                if (is_bool($cv)) {
+                    enformasys_set_env_default($cname, $cv ? 'true' : 'false', true);
+                } elseif (is_scalar($cv) && $cv !== null) {
+                    enformasys_set_env_default($cname, (string)$cv, true);
+                }
+            }
+        }
+    }
+}
+
 $__root = dirname(__DIR__);
-// Load .env.local first (higher precedence than .env, lower than OS env)
+// Load .env.local and .env first; includes/config.php (when present off-Vercel) takes precedence on shared hosts
 enformasys_load_env_file($__root . DIRECTORY_SEPARATOR . '.env.local');
 enformasys_load_env_file($__root . DIRECTORY_SEPARATOR . '.env');
+enformasys_load_php_config(__DIR__ . DIRECTORY_SEPARATOR . 'config.php');
 
 if (!function_exists('enformasys_env')) {
     function enformasys_env(string $key, ?string $default = null): ?string
