@@ -486,7 +486,7 @@ require_once __DIR__ . '/../includes/layout_app_start.php';
                                         <?php if ($is_pending): ?>
                                             <div class="inline-flex items-center gap-1.5 justify-end">
                                                 <!-- Approve Form -->
-                                                <form method="POST" action="" onsubmit="return confirm('Approve grade edit request #<?php echo (int)$req['id']; ?>? This will unlock the grades for editing.');" class="inline">
+                                                <form method="POST" action="" data-confirm="Approve grade edit request #<?php echo (int)$req['id']; ?>? This will unlock the grades for editing." data-confirm-title="Approve Grade Edit Request" data-confirm-text="Approve & Unlock" data-confirm-variant="primary" data-confirm-loading="Approving..." class="inline">
                                                     <input type="hidden" name="csrf_token" value="<?php echo htmlspecialchars($_SESSION['csrf_token'] ?? ''); ?>">
                                                     <input type="hidden" name="action" value="approve_request">
                                                     <input type="hidden" name="request_id" value="<?php echo (int)$req['id']; ?>">
@@ -497,7 +497,7 @@ require_once __DIR__ . '/../includes/layout_app_start.php';
                                                 </form>
 
                                                 <!-- Reject Form -->
-                                                <form method="POST" action="" onsubmit="return confirm('Reject grade edit request #<?php echo (int)$req['id']; ?>? The grades will remain locked.');" class="inline">
+                                                <form method="POST" action="" data-confirm="Reject grade edit request #<?php echo (int)$req['id']; ?>? The grades will remain locked." data-confirm-title="Reject Grade Edit Request" data-confirm-text="Reject" data-confirm-variant="danger" data-confirm-loading="Rejecting..." class="inline">
                                                     <input type="hidden" name="csrf_token" value="<?php echo htmlspecialchars($_SESSION['csrf_token'] ?? ''); ?>">
                                                     <input type="hidden" name="action" value="reject_request">
                                                     <input type="hidden" name="request_id" value="<?php echo (int)$req['id']; ?>">

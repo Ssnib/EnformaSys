@@ -1030,7 +1030,7 @@ require_once __DIR__ . '/../includes/layout_app_start.php';
                             <input type="hidden" name="csrf_token" value="<?php echo htmlspecialchars($_SESSION['csrf_token']); ?>">
                             <input type="hidden" name="student_id" value="<?php echo (int)$student_id; ?>">
                             <input type="hidden" name="academic_year" value="<?php echo htmlspecialchars($academic_year); ?>">
-                            <button type="submit" name="enroll_both" class="action-btn-primary" style="background: #7e22ce; padding: 0.45rem 0.85rem; font-size: 0.8rem; white-space: nowrap;" onclick="return confirm('Enroll ALL subjects for both 1st and 2nd semesters for AY <?php echo htmlspecialchars($academic_year); ?>?');">
+                            <button type="submit" name="enroll_both" class="action-btn-primary" style="background: #7e22ce; padding: 0.45rem 0.85rem; font-size: 0.8rem; white-space: nowrap;" data-confirm="Enroll ALL subjects for both 1st and 2nd semesters for AY <?php echo htmlspecialchars($academic_year); ?>?" data-confirm-title="Enroll Both Semesters" data-confirm-text="Enroll All" data-confirm-variant="primary" data-confirm-loading="Enrolling...">
                                 <i class="fas fa-bolt"></i> Enroll Full Year
                             </button>
                         </form>
@@ -1482,7 +1482,7 @@ function render_semester_enrollment_ui(
                                     <input type="hidden" name="academic_year" value="<?php echo htmlspecialchars($academic_year); ?>">
                                     <input type="hidden" name="tab" value="<?php echo htmlspecialchars($sem_code); ?>">
                                     <input type="hidden" name="drop_enrolled_subject" value="<?php echo (int)($r['id'] ?? 0); ?>">
-                                    <button type="submit" title="Unenroll / Drop this subject" onclick="return confirm('Unenroll / drop this subject for <?php echo htmlspecialchars($sem_title); ?>?');" style="background:none; border:none; color:#ef4444; cursor:pointer; padding: 0.25rem 0.4rem; border-radius:4px;">
+                                    <button type="submit" title="Unenroll / Drop this subject" data-confirm="Unenroll / drop this subject for <?php echo htmlspecialchars($sem_title); ?>?" data-confirm-title="Drop Subject" data-confirm-text="Drop Subject" data-confirm-variant="danger" data-confirm-loading="Dropping..." style="background:none; border:none; color:#ef4444; cursor:pointer; padding: 0.25rem 0.4rem; border-radius:4px;">
                                         <i class="fas fa-trash-can text-xs"></i>
                                     </button>
                                 </form>

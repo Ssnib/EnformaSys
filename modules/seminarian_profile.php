@@ -2722,7 +2722,7 @@ require_once __DIR__ . '/../includes/layout_app_start.php';
                                                         <span>Download</span>
                                                     </a>
                                                     <?php if ($is_registrar || in_array($role, ['Registrar', 'Dean', 'Admin'], true)) { ?>
-                                                    <form method="post" class="inline m-0 p-0" onsubmit="return confirm('Are you sure you want to permanently delete this document:\n\n<?php echo htmlspecialchars(addslashes($doc['file_name'])); ?>?');">
+                                                    <form method="post" class="inline m-0 p-0" data-confirm="Permanently delete this document: <?php echo htmlspecialchars($doc['file_name']); ?>?" data-confirm-title="Delete Document" data-confirm-text="Delete Document" data-confirm-variant="danger" data-confirm-loading="Deleting...">
                                                         <input type="hidden" name="csrf_token" value="<?php echo htmlspecialchars((string)($_SESSION['csrf_token'] ?? '')); ?>">
                                                         <input type="hidden" name="action" value="delete_document">
                                                         <input type="hidden" name="document_id" value="<?php echo (int)$doc['id']; ?>">

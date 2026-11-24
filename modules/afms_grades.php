@@ -1079,10 +1079,32 @@ require_once __DIR__ . '/../includes/layout_app_start.php';
         });
 
         // Confirmation on Edit Grade Save
-        document.getElementById('editGradeForm')?.addEventListener('submit', function(e) {
-            if (!confirm("Are you sure you want to save? Once submitted, grades cannot be edited.")) {
-                e.preventDefault();
-                return false;
+        const editGradeFormEl = document.getElementById('editGradeForm');
+        editGradeFormEl?.addEventListener('submit', async function(e) {
+            if (editGradeFormEl.dataset.enformasysConfirmed === '1') return;
+            e.preventDefault();
+            const ok = (typeof window.enformasysConfirm === 'function')
+                ? await window.enformasysConfirm({
+                    title: 'Save Final Grade',
+                    message: 'Are you sure you want to save? Once submitted, grades cannot be edited.',
+                    confirmText: 'Save Grade',
+                    variant: 'primary'
+                })
+                : confirm('Are you sure you want to save? Once submitted, grades cannot be edited.');
+            if (ok) {
+                editGradeFormEl.dataset.enformasysConfirmed = '1';
+                const saveBtn = editGradeFormEl.querySelector('button[type="submit"]');
+                if (saveBtn && saveBtn.name) {
+                    const h = document.createElement('input');
+                    h.type = 'hidden';
+                    h.name = saveBtn.name;
+                    h.value = saveBtn.value || '1';
+                    editGradeFormEl.appendChild(h);
+                }
+                if (saveBtn && typeof window.enformasysSetButtonLoading === 'function') {
+                    window.enformasysSetButtonLoading(saveBtn, 'Saving...');
+                }
+                HTMLFormElement.prototype.submit.call(editGradeFormEl);
             }
         });
 
@@ -1158,7 +1180,16 @@ require_once __DIR__ . '/../includes/layout_app_start.php';
 
         async function resolveGradeRequest(requestId, action, btnElement) {
             const actionVerb = (action === 'approve_grade_request') ? 'approve' : 'deny';
-            if (!confirm(`Are you sure you want to ${actionVerb} this grade viewing request?`)) {
+            const isApprove = (action === 'approve_grade_request');
+            const ok = (typeof window.enformasysConfirm === 'function')
+                ? await window.enformasysConfirm({
+                    title: isApprove ? 'Approve Grade Viewing Request' : 'Deny Grade Viewing Request',
+                    message: `Are you sure you want to ${actionVerb} this grade viewing request?`,
+                    confirmText: isApprove ? 'Approve' : 'Deny',
+                    variant: isApprove ? 'primary' : 'danger'
+                })
+                : confirm(`Are you sure you want to ${actionVerb} this grade viewing request?`);
+            if (!ok) {
                 return;
             }
 
@@ -1184,6 +1215,9 @@ require_once __DIR__ . '/../includes/layout_app_start.php';
 
                 if (data.success) {
                     showModalNotification(data.message, 'success');
+                    if (typeof window.showToast === 'function') {
+                        window.showToast(data.message, 'success', 3500);
+                    }
                     if (row) {
                         row.classList.add('bg-emerald-50/60', 'transition-all', 'duration-300');
                         setTimeout(() => {

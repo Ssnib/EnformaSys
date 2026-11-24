@@ -213,7 +213,7 @@ require_once __DIR__ . '/../includes/layout_app_start.php';
                                         <form method="post" style="display: inline; box-shadow: none; padding: 0; background: none; border: none; margin: 0;">
                                             <input type="hidden" name="csrf_token" value="<?php echo $_SESSION['csrf_token']; ?>">
                                             <input type="hidden" name="grade_id" value="<?php echo (int)$row['id']; ?>">
-                                            <button type="submit" name="restore_grade" style="width: auto; padding: 0.4rem 0.6rem; background: var(--accent);" onclick="return confirm('Restore this grade?');">
+                                            <button type="submit" name="restore_grade" style="width: auto; padding: 0.4rem 0.6rem; background: var(--accent);" data-confirm="Restore this grade record?" data-confirm-title="Restore Grade" data-confirm-text="Restore" data-confirm-variant="primary" data-confirm-loading="Restoring...">
                                                 <i class="fas fa-undo"></i>
                                             </button>
                                         </form>
@@ -232,7 +232,7 @@ require_once __DIR__ . '/../includes/layout_app_start.php';
                                         <form method="post" style="display: inline; box-shadow: none; padding: 0; background: none; border: none; margin: 0;">
                                             <input type="hidden" name="csrf_token" value="<?php echo $_SESSION['csrf_token']; ?>">
                                             <input type="hidden" name="grade_id" value="<?php echo (int)$row['id']; ?>">
-                                            <button type="submit" name="archive_grade" style="width: auto; padding: 0.4rem 0.6rem; background: var(--danger);" onclick="return confirm('Archive this grade?');">
+                                            <button type="submit" name="archive_grade" style="width: auto; padding: 0.4rem 0.6rem; background: var(--danger);" data-confirm="Archive this grade record?" data-confirm-title="Archive Grade" data-confirm-text="Archive" data-confirm-variant="danger" data-confirm-loading="Archiving...">
                                                 <i class="fas fa-archive"></i>
                                             </button>
                                         </form>

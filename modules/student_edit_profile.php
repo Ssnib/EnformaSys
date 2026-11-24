@@ -318,7 +318,7 @@ require_once __DIR__ . '/../includes/layout_app_start.php';
             <?php endif; ?>
 
             <!-- Main Form Floating Container -->
-            <form action="" method="post" enctype="multipart/form-data" class="space-y-6 max-w-4xl mx-auto">
+            <form action="" method="post" enctype="multipart/form-data" data-confirm="Save changes to your profile? Your 7-day profile update cooldown will be activated." data-confirm-title="Save Profile Changes" data-confirm-text="Save Changes" data-confirm-variant="primary" data-confirm-loading="Saving..." class="space-y-6 max-w-4xl mx-auto">
                 <input type="hidden" name="csrf_token" value="<?php echo htmlspecialchars($csrf_token, ENT_QUOTES, 'UTF-8'); ?>">
 
                 <!-- SECTION 1: Profile Picture Upload & Avatar Preview -->

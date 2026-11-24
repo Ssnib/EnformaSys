@@ -478,4 +478,48 @@ h1, h2, h3, h4, h5, h6, .font-heading {
     color: #59443F;
 }
 
+/* Global EnformaSys Confirmation Modal */
+.enformasys-confirm-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 100001;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 1rem;
+    background: rgba(45, 32, 29, 0.52);
+    backdrop-filter: blur(4px);
+    -webkit-backdrop-filter: blur(4px);
+}
+
+.enformasys-confirm-overlay.hidden {
+    display: none;
+}
+
+.enformasys-confirm-dialog {
+    width: 100%;
+    max-width: 26rem;
+    background: #FFFFFF;
+    border: 1px solid rgba(232, 199, 197, 0.9);
+    border-radius: 1.5rem;
+    box-shadow: 0 24px 50px -12px rgba(89, 68, 63, 0.28), 0 8px 20px -4px rgba(89, 68, 63, 0.12);
+    overflow: hidden;
+    font-family: 'Inter', sans-serif;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+    .enformasys-confirm-overlay:not(.hidden) {
+        animation: modalBackdropFade 180ms ease-out both;
+    }
+    .enformasys-confirm-overlay:not(.hidden) .enformasys-confirm-dialog {
+        animation: modalPanelScaleIn 220ms cubic-bezier(0.16, 1, 0.3, 1) both;
+    }
+}
+
+.enformasys-btn-spinner {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.45rem;
+}
+
 

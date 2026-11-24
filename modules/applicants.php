@@ -660,7 +660,7 @@ require_once __DIR__ . '/../includes/layout_app_start.php';
                                         <form method="post" style="box-shadow: none; padding: 0; background: none; border: none; margin: 0;">
                                             <input type="hidden" name="csrf_token" value="<?php echo $_SESSION['csrf_token']; ?>">
                                             <input type="hidden" name="applicant_id" value="<?php echo (int)$row['id']; ?>">
-                                            <button type="submit" name="enroll_applicant" title="Enroll Student" style="padding: 0.4rem; width: 32px; background: var(--accent);"><i class="fas fa-user-plus"></i></button>
+                                            <button type="submit" name="enroll_applicant" title="Enroll Student" data-confirm="Approve and enroll <?php echo htmlspecialchars($display_name); ?> as an active seminarian?" data-confirm-title="Approve Admission" data-confirm-text="Approve & Enroll" data-confirm-variant="primary" data-confirm-loading="Enrolling..." style="padding: 0.4rem; width: 32px; background: var(--accent);"><i class="fas fa-user-plus"></i></button>
                                         </form>
                                         <?php } ?>
                                         <?php if ((int)($row['seminarian_id'] ?? 0) > 0) { ?>
@@ -698,7 +698,7 @@ require_once __DIR__ . '/../includes/layout_app_start.php';
                                             <form method="post" style="box-shadow: none; padding: 0; background: none; border: none; margin: 0;">
                                                 <input type="hidden" name="csrf_token" value="<?php echo $_SESSION['csrf_token']; ?>">
                                                 <input type="hidden" name="applicant_id" value="<?php echo (int)$row['id']; ?>">
-                                                <button type="submit" name="restore_applicant" title="Restore" style="padding: 0.4rem; width: 32px; background: var(--accent);" onclick="return confirm('Restore this applicant?');"><i class="fas fa-undo"></i></button>
+                                                <button type="submit" name="restore_applicant" title="Restore" style="padding: 0.4rem; width: 32px; background: var(--accent);" data-confirm="Restore <?php echo htmlspecialchars($display_name); ?> to active applicants?" data-confirm-title="Restore Applicant" data-confirm-text="Restore" data-confirm-variant="primary" data-confirm-loading="Restoring..."><i class="fas fa-undo"></i></button>
                                             </form>
                                         <?php } elseif ($is_registrar) { ?>
                                             <?php if ($row['status'] === 'Enrolled') { ?>
@@ -707,7 +707,7 @@ require_once __DIR__ . '/../includes/layout_app_start.php';
                                                 <form method="post" style="box-shadow: none; padding: 0; background: none; border: none; margin: 0;">
                                                     <input type="hidden" name="csrf_token" value="<?php echo $_SESSION['csrf_token']; ?>">
                                                     <input type="hidden" name="applicant_id" value="<?php echo (int)$row['id']; ?>">
-                                                    <button type="submit" name="archive_applicant" title="Archive" style="padding: 0.4rem; width: 32px; background: var(--danger);" onclick="return confirm('Archive this applicant?');"><i class="fas fa-archive"></i></button>
+                                                    <button type="submit" name="archive_applicant" title="Archive" style="padding: 0.4rem; width: 32px; background: var(--danger);" data-confirm="Archive applicant <?php echo htmlspecialchars($display_name); ?>? You can restore them later from archived records." data-confirm-title="Archive Applicant" data-confirm-text="Archive" data-confirm-variant="danger" data-confirm-loading="Archiving..."><i class="fas fa-archive"></i></button>
                                                 </form>
                                             <?php } ?>
                                         <?php } ?>
@@ -899,7 +899,7 @@ require_once __DIR__ . '/../includes/layout_app_start.php';
 
                             <div class="modal-actions">
                                 <button type="button" class="modal-close" data-modal-close>Cancel</button>
-                                <button type="submit" name="enroll_existing_seminarian">Enroll</button>
+                                <button type="submit" name="enroll_existing_seminarian" data-confirm="Enroll this seminarian for the selected academic year and semester?" data-confirm-title="Confirm Enrollment" data-confirm-text="Enroll Seminarian" data-confirm-variant="primary" data-confirm-loading="Enrolling...">Enroll</button>
                             </div>
                         </form>
                     </div>

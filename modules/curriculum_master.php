@@ -736,7 +736,7 @@ require_once __DIR__ . '/../includes/layout_app_start.php';
                                                             <?php echo $is_active ? 'Deactivate' : 'Activate'; ?>
                                                         </button>
                                                     </form>
-                                                    <form method="post" style="margin: 0; display: inline;" onsubmit="return confirm('Archive curriculum version?');">
+                                                    <form method="post" style="margin: 0; display: inline;" data-confirm="Archive this curriculum version?" data-confirm-title="Archive Curriculum Version" data-confirm-text="Archive" data-confirm-variant="danger" data-confirm-loading="Archiving...">
                                                         <input type="hidden" name="csrf_token" value="<?php echo htmlspecialchars($_SESSION['csrf_token']); ?>">
                                                         <input type="hidden" name="id" value="<?php echo $vid; ?>">
                                                         <button type="submit" name="archive_version" class="action-btn-danger" style="padding: 0.35rem 0.65rem;" title="Archive Version">
@@ -962,7 +962,7 @@ require_once __DIR__ . '/../includes/layout_app_start.php';
                                                                                     <i class="fas <?php echo $active ? 'fa-eye-slash' : 'fa-eye'; ?>"></i>
                                                                                 </button>
                                                                             </form>
-                                                                            <form method="post" style="margin: 0; display: inline;" onsubmit="return confirm('Remove <?php echo htmlspecialchars($code); ?> from curriculum?');">
+                                                                            <form method="post" style="margin: 0; display: inline;" data-confirm="Remove <?php echo htmlspecialchars($code); ?> from this curriculum?" data-confirm-title="Remove Curriculum Subject" data-confirm-text="Remove" data-confirm-variant="danger" data-confirm-loading="Removing...">
                                                                                 <input type="hidden" name="csrf_token" value="<?php echo htmlspecialchars($_SESSION['csrf_token']); ?>">
                                                                                 <input type="hidden" name="id" value="<?php echo $cid; ?>">
                                                                                 <button type="submit" name="delete_curriculum_subject" class="action-btn-danger" style="padding: 0.3rem 0.5rem; font-size: 0.72rem;" title="Remove Subject">

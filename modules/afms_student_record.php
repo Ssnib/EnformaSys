@@ -1041,11 +1041,31 @@ require_once __DIR__ . '/../includes/layout_app_start.php';
 
             // Confirmation on Save Grades: "Are you sure you want to save? Once submitted, grades cannot be edited."
             if (batchForm) {
-                batchForm.addEventListener('submit', function(e) {
-                    const confirmed = confirm("Are you sure you want to save? Once submitted, grades cannot be edited.");
-                    if (!confirmed) {
-                        e.preventDefault();
-                        return false;
+                batchForm.addEventListener('submit', async function(e) {
+                    if (batchForm.dataset.enformasysConfirmed === '1') return;
+                    e.preventDefault();
+                    const ok = (typeof window.enformasysConfirm === 'function')
+                        ? await window.enformasysConfirm({
+                            title: 'Save All Grades',
+                            message: 'Are you sure you want to save? Once submitted, grades cannot be edited.',
+                            confirmText: 'Save Grades',
+                            variant: 'primary'
+                        })
+                        : confirm('Are you sure you want to save? Once submitted, grades cannot be edited.');
+                    if (ok) {
+                        batchForm.dataset.enformasysConfirmed = '1';
+                        const saveBtn = document.getElementById('saveAllGradesBtn') || batchForm.querySelector('button[type="submit"]');
+                        if (saveBtn && saveBtn.name) {
+                            const h = document.createElement('input');
+                            h.type = 'hidden';
+                            h.name = saveBtn.name;
+                            h.value = saveBtn.value || '1';
+                            batchForm.appendChild(h);
+                        }
+                        if (saveBtn && typeof window.enformasysSetButtonLoading === 'function') {
+                            window.enformasysSetButtonLoading(saveBtn, 'Saving...');
+                        }
+                        HTMLFormElement.prototype.submit.call(batchForm);
                     }
                 });
             }

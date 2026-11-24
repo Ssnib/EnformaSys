@@ -340,7 +340,7 @@ require_once __DIR__ . '/../includes/layout_app_start.php';
                                                     <form method="post" style="display: inline; margin: 0;">
                                                         <input type="hidden" name="csrf_token" value="<?php echo htmlspecialchars($_SESSION['csrf_token']); ?>">
                                                         <input type="hidden" name="id" value="<?php echo $id; ?>">
-                                                        <button type="submit" name="set_current" class="action-btn-primary" style="padding: 0.35rem 0.65rem;" title="Make this the current semester">
+                                                        <button type="submit" name="set_current" class="action-btn-primary" style="padding: 0.35rem 0.65rem;" title="Make this the current semester" data-confirm="Set <?php echo htmlspecialchars($label); ?> as the active current Academic Year across EnformaSys?" data-confirm-title="Set Current Academic Year" data-confirm-text="Set Current" data-confirm-variant="warning" data-confirm-loading="Updating...">
                                                             <i class="fas fa-flag"></i> Set Current
                                                         </button>
                                                     </form>
@@ -349,14 +349,14 @@ require_once __DIR__ . '/../includes/layout_app_start.php';
                                                     <input type="hidden" name="csrf_token" value="<?php echo htmlspecialchars($_SESSION['csrf_token']); ?>">
                                                     <input type="hidden" name="id" value="<?php echo $id; ?>">
                                                     <input type="hidden" name="is_active" value="<?php echo $is_active ? 0 : 1; ?>">
-                                                    <button type="submit" name="toggle_active" class="action-btn-secondary" style="padding: 0.35rem 0.65rem;">
+                                                    <button type="submit" name="toggle_active" class="action-btn-secondary" style="padding: 0.35rem 0.65rem;" data-confirm="<?php echo $is_active ? 'Deactivate' : 'Activate'; ?> Academic Year <?php echo htmlspecialchars($label); ?>?" data-confirm-title="<?php echo $is_active ? 'Deactivate' : 'Activate'; ?> Academic Year" data-confirm-text="<?php echo $is_active ? 'Deactivate' : 'Activate'; ?>" data-confirm-variant="<?php echo $is_active ? 'warning' : 'primary'; ?>" data-confirm-loading="Updating...">
                                                         <?php echo $is_active ? 'Deactivate' : 'Activate'; ?>
                                                     </button>
                                                 </form>
                                                 <button type="button" class="action-btn-secondary toggle-edit-ay-btn" data-target="editAy_<?php echo $id; ?>" style="padding: 0.35rem 0.65rem;" title="Edit details">
                                                     <i class="fas fa-edit"></i>
                                                 </button>
-                                                <form method="post" style="display: inline; margin: 0;" onsubmit="return confirm('Archive Academic Year <?php echo htmlspecialchars($label); ?>?');">
+                                                <form method="post" style="display: inline; margin: 0;" data-confirm="Archive Academic Year <?php echo htmlspecialchars($label); ?>?" data-confirm-title="Archive Academic Year" data-confirm-text="Archive" data-confirm-variant="danger" data-confirm-loading="Archiving...">
                                                     <input type="hidden" name="csrf_token" value="<?php echo htmlspecialchars($_SESSION['csrf_token']); ?>">
                                                     <input type="hidden" name="id" value="<?php echo $id; ?>">
                                                     <button type="submit" name="archive_ay" class="action-btn-danger" style="padding: 0.35rem 0.65rem;" title="Archive">
@@ -396,7 +396,7 @@ require_once __DIR__ . '/../includes/layout_app_start.php';
                                                 <input type="date" name="end_date" value="<?php echo htmlspecialchars(trim((string)($r['end_date'] ?? ''))); ?>">
                                             </div>
                                             <div style="display: flex; gap: 0.35rem;">
-                                                <button type="submit" name="edit_ay" class="action-btn-primary" style="padding: 0.45rem 0.85rem;"><i class="fas fa-save"></i> Save</button>
+                                                <button type="submit" name="edit_ay" class="action-btn-primary" style="padding: 0.45rem 0.85rem;" data-confirm="Save changes to Academic Year <?php echo htmlspecialchars($label); ?>?" data-confirm-title="Update Academic Year" data-confirm-text="Save Changes" data-confirm-variant="primary"><i class="fas fa-save"></i> Save</button>
                                                 <button type="button" class="action-btn-secondary close-edit-ay-btn" data-target="editAy_<?php echo $id; ?>" style="padding: 0.45rem 0.7rem;">Cancel</button>
                                             </div>
                                         </form>

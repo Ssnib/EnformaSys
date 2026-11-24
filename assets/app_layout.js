@@ -296,9 +296,9 @@
  * EnformaSys Floating Toast Notification System
  * @param {string} message - Message text to display
  * @param {'success'|'error'|'info'} [type='success'] - Notification state
- * @param {number} [duration=3000] - Duration in ms before auto-dismissal
+ * @param {number} [duration=3500] - Duration in ms before auto-dismissal
  */
-function showToast(message, type = 'success', duration = 3000) {
+function showToast(message, type = 'success', duration = 3500) {
   if (!message) return;
 
   const run = () => {
@@ -547,6 +547,333 @@ window.showToast.info = (msg, duration) => showToast(msg, 'info', duration);
   } else {
     boot();
   }
+})();
+
+/**
+ * EnformaSys Global Accessible Confirmation Modal & Double-Submit Guard
+ * Usage:
+ *   const ok = await window.enformasysConfirm({
+ *     title: 'Confirm Action',
+ *     message: 'Are you sure?',
+ *     confirmText: 'Confirm',
+ *     cancelText: 'Cancel',
+ *     variant: 'primary' | 'warning' | 'danger'
+ *   });
+ */
+(function initEnformaSysConfirmSystem() {
+  let modalRoot = null;
+  let activeResolve = null;
+  let lastFocusedEl = null;
+
+  const VARIANT_STYLES = {
+    primary: {
+      iconBg: 'bg-[#F8EEEE] text-[#59443F] border-[#E8C7C5]',
+      iconClass: 'fa-solid fa-circle-check',
+      btnClass: 'bg-[#59443F] hover:bg-[#463430] text-white focus:ring-[#D6A6A6]',
+      defaultTitle: 'Confirm Changes',
+      defaultConfirm: 'Confirm'
+    },
+    warning: {
+      iconBg: 'bg-amber-50 text-amber-600 border-amber-200',
+      iconClass: 'fa-solid fa-triangle-exclamation',
+      btnClass: 'bg-amber-600 hover:bg-amber-700 text-white focus:ring-amber-300',
+      defaultTitle: 'Please Confirm',
+      defaultConfirm: 'Proceed'
+    },
+    danger: {
+      iconBg: 'bg-rose-50 text-rose-600 border-rose-200',
+      iconClass: 'fa-solid fa-triangle-exclamation',
+      btnClass: 'bg-rose-600 hover:bg-rose-700 text-white focus:ring-rose-300',
+      defaultTitle: 'Confirm Deletion',
+      defaultConfirm: 'Delete'
+    }
+  };
+
+  function ensureModal() {
+    if (modalRoot && document.body.contains(modalRoot)) return modalRoot;
+    modalRoot = document.getElementById('enformasysConfirmModal');
+    if (modalRoot) return modalRoot;
+
+    modalRoot = document.createElement('div');
+    modalRoot.id = 'enformasysConfirmModal';
+    modalRoot.className = 'enformasys-confirm-overlay hidden';
+    modalRoot.setAttribute('role', 'alertdialog');
+    modalRoot.setAttribute('aria-modal', 'true');
+    modalRoot.setAttribute('aria-hidden', 'true');
+    modalRoot.setAttribute('aria-labelledby', 'enformasysConfirmTitle');
+    modalRoot.setAttribute('aria-describedby', 'enformasysConfirmMessage');
+    modalRoot.setAttribute('data-portal-skip', '1');
+
+    modalRoot.innerHTML = `
+      <div class="enformasys-confirm-dialog p-5 sm:p-6">
+        <div class="flex items-start gap-3.5">
+          <div id="enformasysConfirmIconWrap" class="w-11 h-11 rounded-2xl border flex items-center justify-center shrink-0 text-base shadow-2xs">
+            <i id="enformasysConfirmIcon" class="fa-solid fa-circle-check" aria-hidden="true"></i>
+          </div>
+          <div class="flex-1 min-w-0">
+            <h3 id="enformasysConfirmTitle" class="font-heading font-extrabold text-base text-[#59443F] leading-snug m-0"></h3>
+            <p id="enformasysConfirmMessage" class="text-xs sm:text-sm text-[#8B7168] font-medium mt-1.5 leading-relaxed whitespace-pre-line m-0"></p>
+          </div>
+        </div>
+        <div class="mt-5 pt-4 border-t border-[#E8C7C5]/40 flex flex-col-reverse sm:flex-row sm:justify-end gap-2.5">
+          <button type="button" id="enformasysConfirmCancelBtn" class="w-full sm:w-auto px-4 py-2 rounded-xl text-xs font-bold text-[#59443F] bg-[#F8EEEE] hover:bg-[#E8C7C5]/70 border border-[#E8C7C5] transition cursor-pointer">
+            Cancel
+          </button>
+          <button type="button" id="enformasysConfirmOkBtn" class="w-full sm:w-auto px-4 py-2 rounded-xl text-xs font-bold transition shadow-xs focus:outline-none focus:ring-2 cursor-pointer inline-flex items-center justify-center gap-2">
+            Confirm
+          </button>
+        </div>
+      </div>
+    `;
+
+    document.body.appendChild(modalRoot);
+
+    const cancelBtn = modalRoot.querySelector('#enformasysConfirmCancelBtn');
+    const okBtn = modalRoot.querySelector('#enformasysConfirmOkBtn');
+
+    cancelBtn.addEventListener('click', () => closeConfirm(false));
+    okBtn.addEventListener('click', () => closeConfirm(true));
+    modalRoot.addEventListener('click', (e) => {
+      if (e.target === modalRoot) closeConfirm(false);
+    });
+
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape' && modalRoot && !modalRoot.classList.contains('hidden')) {
+        e.preventDefault();
+        closeConfirm(false);
+      }
+    });
+
+    return modalRoot;
+  }
+
+  function closeConfirm(result) {
+    if (!modalRoot || modalRoot.classList.contains('hidden')) return;
+    modalRoot.classList.add('hidden');
+    modalRoot.setAttribute('aria-hidden', 'true');
+    if (window.EnformaSysModalPortal && typeof window.EnformaSysModalPortal.syncScrollLock === 'function') {
+      window.EnformaSysModalPortal.syncScrollLock();
+    } else {
+      document.body.style.overflow = '';
+    }
+
+    const resolve = activeResolve;
+    activeResolve = null;
+    if (!result && lastFocusedEl && typeof lastFocusedEl.focus === 'function') {
+      try { lastFocusedEl.focus(); } catch (_) {}
+    }
+    lastFocusedEl = null;
+    if (typeof resolve === 'function') {
+      resolve(Boolean(result));
+    }
+  }
+
+  function inferVariant(message, explicitVariant) {
+    if (explicitVariant && VARIANT_STYLES[explicitVariant]) return explicitVariant;
+    const msg = String(message || '').toLowerCase();
+    if (/sign out|log out|logout|deactivate/.test(msg)) return 'warning';
+    if (/delete|remove|archive|reject|deny|drop|unenroll/.test(msg)) return 'danger';
+    return 'primary';
+  }
+
+  function enformasysConfirm(options) {
+    const opts = typeof options === 'string' ? { message: options } : (options || {});
+    const variantKey = inferVariant(opts.message, opts.variant);
+    const cfg = VARIANT_STYLES[variantKey] || VARIANT_STYLES.primary;
+
+    if (!document.body) {
+      return Promise.resolve(window.confirm(opts.message || 'Are you sure?'));
+    }
+
+    // Cancel any stale pending modal cleanly
+    if (activeResolve) {
+      closeConfirm(false);
+    }
+
+    const root = ensureModal();
+    const iconWrap = root.querySelector('#enformasysConfirmIconWrap');
+    const iconEl = root.querySelector('#enformasysConfirmIcon');
+    const titleEl = root.querySelector('#enformasysConfirmTitle');
+    const msgEl = root.querySelector('#enformasysConfirmMessage');
+    const cancelBtn = root.querySelector('#enformasysConfirmCancelBtn');
+    const okBtn = root.querySelector('#enformasysConfirmOkBtn');
+
+    lastFocusedEl = document.activeElement;
+    iconWrap.className = `w-11 h-11 rounded-2xl border flex items-center justify-center shrink-0 text-base shadow-2xs ${cfg.iconBg}`;
+    iconEl.className = opts.iconClass || (variantKey === 'warning' && /sign out|logout/i.test(String(opts.title || opts.message || '')) ? 'fa-solid fa-arrow-right-from-bracket' : cfg.iconClass);
+    titleEl.textContent = opts.title || cfg.defaultTitle;
+    msgEl.textContent = opts.message || 'Are you sure you want to proceed?';
+    cancelBtn.textContent = opts.cancelText || 'Cancel';
+    okBtn.textContent = opts.confirmText || cfg.defaultConfirm;
+    okBtn.disabled = false;
+    cancelBtn.disabled = false;
+    okBtn.className = `w-full sm:w-auto px-4 py-2 rounded-xl text-xs font-bold transition shadow-xs focus:outline-none focus:ring-2 cursor-pointer inline-flex items-center justify-center gap-2 ${cfg.btnClass}`;
+
+    root.classList.remove('hidden');
+    root.setAttribute('aria-hidden', 'false');
+    document.body.style.overflow = 'hidden';
+
+    setTimeout(() => {
+      if (variantKey === 'danger' || variantKey === 'warning') {
+        cancelBtn.focus();
+      } else {
+        okBtn.focus();
+      }
+    }, 20);
+
+    return new Promise((resolve) => {
+      activeResolve = resolve;
+    });
+  }
+
+  function setButtonLoading(btn, label) {
+    if (!btn || btn.dataset.enformasysLoading === '1') return;
+    btn.dataset.enformasysLoading = '1';
+    const text = label || btn.getAttribute('data-confirm-loading') || 'Saving...';
+    if (btn.tagName === 'INPUT') {
+      btn.value = text;
+    } else {
+      btn.innerHTML = `<span class="enformasys-btn-spinner"><i class="fa-solid fa-circle-notch fa-spin" aria-hidden="true"></i><span>${text}</span></span>`;
+    }
+    btn.disabled = true;
+    btn.classList.add('opacity-75', 'cursor-wait');
+  }
+
+  function preserveSubmitterField(form, submitter) {
+    if (!form || !submitter || !submitter.name) return;
+    const existing = form.querySelector(`input[data-enformasys-submitter="1"]`);
+    if (existing) existing.remove();
+    const hidden = document.createElement('input');
+    hidden.type = 'hidden';
+    hidden.name = submitter.name;
+    hidden.value = submitter.value || '1';
+    hidden.setAttribute('data-enformasys-submitter', '1');
+    form.appendChild(hidden);
+  }
+
+  function submitFormWithState(form, submitter, loadingText) {
+    if (!form || form.dataset.enformasysSubmitting === '1') return;
+    form.dataset.enformasysConfirmed = '1';
+    form.dataset.enformasysSubmitting = '1';
+    const activeBtn = submitter || form.querySelector('button[type="submit"]:not(:disabled), button:not([type]):not(:disabled), input[type="submit"]:not(:disabled)');
+    if (activeBtn) {
+      preserveSubmitterField(form, activeBtn);
+      setButtonLoading(activeBtn, loadingText);
+    }
+    HTMLFormElement.prototype.submit.call(form);
+  }
+
+  function extractConfirmOptions(el, fallbackOpts) {
+    const msg = el.getAttribute('data-confirm') || (fallbackOpts && fallbackOpts.message) || 'Are you sure you want to proceed?';
+    return {
+      message: msg,
+      title: el.getAttribute('data-confirm-title') || (fallbackOpts && fallbackOpts.title) || undefined,
+      confirmText: el.getAttribute('data-confirm-text') || (fallbackOpts && fallbackOpts.confirmText) || undefined,
+      cancelText: el.getAttribute('data-confirm-cancel') || 'Cancel',
+      variant: el.getAttribute('data-confirm-variant') || (fallbackOpts && fallbackOpts.variant) || undefined,
+      loadingText: el.getAttribute('data-confirm-loading') || (fallbackOpts && fallbackOpts.loadingText) || 'Saving...'
+    };
+  }
+
+  // Click interception for logout links, data-confirm links, and data-confirm submit buttons
+  document.addEventListener('click', async (e) => {
+    const target = e.target;
+    if (!target || !target.closest) return;
+
+    // 1. Intercept Logout Links globally
+    const logoutLink = target.closest('a[href*="logout.php"]:not([data-no-confirm="1"])');
+    if (logoutLink) {
+      e.preventDefault();
+      const opts = logoutLink.hasAttribute('data-confirm')
+        ? extractConfirmOptions(logoutLink)
+        : {
+            title: 'Sign Out',
+            message: 'Sign out of EnformaSys? Any unsaved changes will be lost.',
+            confirmText: 'Sign Out',
+            variant: 'warning',
+            loadingText: 'Signing out...'
+          };
+      const confirmed = await enformasysConfirm(opts);
+      if (confirmed) {
+        window.location.href = logoutLink.getAttribute('href');
+      }
+      return;
+    }
+
+    // 2. Intercept declarative data-confirm links
+    const confirmLink = target.closest('a[data-confirm]');
+    if (confirmLink) {
+      e.preventDefault();
+      const opts = extractConfirmOptions(confirmLink);
+      const confirmed = await enformasysConfirm(opts);
+      if (confirmed) {
+        const href = confirmLink.getAttribute('href');
+        if (href) window.location.href = href;
+      }
+      return;
+    }
+
+    // 3. Intercept declarative data-confirm submit buttons
+    const confirmBtn = target.closest('button[data-confirm]:not([type="button"]):not([type="reset"]), input[type="submit"][data-confirm]');
+    if (confirmBtn && !confirmBtn.disabled) {
+      const form = confirmBtn.form || confirmBtn.closest('form');
+      if (!form) return;
+      if (form.dataset.enformasysConfirmed === '1') return;
+
+      e.preventDefault();
+      if (typeof form.reportValidity === 'function' && !form.reportValidity()) {
+        return;
+      }
+      const opts = extractConfirmOptions(confirmBtn);
+      const confirmed = await enformasysConfirm(opts);
+      if (confirmed) {
+        submitFormWithState(form, confirmBtn, opts.loadingText);
+      }
+    }
+  });
+
+  // Capture-phase form[data-confirm] interception
+  document.addEventListener('submit', async (e) => {
+    const form = e.target;
+    if (!form || form.tagName !== 'FORM') return;
+    if (!form.hasAttribute('data-confirm')) return;
+    if (form.dataset.enformasysConfirmed === '1') return;
+
+    e.preventDefault();
+    e.stopImmediatePropagation();
+    if (typeof form.reportValidity === 'function' && !form.reportValidity()) {
+      return;
+    }
+    const opts = extractConfirmOptions(form);
+    const submitter = e.submitter || form.querySelector('button[type="submit"]:not(:disabled), input[type="submit"]:not(:disabled)');
+    const confirmed = await enformasysConfirm(opts);
+    if (confirmed) {
+      submitFormWithState(form, submitter, opts.loadingText);
+    }
+  }, true);
+
+  // Bubble-phase double-submit guard for regular POST forms
+  document.addEventListener('submit', (e) => {
+    const form = e.target;
+    if (!form || form.tagName !== 'FORM' || e.defaultPrevented) return;
+    if (String(form.method || '').toLowerCase() !== 'post') return;
+    if (form.hasAttribute('data-no-loading') || form.target === '_blank') return;
+
+    if (form.dataset.enformasysSubmitting === '1') {
+      e.preventDefault();
+      return;
+    }
+    form.dataset.enformasysSubmitting = '1';
+    const submitter = e.submitter || form.querySelector('button[type="submit"]:not(:disabled), input[type="submit"]:not(:disabled)');
+    if (submitter) {
+      preserveSubmitterField(form, submitter);
+      const loadingLabel = submitter.getAttribute('data-confirm-loading') || form.getAttribute('data-confirm-loading') || 'Saving...';
+      setButtonLoading(submitter, loadingLabel);
+    }
+  }, false);
+
+  window.enformasysConfirm = enformasysConfirm;
+  window.enformasysSetButtonLoading = setButtonLoading;
 })();
 
 

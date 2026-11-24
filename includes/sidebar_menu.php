@@ -720,6 +720,11 @@ if (!empty($is_student) && isset($_SESSION['user'])) {
         <a href="<?= htmlspecialchars(capstone_url('logout.php')) ?>" 
            title="Sign Out" 
            aria-label="Sign Out"
+           data-confirm="Sign out of EnformaSys? Any unsaved changes will be lost."
+           data-confirm-title="Sign Out"
+           data-confirm-text="Sign Out"
+           data-confirm-variant="warning"
+           data-confirm-loading="Signing out..."
            class="sidebar-text inline-flex h-7 w-7 items-center justify-center rounded-xl text-[#8B7168] hover:text-rose-600 hover:bg-white transition shrink-0 shadow-2xs">
             <i class="fa-solid fa-arrow-right-from-bracket text-xs"></i>
         </a>

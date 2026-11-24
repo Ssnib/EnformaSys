@@ -767,7 +767,7 @@ require_once __DIR__ . '/../includes/layout_app_start.php';
             </button>
         </div>
 
-        <form method="post" class="mt-4 space-y-4 m-0 p-0 bg-transparent border-0 shadow-none">
+        <form method="post" data-confirm="Save changes to this seminarian profile?" data-confirm-title="Update Seminarian Profile" data-confirm-text="Save Changes" data-confirm-variant="primary" data-confirm-loading="Saving..." class="mt-4 space-y-4 m-0 p-0 bg-transparent border-0 shadow-none">
             <input type="hidden" name="csrf_token" value="<?php echo htmlspecialchars($_SESSION['csrf_token'] ?? ''); ?>">
             <input type="hidden" name="update_static_profile" value="1">
             <input type="hidden" name="student_id" id="ep_student_id" value="">

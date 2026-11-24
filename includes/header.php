@@ -164,9 +164,15 @@ if ($selected_header_ay !== '' && !in_array($selected_header_ay, $header_ay_list
 </header>
 
 <?php
-// EnformaSys Flash Toast Notification Trigger
+// EnformaSys Flash Toast Notification Trigger (supports flash_success/flash_error + toast_* + session success/error)
 $activeToast = null;
-if (!empty($_SESSION['toast_success'])) {
+if (!empty($_SESSION['flash_success'])) {
+    $activeToast = ['msg' => (string)$_SESSION['flash_success'], 'type' => 'success'];
+    unset($_SESSION['flash_success']);
+} elseif (!empty($_SESSION['flash_error'])) {
+    $activeToast = ['msg' => (string)$_SESSION['flash_error'], 'type' => 'error'];
+    unset($_SESSION['flash_error']);
+} elseif (!empty($_SESSION['toast_success'])) {
     $activeToast = ['msg' => (string)$_SESSION['toast_success'], 'type' => 'success'];
     unset($_SESSION['toast_success']);
 } elseif (!empty($_SESSION['toast_error'])) {
@@ -183,12 +189,14 @@ if (!empty($_SESSION['toast_success'])) {
     unset($_SESSION['error']);
 }
 
-if ($activeToast !== null): ?>
+if ($activeToast !== null):
+    $GLOBALS['__enformasys_toast_fired'] = true;
+?>
 <script>
 (function() {
     function fireToast() {
         if (typeof window.showToast === 'function') {
-            window.showToast(<?= json_encode($activeToast['msg']) ?>, <?= json_encode($activeToast['type']) ?>);
+            window.showToast(<?= json_encode(trim(strip_tags(html_entity_decode($activeToast['msg'], ENT_QUOTES, 'UTF-8')))) ?>, <?= json_encode($activeToast['type']) ?>, 3500);
         } else {
             setTimeout(fireToast, 50);
         }
