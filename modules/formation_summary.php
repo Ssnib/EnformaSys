@@ -19,6 +19,12 @@ $filter_yl = eval_normalize_year_level_option($_GET['year_level'] ?? '');
 if ($filter_yl === '') {
     $filter_yl = 'all';
 }
+$selected_pillar_raw = strtolower(trim((string)($_GET['pillar'] ?? ($_GET['dimension'] ?? 'all'))));
+$valid_pillars = ['academic', 'spiritual', 'human', 'pastoral'];
+$selected_dimension = in_array($selected_pillar_raw, array_merge(['all', 'needs_attention'], $valid_pillars), true)
+    ? $selected_pillar_raw
+    : 'all';
+$selected_single_pillar = in_array($selected_dimension, $valid_pillars, true) ? $selected_dimension : 'all';
 
 // Year Level Filter Options
 $yl_options = eval_year_level_filter_options();
@@ -486,13 +492,14 @@ function compute_formation_summary_analytics(array $rows): array {
 /**
  * Render the Top Visual Analytics Dashboard HTML.
  */
-function render_formation_summary_analytics(array $analytics, string $filter_ay, string $filter_sem, string $current_ay, bool $is_rector = false): string {
+function render_formation_summary_analytics(array $analytics, string $filter_ay, string $filter_sem, string $current_ay, bool $is_rector = false, string $selected_dimension = 'all'): string {
     $total = $analytics['total'] ?? 0;
     $counts = $analytics['counts'] ?? ['outstanding' => 0, 'very_good' => 0, 'satisfactory' => 0, 'needs_improvement' => 0, 'poor' => 0, 'pending' => 0];
     $status_pct = $analytics['status_pct'] ?? ['outstanding' => 0, 'very_good' => 0, 'satisfactory' => 0, 'needs_improvement' => 0, 'poor' => 0, 'pending' => 0];
     $pillars = $analytics['pillars'] ?? [];
     $evaluated_total = $analytics['evaluated_total'] ?? 0;
     $needs_attention_count = ($counts['needs_improvement'] ?? 0) + ($counts['poor'] ?? 0);
+    $single_pillar = in_array($selected_dimension, ['academic', 'spiritual', 'human', 'pastoral'], true) ? $selected_dimension : 'all';
     
     $term_label = ($filter_ay === 'all' || $filter_ay === '') ? 'All Academic Years' : 'A.Y. ' . $filter_ay;
     if ($filter_sem !== 'all' && $filter_sem !== '') {
@@ -522,23 +529,23 @@ function render_formation_summary_analytics(array $analytics, string $filter_ay,
 
                 <!-- Dimension Filter Tabs (Header Controls) -->
                 <div style="display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap;">
-                    <div class="fs-dim-tabs" style="display: inline-flex; align-items: center; background: #ffffff; border: 1px solid #E8C7C5; padding: 3px; border-radius: 12px; gap: 2px; box-shadow: inset 0 1px 2px rgba(0,0,0,0.03);">
-                        <button type="button" class="fs-dim-tab active" data-dimension="all" style="border: none; background: #59443F; color: #ffffff; padding: 0.35rem 0.75rem; border-radius: 9px; font-size: 0.75rem; font-weight: 700; cursor: pointer; transition: all 0.15s ease;" title="Show all dimensions">
+                    <div class="fs-dim-tabs" style="display: inline-flex; align-items: center; background: #ffffff; border: 1px solid #E8C7C5; padding: 3px; border-radius: 12px; gap: 2px; box-shadow: inset 0 1px 2px rgba(0,0,0,0.03); flex-wrap: wrap;">
+                        <button type="button" class="fs-dim-tab <?php echo $selected_dimension === 'all' ? 'active' : ''; ?>" data-dimension="all" style="border: none; background: transparent; color: #59443F; padding: 0.35rem 0.75rem; border-radius: 9px; font-size: 0.75rem; font-weight: 700; cursor: pointer; transition: all 0.15s ease;" title="Show all dimensions">
                             All Pillars (<?php echo $total; ?>)
                         </button>
-                        <button type="button" class="fs-dim-tab" data-dimension="academic" style="border: none; background: transparent; color: #59443F; padding: 0.35rem 0.75rem; border-radius: 9px; font-size: 0.75rem; font-weight: 700; cursor: pointer; transition: all 0.15s ease;" title="Filter by Academic Formator">
+                        <button type="button" class="fs-dim-tab <?php echo $selected_dimension === 'academic' ? 'active' : ''; ?>" data-dimension="academic" style="border: none; background: transparent; color: #59443F; padding: 0.35rem 0.75rem; border-radius: 9px; font-size: 0.75rem; font-weight: 700; cursor: pointer; transition: all 0.15s ease;" title="Filter by Academic Formator">
                             <i class="fa-solid fa-graduation-cap" style="color: #2563eb; margin-right: 3px;"></i> Academic
                         </button>
-                        <button type="button" class="fs-dim-tab" data-dimension="spiritual" style="border: none; background: transparent; color: #59443F; padding: 0.35rem 0.75rem; border-radius: 9px; font-size: 0.75rem; font-weight: 700; cursor: pointer; transition: all 0.15s ease;" title="Filter by Spiritual Formator">
+                        <button type="button" class="fs-dim-tab <?php echo $selected_dimension === 'spiritual' ? 'active' : ''; ?>" data-dimension="spiritual" style="border: none; background: transparent; color: #59443F; padding: 0.35rem 0.75rem; border-radius: 9px; font-size: 0.75rem; font-weight: 700; cursor: pointer; transition: all 0.15s ease;" title="Filter by Spiritual Formator">
                             <i class="fa-solid fa-cross" style="color: #7c3aed; margin-right: 3px;"></i> Spiritual
                         </button>
-                        <button type="button" class="fs-dim-tab" data-dimension="human" style="border: none; background: transparent; color: #59443F; padding: 0.35rem 0.75rem; border-radius: 9px; font-size: 0.75rem; font-weight: 700; cursor: pointer; transition: all 0.15s ease;" title="Filter by Human Formator">
+                        <button type="button" class="fs-dim-tab <?php echo $selected_dimension === 'human' ? 'active' : ''; ?>" data-dimension="human" style="border: none; background: transparent; color: #59443F; padding: 0.35rem 0.75rem; border-radius: 9px; font-size: 0.75rem; font-weight: 700; cursor: pointer; transition: all 0.15s ease;" title="Filter by Human Formator">
                             <i class="fa-solid fa-heart-pulse" style="color: #d97706; margin-right: 3px;"></i> Human
                         </button>
-                        <button type="button" class="fs-dim-tab" data-dimension="pastoral" style="border: none; background: transparent; color: #59443F; padding: 0.35rem 0.75rem; border-radius: 9px; font-size: 0.75rem; font-weight: 700; cursor: pointer; transition: all 0.15s ease;" title="Filter by Pastoral Formator">
+                        <button type="button" class="fs-dim-tab <?php echo $selected_dimension === 'pastoral' ? 'active' : ''; ?>" data-dimension="pastoral" style="border: none; background: transparent; color: #59443F; padding: 0.35rem 0.75rem; border-radius: 9px; font-size: 0.75rem; font-weight: 700; cursor: pointer; transition: all 0.15s ease;" title="Filter by Pastoral Formator">
                             <i class="fa-solid fa-hands-holding-child" style="color: #059669; margin-right: 3px;"></i> Pastoral
                         </button>
-                        <button type="button" class="fs-dim-tab" data-dimension="needs_attention" style="border: none; background: transparent; color: #991b1b; padding: 0.35rem 0.75rem; border-radius: 9px; font-size: 0.75rem; font-weight: 700; cursor: pointer; transition: all 0.15s ease;" title="Show all seminarians needing attention">
+                        <button type="button" class="fs-dim-tab <?php echo $selected_dimension === 'needs_attention' ? 'active' : ''; ?>" data-dimension="needs_attention" style="border: none; background: transparent; color: #991b1b; padding: 0.35rem 0.75rem; border-radius: 9px; font-size: 0.75rem; font-weight: 700; cursor: pointer; transition: all 0.15s ease;" title="Show all seminarians needing attention">
                             <i class="fa-solid fa-triangle-exclamation" style="margin-right: 3px;"></i> Needs Attention (<?php echo $needs_attention_count; ?>)
                         </button>
                     </div>
@@ -559,103 +566,31 @@ function render_formation_summary_analytics(array $analytics, string $filter_ay,
                         </div>
                     </div>
 
-                    <!-- Visual Multi-segment Progress Bar -->
-                    <div style="width: 100%; height: 12px; background: #f1f5f9; border-radius: 9999px; overflow: hidden; display: flex; box-shadow: inset 0 1px 2px rgba(0,0,0,0.06); margin-bottom: 0.85rem;" title="Status distribution across 5-point scale">
-                        <?php if (($status_pct['outstanding'] ?? 0) > 0): ?>
-                            <div style="width: <?php echo $status_pct['outstanding']; ?>%; background: #10b981; height: 100%; transition: width 0.3s ease;" title="Outstanding: <?php echo $counts['outstanding']; ?> seminarians (<?php echo $status_pct['outstanding']; ?>%)"></div>
-                        <?php endif; ?>
-                        <?php if (($status_pct['very_good'] ?? 0) > 0): ?>
-                            <div style="width: <?php echo $status_pct['very_good']; ?>%; background: #22c55e; height: 100%; transition: width 0.3s ease;" title="Very Good: <?php echo $counts['very_good']; ?> seminarians (<?php echo $status_pct['very_good']; ?>%)"></div>
-                        <?php endif; ?>
-                        <?php if (($status_pct['satisfactory'] ?? 0) > 0): ?>
-                            <div style="width: <?php echo $status_pct['satisfactory']; ?>%; background: #3b82f6; height: 100%; transition: width 0.3s ease;" title="Satisfactory: <?php echo $counts['satisfactory']; ?> seminarians (<?php echo $status_pct['satisfactory']; ?>%)"></div>
+                    <!-- Visual Multi-segment Progress Bar (Poor -> Outstanding) -->
+                    <div style="width: 100%; height: 12px; background: #f1f5f9; border-radius: 9999px; overflow: hidden; display: flex; box-shadow: inset 0 1px 2px rgba(0,0,0,0.06); margin-bottom: 0.85rem;" title="Status distribution across 5-point scale (Poor to Outstanding)">
+                        <?php if (($status_pct['poor'] ?? 0) > 0): ?>
+                            <div style="width: <?php echo $status_pct['poor']; ?>%; background: #ef4444; height: 100%; transition: width 0.3s ease;" title="Poor: <?php echo $counts['poor']; ?> seminarians (<?php echo $status_pct['poor']; ?>%)"></div>
                         <?php endif; ?>
                         <?php if (($status_pct['needs_improvement'] ?? 0) > 0): ?>
                             <div style="width: <?php echo $status_pct['needs_improvement']; ?>%; background: #f59e0b; height: 100%; transition: width 0.3s ease;" title="Needs Improvement: <?php echo $counts['needs_improvement']; ?> seminarians (<?php echo $status_pct['needs_improvement']; ?>%)"></div>
                         <?php endif; ?>
-                        <?php if (($status_pct['poor'] ?? 0) > 0): ?>
-                            <div style="width: <?php echo $status_pct['poor']; ?>%; background: #ef4444; height: 100%; transition: width 0.3s ease;" title="Poor: <?php echo $counts['poor']; ?> seminarians (<?php echo $status_pct['poor']; ?>%)"></div>
+                        <?php if (($status_pct['satisfactory'] ?? 0) > 0): ?>
+                            <div style="width: <?php echo $status_pct['satisfactory']; ?>%; background: #3b82f6; height: 100%; transition: width 0.3s ease;" title="Satisfactory: <?php echo $counts['satisfactory']; ?> seminarians (<?php echo $status_pct['satisfactory']; ?>%)"></div>
+                        <?php endif; ?>
+                        <?php if (($status_pct['very_good'] ?? 0) > 0): ?>
+                            <div style="width: <?php echo $status_pct['very_good']; ?>%; background: #22c55e; height: 100%; transition: width 0.3s ease;" title="Very Good: <?php echo $counts['very_good']; ?> seminarians (<?php echo $status_pct['very_good']; ?>%)"></div>
+                        <?php endif; ?>
+                        <?php if (($status_pct['outstanding'] ?? 0) > 0): ?>
+                            <div style="width: <?php echo $status_pct['outstanding']; ?>%; background: #10b981; height: 100%; transition: width 0.3s ease;" title="Outstanding: <?php echo $counts['outstanding']; ?> seminarians (<?php echo $status_pct['outstanding']; ?>%)"></div>
                         <?php endif; ?>
                         <?php if (($status_pct['pending'] ?? 0) > 0): ?>
                             <div style="width: <?php echo $status_pct['pending']; ?>%; background: #cbd5e1; height: 100%; transition: width 0.3s ease;" title="Pending: <?php echo $counts['pending']; ?> seminarians (<?php echo $status_pct['pending']; ?>%)"></div>
                         <?php endif; ?>
                     </div>
 
-                    <!-- Interactive Status Cards Row -->
-                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 0.75rem;">
-                        <!-- Outstanding Card -->
-                        <div class="fs-status-card" data-status-filter="outstanding" role="button" tabindex="0" title="Click to filter table: Outstanding seminarians" style="background: #FAF8F6; border: 1px solid #E8C7C5; border-radius: 12px; padding: 0.85rem 1rem; cursor: pointer; transition: all 0.15s ease; position: relative;">
-                            <div style="display: flex; align-items: center; justify-content: space-between;">
-                                <span style="font-size: 0.7rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.04em; color: #047857; display: flex; align-items: center; gap: 0.35rem;">
-                                    <i class="fa-solid fa-award" style="color: #10b981;"></i> Outstanding
-                                </span>
-                                <span class="px-1.5 py-0.5 rounded-full text-[11px] font-bold bg-emerald-100 text-emerald-700">
-                                    <?php echo $status_pct['outstanding']; ?>%
-                                </span>
-                            </div>
-                            <div style="font-size: 1.5rem; font-weight: 800; color: #064e3b; margin: 0.35rem 0 0.15rem 0; font-family: 'Plus Jakarta Sans', sans-serif;">
-                                <?php echo $counts['outstanding']; ?>
-                            </div>
-                            <div style="font-size: 0.72rem; color: #8B7168; font-weight: 600;">
-                                Avg 4.50 &ndash; 5.00
-                            </div>
-                        </div>
-
-                        <!-- Very Good Card -->
-                        <div class="fs-status-card" data-status-filter="very_good" role="button" tabindex="0" title="Click to filter table: Very Good seminarians" style="background: #FAF8F6; border: 1px solid #E8C7C5; border-radius: 12px; padding: 0.85rem 1rem; cursor: pointer; transition: all 0.15s ease; position: relative;">
-                            <div style="display: flex; align-items: center; justify-content: space-between;">
-                                <span style="font-size: 0.7rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.04em; color: #15803d; display: flex; align-items: center; gap: 0.35rem;">
-                                    <i class="fa-solid fa-circle-check" style="color: #22c55e;"></i> Very Good
-                                </span>
-                                <span class="px-1.5 py-0.5 rounded-full text-[11px] font-bold bg-green-100 text-green-700">
-                                    <?php echo $status_pct['very_good']; ?>%
-                                </span>
-                            </div>
-                            <div style="font-size: 1.5rem; font-weight: 800; color: #14532d; margin: 0.35rem 0 0.15rem 0; font-family: 'Plus Jakarta Sans', sans-serif;">
-                                <?php echo $counts['very_good']; ?>
-                            </div>
-                            <div style="font-size: 0.72rem; color: #8B7168; font-weight: 600;">
-                                Avg 3.50 &ndash; 4.49
-                            </div>
-                        </div>
-
-                        <!-- Satisfactory Card -->
-                        <div class="fs-status-card" data-status-filter="satisfactory" role="button" tabindex="0" title="Click to filter table: Satisfactory seminarians" style="background: #FAF8F6; border: 1px solid #E8C7C5; border-radius: 12px; padding: 0.85rem 1rem; cursor: pointer; transition: all 0.15s ease; position: relative;">
-                            <div style="display: flex; align-items: center; justify-content: space-between;">
-                                <span style="font-size: 0.7rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.04em; color: #1d4ed8; display: flex; align-items: center; gap: 0.35rem;">
-                                    <i class="fa-solid fa-thumbs-up" style="color: #3b82f6;"></i> Satisfactory
-                                </span>
-                                <span class="px-1.5 py-0.5 rounded-full text-[11px] font-bold bg-blue-100 text-blue-700">
-                                    <?php echo $status_pct['satisfactory']; ?>%
-                                </span>
-                            </div>
-                            <div style="font-size: 1.5rem; font-weight: 800; color: #1e3a8a; margin: 0.35rem 0 0.15rem 0; font-family: 'Plus Jakarta Sans', sans-serif;">
-                                <?php echo $counts['satisfactory']; ?>
-                            </div>
-                            <div style="font-size: 0.72rem; color: #8B7168; font-weight: 600;">
-                                Avg 2.50 &ndash; 3.49
-                            </div>
-                        </div>
-
-                        <!-- Needs Improvement Card -->
-                        <div class="fs-status-card" data-status-filter="needs_improvement" role="button" tabindex="0" title="Click to filter table: Needs Improvement seminarians" style="background: #FAF8F6; border: 1px solid #E8C7C5; border-radius: 12px; padding: 0.85rem 1rem; cursor: pointer; transition: all 0.15s ease; position: relative;">
-                            <div style="display: flex; align-items: center; justify-content: space-between;">
-                                <span style="font-size: 0.7rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.04em; color: #b45309; display: flex; align-items: center; gap: 0.35rem;">
-                                    <i class="fa-solid fa-triangle-exclamation" style="color: #f59e0b;"></i> Needs Imprv.
-                                </span>
-                                <span class="px-1.5 py-0.5 rounded-full text-[11px] font-bold bg-amber-100 text-amber-700">
-                                    <?php echo $status_pct['needs_improvement']; ?>%
-                                </span>
-                            </div>
-                            <div style="font-size: 1.5rem; font-weight: 800; color: #78350f; margin: 0.35rem 0 0.15rem 0; font-family: 'Plus Jakarta Sans', sans-serif;">
-                                <?php echo $counts['needs_improvement']; ?>
-                            </div>
-                            <div style="font-size: 0.72rem; color: #8B7168; font-weight: 600;">
-                                Avg 1.50 &ndash; 2.49
-                            </div>
-                        </div>
-
-                        <!-- Poor Card -->
+                    <!-- Interactive Status Cards Row (5-column balanced row: Poor -> Outstanding) -->
+                    <div class="fs-status-grid">
+                        <!-- 1. Poor Card -->
                         <div class="fs-status-card" data-status-filter="poor" role="button" tabindex="0" title="Click to filter table: Poor seminarians" style="background: #FAF8F6; border: 1px solid #E8C7C5; border-radius: 12px; padding: 0.85rem 1rem; cursor: pointer; transition: all 0.15s ease; position: relative;">
                             <div style="display: flex; align-items: center; justify-content: space-between;">
                                 <span style="font-size: 0.7rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.04em; color: #b91c1c; display: flex; align-items: center; gap: 0.35rem;">
@@ -673,21 +608,75 @@ function render_formation_summary_analytics(array $analytics, string $filter_ay,
                             </div>
                         </div>
 
-                        <!-- Total / Reset Card -->
-                        <div class="fs-status-card active-all" data-status-filter="all" role="button" tabindex="0" title="Click to show all seminarians" style="background: #FAF8F6; border: 1px solid #E8C7C5; border-radius: 12px; padding: 0.85rem 1rem; cursor: pointer; transition: all 0.15s ease; position: relative;">
+                        <!-- 2. Needs Improvement Card -->
+                        <div class="fs-status-card" data-status-filter="needs_improvement" role="button" tabindex="0" title="Click to filter table: Needs Improvement seminarians" style="background: #FAF8F6; border: 1px solid #E8C7C5; border-radius: 12px; padding: 0.85rem 1rem; cursor: pointer; transition: all 0.15s ease; position: relative;">
                             <div style="display: flex; align-items: center; justify-content: space-between;">
-                                <span style="font-size: 0.7rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.04em; color: #59443F; display: flex; align-items: center; gap: 0.35rem;">
-                                    <i class="fa-solid fa-users" style="color: #8B7168;"></i> Total Cohort
+                                <span style="font-size: 0.7rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.04em; color: #b45309; display: flex; align-items: center; gap: 0.35rem;">
+                                    <i class="fa-solid fa-triangle-exclamation" style="color: #f59e0b;"></i> Needs Improv.
                                 </span>
-                                <span class="px-1.5 py-0.5 rounded-full text-[11px] font-bold bg-gray-100 text-gray-600">
-                                    <?php echo $counts['pending']; ?> pend.
+                                <span class="px-1.5 py-0.5 rounded-full text-[11px] font-bold bg-amber-100 text-amber-700">
+                                    <?php echo $status_pct['needs_improvement']; ?>%
                                 </span>
                             </div>
-                            <div style="font-size: 1.5rem; font-weight: 800; color: #59443F; margin: 0.35rem 0 0.15rem 0; font-family: 'Plus Jakarta Sans', sans-serif;">
-                                <?php echo $total; ?>
+                            <div style="font-size: 1.5rem; font-weight: 800; color: #78350f; margin: 0.35rem 0 0.15rem 0; font-family: 'Plus Jakarta Sans', sans-serif;">
+                                <?php echo $counts['needs_improvement']; ?>
                             </div>
                             <div style="font-size: 0.72rem; color: #8B7168; font-weight: 600;">
-                                Show all &bull; Reset
+                                Avg 1.50 &ndash; 2.49
+                            </div>
+                        </div>
+
+                        <!-- 3. Satisfactory Card -->
+                        <div class="fs-status-card" data-status-filter="satisfactory" role="button" tabindex="0" title="Click to filter table: Satisfactory seminarians" style="background: #FAF8F6; border: 1px solid #E8C7C5; border-radius: 12px; padding: 0.85rem 1rem; cursor: pointer; transition: all 0.15s ease; position: relative;">
+                            <div style="display: flex; align-items: center; justify-content: space-between;">
+                                <span style="font-size: 0.7rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.04em; color: #1d4ed8; display: flex; align-items: center; gap: 0.35rem;">
+                                    <i class="fa-solid fa-thumbs-up" style="color: #3b82f6;"></i> Satisfactory
+                                </span>
+                                <span class="px-1.5 py-0.5 rounded-full text-[11px] font-bold bg-blue-100 text-blue-700">
+                                    <?php echo $status_pct['satisfactory']; ?>%
+                                </span>
+                            </div>
+                            <div style="font-size: 1.5rem; font-weight: 800; color: #1e3a8a; margin: 0.35rem 0 0.15rem 0; font-family: 'Plus Jakarta Sans', sans-serif;">
+                                <?php echo $counts['satisfactory']; ?>
+                            </div>
+                            <div style="font-size: 0.72rem; color: #8B7168; font-weight: 600;">
+                                Avg 2.50 &ndash; 3.49
+                            </div>
+                        </div>
+
+                        <!-- 4. Very Good Card -->
+                        <div class="fs-status-card" data-status-filter="very_good" role="button" tabindex="0" title="Click to filter table: Very Good seminarians" style="background: #FAF8F6; border: 1px solid #E8C7C5; border-radius: 12px; padding: 0.85rem 1rem; cursor: pointer; transition: all 0.15s ease; position: relative;">
+                            <div style="display: flex; align-items: center; justify-content: space-between;">
+                                <span style="font-size: 0.7rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.04em; color: #15803d; display: flex; align-items: center; gap: 0.35rem;">
+                                    <i class="fa-solid fa-circle-check" style="color: #22c55e;"></i> Very Good
+                                </span>
+                                <span class="px-1.5 py-0.5 rounded-full text-[11px] font-bold bg-green-100 text-green-700">
+                                    <?php echo $status_pct['very_good']; ?>%
+                                </span>
+                            </div>
+                            <div style="font-size: 1.5rem; font-weight: 800; color: #14532d; margin: 0.35rem 0 0.15rem 0; font-family: 'Plus Jakarta Sans', sans-serif;">
+                                <?php echo $counts['very_good']; ?>
+                            </div>
+                            <div style="font-size: 0.72rem; color: #8B7168; font-weight: 600;">
+                                Avg 3.50 &ndash; 4.49
+                            </div>
+                        </div>
+
+                        <!-- 5. Outstanding Card -->
+                        <div class="fs-status-card" data-status-filter="outstanding" role="button" tabindex="0" title="Click to filter table: Outstanding seminarians" style="background: #FAF8F6; border: 1px solid #E8C7C5; border-radius: 12px; padding: 0.85rem 1rem; cursor: pointer; transition: all 0.15s ease; position: relative;">
+                            <div style="display: flex; align-items: center; justify-content: space-between;">
+                                <span style="font-size: 0.7rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.04em; color: #047857; display: flex; align-items: center; gap: 0.35rem;">
+                                    <i class="fa-solid fa-award" style="color: #10b981;"></i> Outstanding
+                                </span>
+                                <span class="px-1.5 py-0.5 rounded-full text-[11px] font-bold bg-emerald-100 text-emerald-700">
+                                    <?php echo $status_pct['outstanding']; ?>%
+                                </span>
+                            </div>
+                            <div style="font-size: 1.5rem; font-weight: 800; color: #064e3b; margin: 0.35rem 0 0.15rem 0; font-family: 'Plus Jakarta Sans', sans-serif;">
+                                <?php echo $counts['outstanding']; ?>
+                            </div>
+                            <div style="font-size: 0.72rem; color: #8B7168; font-weight: 600;">
+                                Avg 4.50 &ndash; 5.00
                             </div>
                         </div>
                     </div>
@@ -712,8 +701,9 @@ function render_formation_summary_analytics(array $analytics, string $filter_ay,
                             $p_pct = (int)($p_info['percentage'] ?? 0);
                             $p_eval_cnt = (int)($p_info['evaluated_count'] ?? 0);
                             $p_review_cnt = (int)($p_info['for_review_count'] ?? 0);
+                            $p_is_active = ($single_pillar === $p_key);
                         ?>
-                        <div class="fs-pillar-card" data-pillar="<?php echo $p_key; ?>" role="button" tabindex="0" title="Click to filter table to <?php echo htmlspecialchars($p_info['label'] ?? ''); ?>" style="background: #FAF8F6; border: 1px solid #E8C7C5; border-radius: 12px; padding: 0.85rem 1rem; cursor: pointer; transition: all 0.15s ease; position: relative;">
+                        <div class="fs-pillar-card <?php echo $p_is_active ? 'is-active' : ''; ?>" data-pillar="<?php echo $p_key; ?>" role="button" tabindex="0" title="Click to filter table to <?php echo htmlspecialchars($p_info['label'] ?? ''); ?>" style="background: #FAF8F6; border: 1px solid #E8C7C5; border-radius: 12px; padding: 0.85rem 1rem; cursor: pointer; transition: all 0.15s ease; position: relative;">
                             
                             <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 0.45rem;">
                                 <div style="display: flex; align-items: center; gap: 0.45rem;">
@@ -774,9 +764,11 @@ function render_formation_summary_analytics(array $analytics, string $filter_ay,
 /**
  * Render a single evaluation pillar cell with centered numeric score and unified rating badge below.
  */
-function render_formation_score_cell(?array $eval, string $report_page): string {
+function render_formation_score_cell(?array $eval, string $report_page, string $pillar_key = '', bool $is_hidden = false): string {
+    $colAttr = $pillar_key !== '' ? ' data-col-pillar="' . htmlspecialchars($pillar_key, ENT_QUOTES, 'UTF-8') . '"' : '';
+    $styleAttr = $is_hidden ? ' style="display: none;"' : '';
     if (!$eval || $eval['avg'] === null || (float)$eval['avg'] <= 0) {
-        return '<td class="py-3.5 px-4 text-center whitespace-nowrap"><div class="flex flex-col items-center justify-center"><span class="text-sm font-medium text-gray-400">—</span></div></td>';
+        return '<td class="py-3.5 px-4 text-center whitespace-nowrap"' . $colAttr . $styleAttr . '><div class="flex flex-col items-center justify-center"><span class="text-sm font-medium text-gray-400">—</span></div></td>';
     }
     $avg_val = round((float)$eval['avg'], 2, PHP_ROUND_HALF_UP);
     $score_text = htmlspecialchars(number_format($avg_val, 2));
@@ -793,22 +785,24 @@ function render_formation_score_cell(?array $eval, string $report_page): string 
         ? '<span class="inline-block px-2 py-0.5 rounded-full ' . htmlspecialchars($badge_cls) . ' text-[10px] font-semibold uppercase tracking-wider whitespace-nowrap">' . htmlspecialchars($label_text) . '</span>'
         : '';
 
-    return '<td class="py-3.5 px-4 text-center whitespace-nowrap"><div class="flex flex-col items-center justify-center gap-1">' . $score_html . $rating_html . '</div></td>';
+    return '<td class="py-3.5 px-4 text-center whitespace-nowrap"' . $colAttr . $styleAttr . '><div class="flex flex-col items-center justify-center gap-1">' . $score_html . $rating_html . '</div></td>';
 }
 
 /**
  * Render formation summary table rows HTML.
  */
-function render_formation_summary_rows(array $rows, string $filter_ay): string {
+function render_formation_summary_rows(array $rows, string $filter_ay, string $selected_single_pillar = 'all'): string {
+    $is_isolated = in_array($selected_single_pillar, ['academic', 'spiritual', 'human', 'pastoral'], true);
+    $colspan = $is_isolated ? 2 : 6;
     ob_start();
     if (count($rows) === 0) {
         ?>
-        <tr><td colspan="6" class="text-center text-sm text-gray-500 py-10 px-6">No seminarians found for the selected filter criteria.</td></tr>
+        <tr><td colspan="<?php echo $colspan; ?>" class="text-center text-sm text-gray-500 py-10 px-6">No seminarians found for the selected filter criteria.</td></tr>
         <?php
     }
     ?>
     <tr id="fsNoMatchRow" style="display: none;">
-        <td colspan="6" class="text-center text-sm text-gray-500 py-10 px-6">
+        <td colspan="<?php echo $colspan; ?>" class="text-center text-sm text-gray-500 py-10 px-6">
             <i class="fas fa-search text-2xl text-gray-400 block mb-2"></i>
             No seminarians match your search query or card filter.
         </td>
@@ -825,8 +819,19 @@ function render_formation_summary_rows(array $rows, string $filter_ay): string {
         $p = $r['pastoral'];
         $profile_href = 'seminarian_profile.php?seminarian_id=' . $sid . (($filter_ay !== '' && $filter_ay !== 'all') ? '&academic_year=' . urlencode($filter_ay) : '');
         $prof = get_seminarian_formation_profile($r);
+        $row_hidden = false;
+        if ($is_isolated) {
+            $evalKeyMap = [
+                'academic' => 'acad_score',
+                'spiritual' => 'spiritual_score',
+                'human' => 'human_score',
+                'pastoral' => 'pastoral_score',
+            ];
+            $row_hidden = ($prof[$evalKeyMap[$selected_single_pillar]] ?? null) === null;
+        }
         ?>
         <tr class="fs-row border-b border-gray-100 hover:bg-gray-50 transition-colors"
+            <?php echo $row_hidden ? 'style="display: none;"' : ''; ?>
             data-year-level="<?php echo htmlspecialchars($yl); ?>"
             data-status="<?php echo htmlspecialchars($prof['status']); ?>"
             data-needs-attention="<?php echo !empty($prof['needs_attention']) ? '1' : '0'; ?>"
@@ -859,11 +864,11 @@ function render_formation_summary_rows(array $rows, string $filter_ay): string {
                     <?php endif; ?>
                 </div>
             </td>
-            <?php echo render_formation_score_cell($ae, 'afe_report.php'); ?>
-            <?php echo render_formation_score_cell($s, 'sfe_report.php'); ?>
-            <?php echo render_formation_score_cell($h, 'hfe_report.php'); ?>
-            <?php echo render_formation_score_cell($p, 'pfe_report.php'); ?>
-            <td class="py-3.5 px-4 text-center align-middle whitespace-nowrap">
+            <?php echo render_formation_score_cell($ae, 'afe_report.php', 'academic', $is_isolated && $selected_single_pillar !== 'academic'); ?>
+            <?php echo render_formation_score_cell($s, 'sfe_report.php', 'spiritual', $is_isolated && $selected_single_pillar !== 'spiritual'); ?>
+            <?php echo render_formation_score_cell($h, 'hfe_report.php', 'human', $is_isolated && $selected_single_pillar !== 'human'); ?>
+            <?php echo render_formation_score_cell($p, 'pfe_report.php', 'pastoral', $is_isolated && $selected_single_pillar !== 'pastoral'); ?>
+            <td data-col-pillar="overall" class="py-3.5 px-4 text-center align-middle whitespace-nowrap" <?php echo $is_isolated ? 'style="display: none;"' : ''; ?>>
                 <div class="flex flex-col items-center justify-center gap-1">
                     <span class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-bold whitespace-nowrap <?php echo htmlspecialchars((string)($prof['badge_class'] ?? 'bg-gray-100 text-gray-600')); ?>">
                         <i class="fa-solid <?php echo htmlspecialchars((string)($prof['badge_icon'] ?? 'fa-hourglass-half')); ?>"></i> <?php echo htmlspecialchars($prof['status_label']); ?>
@@ -918,10 +923,10 @@ function render_formation_summary_badges(string $filter_ay, string $filter_sem, 
 if (isset($_GET['ajax']) && $_GET['ajax'] === '1') {
     header('Content-Type: application/json; charset=utf-8');
     $rows = fetch_formation_summary_data($conn, $filter_ay, $filter_sem, $filter_yl);
-    $html = render_formation_summary_rows($rows, $filter_ay);
+    $html = render_formation_summary_rows($rows, $filter_ay, $selected_single_pillar);
     $badges = render_formation_summary_badges($filter_ay, $filter_sem, $filter_yl, $current_ay);
     $analytics = compute_formation_summary_analytics($rows);
-    $analytics_html = render_formation_summary_analytics($analytics, $filter_ay, $filter_sem, $current_ay, $is_rector);
+    $analytics_html = render_formation_summary_analytics($analytics, $filter_ay, $filter_sem, $current_ay, $is_rector, $selected_dimension);
     $has_filter_active = ($filter_ay !== $current_ay && $filter_ay !== 'all') 
         || ($filter_sem !== 'all' && $filter_sem !== '') 
         || ($filter_yl !== 'all' && $filter_yl !== '');
@@ -934,6 +939,8 @@ if (isset($_GET['ajax']) && $_GET['ajax'] === '1') {
         'academic_year' => $filter_ay,
         'semester' => $filter_sem,
         'year_level' => $filter_yl,
+        'pillar' => $selected_single_pillar,
+        'dimension' => $selected_dimension,
         'seminarians' => $rows,
         'html' => $html,
         'badges_html' => $badges,
@@ -946,7 +953,7 @@ if (isset($_GET['ajax']) && $_GET['ajax'] === '1') {
 // Regular Initial Page Request
 $rows = fetch_formation_summary_data($conn, $filter_ay, $filter_sem, $filter_yl);
 $analytics = compute_formation_summary_analytics($rows);
-$analytics_html = render_formation_summary_analytics($analytics, $filter_ay, $filter_sem, $current_ay, $is_rector);
+$analytics_html = render_formation_summary_analytics($analytics, $filter_ay, $filter_sem, $current_ay, $is_rector, $selected_dimension);
 $has_filter_active = ($filter_ay !== $current_ay && $filter_ay !== 'all') 
     || ($filter_sem !== 'all' && $filter_sem !== '') 
     || ($filter_yl !== 'all' && $filter_yl !== '');
@@ -957,6 +964,26 @@ $activeNav = 'formation_summary';
 require_once __DIR__ . '/../includes/layout_app_start.php';
 ?>
         <style>
+            .fs-status-grid {
+                display: grid;
+                grid-template-columns: repeat(5, 1fr);
+                gap: 0.75rem;
+            }
+            @media (max-width: 1024px) {
+                .fs-status-grid {
+                    grid-template-columns: repeat(3, minmax(0, 1fr));
+                }
+            }
+            @media (max-width: 767px) {
+                .fs-status-grid {
+                    grid-template-columns: repeat(2, minmax(0, 1fr));
+                }
+            }
+            @media (max-width: 479px) {
+                .fs-status-grid {
+                    grid-template-columns: 1fr;
+                }
+            }
             .fs-status-card:hover {
                 transform: translateY(-2px);
                 box-shadow: 0 4px 14px rgba(89, 68, 63, 0.08);
@@ -1067,19 +1094,19 @@ require_once __DIR__ . '/../includes/layout_app_start.php';
 
                 <!-- Table Content -->
                 <div class="overflow-x-auto relative">
-                    <table class="w-full min-w-full border-collapse !mt-0">
+                    <table id="fsResultsTable" class="w-full min-w-full border-collapse !mt-0">
                         <thead>
                             <tr class="border-b border-gray-200">
-                                <th class="bg-gray-50 text-gray-500 text-xs font-medium uppercase tracking-wider text-center py-3 px-4 whitespace-nowrap">Seminarian</th>
-                                <th class="bg-gray-50 text-gray-500 text-xs font-medium uppercase tracking-wider text-center py-3 px-4 whitespace-nowrap">Academic Eval</th>
-                                <th class="bg-gray-50 text-gray-500 text-xs font-medium uppercase tracking-wider text-center py-3 px-4 whitespace-nowrap">Spiritual Eval</th>
-                                <th class="bg-gray-50 text-gray-500 text-xs font-medium uppercase tracking-wider text-center py-3 px-4 whitespace-nowrap">Human Eval</th>
-                                <th class="bg-gray-50 text-gray-500 text-xs font-medium uppercase tracking-wider text-center py-3 px-4 whitespace-nowrap">Pastoral Eval</th>
-                                <th class="bg-gray-50 text-gray-500 text-xs font-medium uppercase tracking-wider text-center py-3 px-4 whitespace-nowrap">Overall Status</th>
+                                <th data-col-role="seminarian" class="bg-gray-50 text-gray-500 text-xs font-medium uppercase tracking-wider text-center py-3 px-4 whitespace-nowrap">Seminarian</th>
+                                <th data-col-pillar="academic" class="bg-gray-50 text-gray-500 text-xs font-medium uppercase tracking-wider text-center py-3 px-4 whitespace-nowrap" <?php echo ($selected_single_pillar !== 'all' && $selected_single_pillar !== 'academic') ? 'style="display: none;"' : ''; ?>>Academic Eval</th>
+                                <th data-col-pillar="spiritual" class="bg-gray-50 text-gray-500 text-xs font-medium uppercase tracking-wider text-center py-3 px-4 whitespace-nowrap" <?php echo ($selected_single_pillar !== 'all' && $selected_single_pillar !== 'spiritual') ? 'style="display: none;"' : ''; ?>>Spiritual Eval</th>
+                                <th data-col-pillar="human" class="bg-gray-50 text-gray-500 text-xs font-medium uppercase tracking-wider text-center py-3 px-4 whitespace-nowrap" <?php echo ($selected_single_pillar !== 'all' && $selected_single_pillar !== 'human') ? 'style="display: none;"' : ''; ?>>Human Eval</th>
+                                <th data-col-pillar="pastoral" class="bg-gray-50 text-gray-500 text-xs font-medium uppercase tracking-wider text-center py-3 px-4 whitespace-nowrap" <?php echo ($selected_single_pillar !== 'all' && $selected_single_pillar !== 'pastoral') ? 'style="display: none;"' : ''; ?>>Pastoral Eval</th>
+                                <th data-col-pillar="overall" class="bg-gray-50 text-gray-500 text-xs font-medium uppercase tracking-wider text-center py-3 px-4 whitespace-nowrap" <?php echo $selected_single_pillar !== 'all' ? 'style="display: none;"' : ''; ?>>Overall Status</th>
                             </tr>
                         </thead>
                         <tbody id="fsRowsTbody" class="divide-y divide-gray-100 bg-white transition-opacity duration-200">
-                            <?php echo render_formation_summary_rows($rows, $filter_ay); ?>
+                            <?php echo render_formation_summary_rows($rows, $filter_ay, $selected_single_pillar); ?>
                         </tbody>
                     </table>
                 </div>
@@ -1101,10 +1128,10 @@ require_once __DIR__ . '/../includes/layout_app_start.php';
             const defaultAy = <?php echo json_encode($current_ay); ?>;
 
             // Interactive Card/Tab Filters State
-            let activeStatusFilter = 'all'; // 'all', 'passed', 'for_review', 'retaining', 'at_risk'
-            let activePillarFilter = 'all'; // 'all', 'academic', 'spiritual', 'human', 'pastoral'
+            let activeStatusFilter = 'all';
+            let activePillarFilter = <?php echo json_encode($selected_single_pillar); ?>;
             let activePillarReviewOnly = false;
-            let activeDimensionTab = 'all'; // 'all', 'academic', 'spiritual', 'human', 'pastoral', 'needs_attention'
+            let activeDimensionTab = <?php echo json_encode($selected_dimension); ?>;
 
             let currentAbortController = null;
 
@@ -1112,6 +1139,34 @@ require_once __DIR__ . '/../includes/layout_app_start.php';
                 if (fsAySelect) return fsAySelect.value;
                 if (fsAyHidden) return fsAyHidden.value;
                 return defaultAy;
+            }
+
+            function getIsolatedPillarKey() {
+                const validPillars = ['academic', 'spiritual', 'human', 'pastoral'];
+                if (validPillars.indexOf(activePillarFilter) !== -1) {
+                    return activePillarFilter;
+                }
+                if (validPillars.indexOf(activeDimensionTab) !== -1) {
+                    return activeDimensionTab;
+                }
+                return null;
+            }
+
+            function syncTableColumnVisibility() {
+                const tableEl = document.getElementById('fsResultsTable');
+                if (!tableEl) return;
+                const isolatedPillar = getIsolatedPillarKey();
+                const showAllCols = (isolatedPillar === null);
+
+                tableEl.querySelectorAll('[data-col-pillar]').forEach(function (cell) {
+                    const colKey = cell.getAttribute('data-col-pillar') || '';
+                    cell.style.display = (showAllCols || colKey === isolatedPillar) ? '' : 'none';
+                });
+
+                const noMatchTd = document.querySelector('#fsNoMatchRow td');
+                if (noMatchTd) {
+                    noMatchTd.setAttribute('colspan', isolatedPillar ? '2' : '6');
+                }
             }
 
             // Cross-filtering combining Search Query, Status Card, Pillar Card, and Dimension Tabs
@@ -1172,6 +1227,7 @@ require_once __DIR__ . '/../includes/layout_app_start.php';
                     fsVisibleCountEl.textContent = visible;
                 }
 
+                syncTableColumnVisibility();
                 updateActiveFilterBanner(visible);
             }
 
@@ -1247,10 +1303,10 @@ require_once __DIR__ . '/../includes/layout_app_start.php';
             }
 
             function bindAnalyticsInteractions() {
-                // Status Cards Click
+                // Status Cards Click & Keyboard
                 document.querySelectorAll('.fs-status-card').forEach(function(card) {
-                    card.addEventListener('click', function() {
-                        const status = this.getAttribute('data-status-filter') || 'all';
+                    function toggleStatusCard() {
+                        const status = card.getAttribute('data-status-filter') || 'all';
                         if (activeStatusFilter === status && status !== 'all') {
                             activeStatusFilter = 'all';
                         } else {
@@ -1261,19 +1317,31 @@ require_once __DIR__ . '/../includes/layout_app_start.php';
                         activeDimensionTab = 'all';
                         highlightActiveCards();
                         applyAllFilters();
+                    }
+                    card.addEventListener('click', toggleStatusCard);
+                    card.addEventListener('keydown', function(e) {
+                        if (e.key === 'Enter' || e.key === ' ') {
+                            e.preventDefault();
+                            toggleStatusCard();
+                        }
                     });
                 });
 
-                // Pillar Cards Click
+                // Pillar Cards Click & Keyboard
                 document.querySelectorAll('.fs-pillar-card').forEach(function(card) {
-                    card.addEventListener('click', function(e) {
-                        const reviewSubBadge = e.target.closest('.fs-pillar-subfilter');
-                        const pillar = this.getAttribute('data-pillar') || '';
-                        
+                    function togglePillarCard(e) {
+                        const reviewSubBadge = e && e.target ? e.target.closest('.fs-pillar-subfilter') : null;
+                        const pillar = card.getAttribute('data-pillar') || '';
+
                         if (reviewSubBadge) {
                             e.stopPropagation();
-                            activePillarFilter = pillar;
-                            activePillarReviewOnly = true;
+                            if (activePillarFilter === pillar && activePillarReviewOnly) {
+                                activePillarFilter = 'all';
+                                activePillarReviewOnly = false;
+                            } else {
+                                activePillarFilter = pillar;
+                                activePillarReviewOnly = true;
+                            }
                             activeStatusFilter = 'all';
                             activeDimensionTab = 'all';
                         } else {
@@ -1288,6 +1356,13 @@ require_once __DIR__ . '/../includes/layout_app_start.php';
                         }
                         highlightActiveCards();
                         applyAllFilters();
+                    }
+                    card.addEventListener('click', togglePillarCard);
+                    card.addEventListener('keydown', function(e) {
+                        if (e.key === 'Enter' || e.key === ' ') {
+                            e.preventDefault();
+                            togglePillarCard(e);
+                        }
                     });
                 });
 
@@ -1295,7 +1370,11 @@ require_once __DIR__ . '/../includes/layout_app_start.php';
                 document.querySelectorAll('.fs-dim-tab').forEach(function(tab) {
                     tab.addEventListener('click', function() {
                         const dim = this.getAttribute('data-dimension') || 'all';
-                        activeDimensionTab = dim;
+                        if (dim !== 'all' && activeDimensionTab === dim) {
+                            activeDimensionTab = 'all';
+                        } else {
+                            activeDimensionTab = dim;
+                        }
                         activeStatusFilter = 'all';
                         activePillarFilter = 'all';
                         activePillarReviewOnly = false;
@@ -1464,8 +1543,10 @@ require_once __DIR__ . '/../includes/layout_app_start.php';
                 fetchFilteredFormationData(yl);
             });
 
-            // Initial bind of analytics interactions
+            // Initial bind of analytics interactions & sync initial filter state
             bindAnalyticsInteractions();
+            highlightActiveCards();
+            applyAllFilters();
         })();
         </script>
 <?php require_once __DIR__ . '/../includes/layout_app_end.php'; ?>
