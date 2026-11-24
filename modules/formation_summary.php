@@ -822,7 +822,7 @@ function render_formation_summary_rows(array $rows, string $filter_ay, string $s
         $row_hidden = false;
         if ($is_isolated) {
             $evalKeyMap = [
-                'academic' => 'acad_score',
+                'academic' => 'academic_score',
                 'spiritual' => 'spiritual_score',
                 'human' => 'human_score',
                 'pastoral' => 'pastoral_score',
@@ -835,15 +835,15 @@ function render_formation_summary_rows(array $rows, string $filter_ay, string $s
             data-year-level="<?php echo htmlspecialchars($yl); ?>"
             data-status="<?php echo htmlspecialchars($prof['status']); ?>"
             data-needs-attention="<?php echo !empty($prof['needs_attention']) ? '1' : '0'; ?>"
-            data-acad-score="<?php echo $prof['acad_score'] !== null ? htmlspecialchars((string)$prof['acad_score']) : ''; ?>"
+            data-academic-score="<?php echo $prof['academic_score'] !== null ? htmlspecialchars((string)$prof['academic_score']) : ''; ?>"
             data-spiritual-score="<?php echo $prof['spiritual_score'] !== null ? htmlspecialchars((string)$prof['spiritual_score']) : ''; ?>"
             data-human-score="<?php echo $prof['human_score'] !== null ? htmlspecialchars((string)$prof['human_score']) : ''; ?>"
             data-pastoral-score="<?php echo $prof['pastoral_score'] !== null ? htmlspecialchars((string)$prof['pastoral_score']) : ''; ?>"
-            data-acad-for-review="<?php echo $prof['acad_for_review'] ? '1' : '0'; ?>"
+            data-academic-for-review="<?php echo $prof['academic_for_review'] ? '1' : '0'; ?>"
             data-spiritual-for-review="<?php echo $prof['spiritual_for_review'] ? '1' : '0'; ?>"
             data-human-for-review="<?php echo $prof['human_for_review'] ? '1' : '0'; ?>"
             data-pastoral-for-review="<?php echo $prof['pastoral_for_review'] ? '1' : '0'; ?>"
-            data-acad-evaluated="<?php echo $prof['acad_score'] !== null ? '1' : '0'; ?>"
+            data-academic-evaluated="<?php echo $prof['academic_score'] !== null ? '1' : '0'; ?>"
             data-spiritual-evaluated="<?php echo $prof['spiritual_score'] !== null ? '1' : '0'; ?>"
             data-human-evaluated="<?php echo $prof['human_score'] !== null ? '1' : '0'; ?>"
             data-pastoral-evaluated="<?php echo $prof['pastoral_score'] !== null ? '1' : '0'; ?>"
