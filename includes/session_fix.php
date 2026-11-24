@@ -138,7 +138,32 @@ if (isset($_GET['semester']) && trim((string)$_GET['semester']) !== '') {
 
 if (!function_exists('enformasys_invalidate_dashboard_cache')) {
     function enformasys_invalidate_dashboard_cache(): void {
-        unset($_SESSION['cached_dashboard_summary']);
+        unset(
+            $_SESSION['cached_dashboard_summary'],
+            $_SESSION['cached_sidebar_badges'],
+            $_SESSION['cached_notif_bell']
+        );
+    }
+}
+
+if (!function_exists('enformasys_cached_badge_count')) {
+    /**
+     * Caches sidebar/header badge counts in $_SESSION for 60s to avoid redundant COUNT(*) round-trips.
+     */
+    function enformasys_cached_badge_count(string $cacheKey, callable $queryFn, int $ttlSeconds = 60): int {
+        $entry = $_SESSION['cached_sidebar_badges'][$cacheKey] ?? null;
+        if (is_array($entry) && isset($entry['ts'], $entry['val']) && (time() - (int)$entry['ts']) < $ttlSeconds) {
+            return (int)$entry['val'];
+        }
+        $val = max(0, (int)$queryFn());
+        if (!isset($_SESSION['cached_sidebar_badges']) || !is_array($_SESSION['cached_sidebar_badges'])) {
+            $_SESSION['cached_sidebar_badges'] = [];
+        }
+        $_SESSION['cached_sidebar_badges'][$cacheKey] = [
+            'ts' => time(),
+            'val' => $val,
+        ];
+        return $val;
     }
 }
 

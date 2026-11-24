@@ -15,21 +15,36 @@ $notif_user_id = (int)($_SESSION['user'] ?? 0);
 $notif_role = (string)($_SESSION['role'] ?? '');
 $notif_is_af = in_array($notif_role, ['AcademicFormator', 'Academic Formator'], true);
 
-$notif_data = ($notif_user_id > 0 && isset($conn) && ($conn instanceof mysqli))
-    ? timetable_get_upcoming_notifications($conn, $notif_user_id, $notif_role, 7)
-    : ['events' => [], 'unread_count' => 0, 'read_ids' => []];
+$notif_data = ['events' => [], 'unread_count' => 0, 'read_ids' => []];
+$notif_alerts = [];
+$notif_alerts_unread = 0;
+
+if ($notif_user_id > 0 && isset($conn) && ($conn instanceof mysqli)) {
+    $notifCacheKey = $notif_user_id . '|' . $notif_role;
+    $cachedBell = $_SESSION['cached_notif_bell'][$notifCacheKey] ?? null;
+    if (is_array($cachedBell) && isset($cachedBell['ts']) && (time() - (int)$cachedBell['ts']) < 60) {
+        $notif_data = is_array($cachedBell['data'] ?? null) ? $cachedBell['data'] : $notif_data;
+        $notif_alerts = is_array($cachedBell['alerts'] ?? null) ? $cachedBell['alerts'] : [];
+        $notif_alerts_unread = (int)($cachedBell['alerts_unread'] ?? 0);
+    } else {
+        $notif_data = timetable_get_upcoming_notifications($conn, $notif_user_id, $notif_role, 7);
+        if ($notif_is_af) {
+            require_once __DIR__ . '/academic_module.php';
+            $alert_data = afms_get_system_alerts($conn, $notif_user_id, 25);
+            $notif_alerts = $alert_data['alerts'] ?? [];
+            $notif_alerts_unread = (int)($alert_data['unread_count'] ?? 0);
+        }
+        $_SESSION['cached_notif_bell'][$notifCacheKey] = [
+            'ts' => time(),
+            'data' => $notif_data,
+            'alerts' => $notif_alerts,
+            'alerts_unread' => $notif_alerts_unread,
+        ];
+    }
+}
 
 $notif_events = $notif_data['events'] ?? [];
 $notif_event_unread = (int)($notif_data['unread_count'] ?? 0);
-
-$notif_alerts = [];
-$notif_alerts_unread = 0;
-if ($notif_is_af && $notif_user_id > 0 && isset($conn) && ($conn instanceof mysqli)) {
-    require_once __DIR__ . '/academic_module.php';
-    $alert_data = afms_get_system_alerts($conn, $notif_user_id, 25);
-    $notif_alerts = $alert_data['alerts'] ?? [];
-    $notif_alerts_unread = (int)($alert_data['unread_count'] ?? 0);
-}
 
 $notif_total_unread = $notif_event_unread + $notif_alerts_unread;
 $notif_default_tab = ($notif_is_af && $notif_alerts_unread > 0) ? 'alerts' : 'events';

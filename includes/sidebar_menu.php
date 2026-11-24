@@ -75,10 +75,12 @@ if (!isset($nav) || !is_array($nav) || empty($nav)) {
             @require_once __DIR__ . '/db.php';
         }
         if (isset($conn) && $conn instanceof mysqli) {
-            $res_pge = @$conn->query("SELECT COUNT(*) as c FROM grade_edit_requests WHERE status = 'Pending'");
-            if ($res_pge) {
-                $pending_grade_edits_count = (int)($res_pge->fetch_assoc()['c'] ?? 0);
-            }
+            $pending_grade_edits_count = function_exists('enformasys_cached_badge_count')
+                ? enformasys_cached_badge_count('grade_edit_pending', static function () use ($conn): int {
+                    $r = @$conn->query("SELECT COUNT(*) as c FROM grade_edit_requests WHERE status = 'Pending'");
+                    return $r ? (int)($r->fetch_assoc()['c'] ?? 0) : 0;
+                })
+                : (int)(@$conn->query("SELECT COUNT(*) as c FROM grade_edit_requests WHERE status = 'Pending'")?->fetch_assoc()['c'] ?? 0);
         }
 
         $academics_sub = [];
@@ -223,10 +225,12 @@ if (!isset($nav) || !is_array($nav) || empty($nav)) {
         if (isset($pending_soa_count)) {
             $sidebar_pending_soa_count = (int)$pending_soa_count;
         } elseif (isset($conn) && $conn instanceof mysqli) {
-            $res_soa_c = @$conn->query("SELECT COUNT(*) as c FROM cashier_soa_requests WHERE status = 'Pending'");
-            if ($res_soa_c) {
-                $sidebar_pending_soa_count = (int)($res_soa_c->fetch_assoc()['c'] ?? 0);
-            }
+            $sidebar_pending_soa_count = function_exists('enformasys_cached_badge_count')
+                ? enformasys_cached_badge_count('cashier_soa_pending', static function () use ($conn): int {
+                    $r = @$conn->query("SELECT COUNT(*) as c FROM cashier_soa_requests WHERE status = 'Pending'");
+                    return $r ? (int)($r->fetch_assoc()['c'] ?? 0) : 0;
+                })
+                : (int)(@$conn->query("SELECT COUNT(*) as c FROM cashier_soa_requests WHERE status = 'Pending'")?->fetch_assoc()['c'] ?? 0);
         }
 
         $nav[] = [
@@ -273,22 +277,35 @@ if (!isset($nav) || !is_array($nav) || empty($nav)) {
         $approved_soa_count = 0;
 
         if ($seminarian_id > 0 && isset($conn) && $conn instanceof mysqli) {
-            // 1. Approved Grade Requests count
-            $q_grades = @$conn->query("SELECT COUNT(*) as c FROM seminarian_access_requests WHERE seminarian_id = {$seminarian_id} AND assignment_type = 'Academic' AND status = 'Approved' AND is_read = 0");
-            if ($q_grades) {
-                $approved_grades_count = (int)($q_grades->fetch_assoc()['c'] ?? 0);
-            }
-
-            // 2. Approved Evaluation Requests count (Spiritual, Human, Pastoral)
-            $q_evals = @$conn->query("SELECT COUNT(*) as c FROM seminarian_access_requests WHERE seminarian_id = {$seminarian_id} AND assignment_type IN ('Spiritual', 'Human', 'Pastoral') AND status = 'Approved' AND is_read = 0");
-            if ($q_evals) {
-                $approved_evals_count = (int)($q_evals->fetch_assoc()['c'] ?? 0);
-            }
-
-            // 3. Approved / Completed SOA Requests count
-            $q_soa = @$conn->query("SELECT COUNT(*) as c FROM cashier_soa_requests WHERE seminarian_id = {$seminarian_id} AND status IN ('Approved', 'Completed', 'Sent') AND is_read = 0");
-            if ($q_soa) {
-                $approved_soa_count = (int)($q_soa->fetch_assoc()['c'] ?? 0);
+            if (function_exists('enformasys_cached_badge_count')) {
+                $approved_grades_count = enformasys_cached_badge_count("stu_grades_{$seminarian_id}", static function () use ($conn, $seminarian_id): int {
+                    $r = @$conn->query("SELECT COUNT(*) as c FROM seminarian_access_requests WHERE seminarian_id = {$seminarian_id} AND assignment_type = 'Academic' AND status = 'Approved' AND is_read = 0");
+                    return $r ? (int)($r->fetch_assoc()['c'] ?? 0) : 0;
+                });
+                $approved_evals_count = enformasys_cached_badge_count("stu_evals_{$seminarian_id}", static function () use ($conn, $seminarian_id): int {
+                    $r = @$conn->query("SELECT COUNT(*) as c FROM seminarian_access_requests WHERE seminarian_id = {$seminarian_id} AND assignment_type IN ('Spiritual', 'Human', 'Pastoral') AND status = 'Approved' AND is_read = 0");
+                    return $r ? (int)($r->fetch_assoc()['c'] ?? 0) : 0;
+                });
+                $approved_soa_count = enformasys_cached_badge_count("stu_soa_{$seminarian_id}", static function () use ($conn, $seminarian_id): int {
+                    $r = @$conn->query("SELECT COUNT(*) as c FROM cashier_soa_requests WHERE seminarian_id = {$seminarian_id} AND status IN ('Approved', 'Completed', 'Sent') AND is_read = 0");
+                    return $r ? (int)($r->fetch_assoc()['c'] ?? 0) : 0;
+                });
+            } else {
+                // 1. Approved Grade Requests count
+                $q_grades = @$conn->query("SELECT COUNT(*) as c FROM seminarian_access_requests WHERE seminarian_id = {$seminarian_id} AND assignment_type = 'Academic' AND status = 'Approved' AND is_read = 0");
+                if ($q_grades) {
+                    $approved_grades_count = (int)($q_grades->fetch_assoc()['c'] ?? 0);
+                }
+                // 2. Approved Evaluation Requests count (Spiritual, Human, Pastoral)
+                $q_evals = @$conn->query("SELECT COUNT(*) as c FROM seminarian_access_requests WHERE seminarian_id = {$seminarian_id} AND assignment_type IN ('Spiritual', 'Human', 'Pastoral') AND status = 'Approved' AND is_read = 0");
+                if ($q_evals) {
+                    $approved_evals_count = (int)($q_evals->fetch_assoc()['c'] ?? 0);
+                }
+                // 3. Approved / Completed SOA Requests count
+                $q_soa = @$conn->query("SELECT COUNT(*) as c FROM cashier_soa_requests WHERE seminarian_id = {$seminarian_id} AND status IN ('Approved', 'Completed', 'Sent') AND is_read = 0");
+                if ($q_soa) {
+                    $approved_soa_count = (int)($q_soa->fetch_assoc()['c'] ?? 0);
+                }
             }
         }
 
@@ -354,10 +371,12 @@ if (!isset($nav) || !is_array($nav) || empty($nav)) {
         // Query pending Academic Grade Requests count for dynamic notification badge
         $pending_grade_requests = 0;
         if (isset($conn) && $conn instanceof mysqli) {
-            $res_pgr = @$conn->query("SELECT COUNT(*) as c FROM seminarian_access_requests WHERE assignment_type = 'Academic' AND status = 'Pending'");
-            if ($res_pgr) {
-                $pending_grade_requests = (int)($res_pgr->fetch_assoc()['c'] ?? 0);
-            }
+            $pending_grade_requests = function_exists('enformasys_cached_badge_count')
+                ? enformasys_cached_badge_count('afms_pending_grade_requests', static function () use ($conn): int {
+                    $r = @$conn->query("SELECT COUNT(*) as c FROM seminarian_access_requests WHERE assignment_type = 'Academic' AND status = 'Pending'");
+                    return $r ? (int)($r->fetch_assoc()['c'] ?? 0) : 0;
+                })
+                : (int)(@$conn->query("SELECT COUNT(*) as c FROM seminarian_access_requests WHERE assignment_type = 'Academic' AND status = 'Pending'")?->fetch_assoc()['c'] ?? 0);
         }
 
         $nav[] = [

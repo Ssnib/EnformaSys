@@ -542,6 +542,65 @@ window.showToast.info = (msg, duration) => showToast(msg, 'info', duration);
     };
   }
 
+  /**
+   * Cleanly closes any open modal (.modal, .modal-overlay, [data-global-modal="1"]),
+   * removes lingering .modal-backdrop overlays, and restores body scroll.
+   */
+  function closeAnyModalElement(modal) {
+    if (!modal || modal.id === 'enformasysConfirmModal') return;
+    modal.classList.remove('open', 'show', 'opacity-100', 'pointer-events-auto');
+    if (modal.hasAttribute('data-global-modal') || modal.classList.contains('modal-overlay')) {
+      modal.classList.add('hidden', 'opacity-0', 'pointer-events-none');
+    }
+    if (modal.style && modal.style.display && modal.style.display !== 'none') {
+      modal.style.display = 'none';
+    }
+    modal.setAttribute('aria-hidden', 'true');
+
+    document.querySelectorAll('.modal-backdrop').forEach((bd) => bd.remove());
+    document.body.classList.remove('modal-open');
+    document.documentElement.classList.remove('modal-open');
+    syncBodyScrollLock();
+    if (document.body.style.overflow === 'hidden') {
+      const anyStillOpen = Array.from(document.querySelectorAll('.modal.open, .modal.show, [data-global-modal="1"]:not(.hidden):not(.pointer-events-none), .modal-overlay:not(.hidden)')).some(isModalOpen);
+      if (!anyStillOpen) {
+        document.body.style.overflow = '';
+      }
+    }
+  }
+
+  document.addEventListener('click', (e) => {
+    const rawTarget = e.target;
+    const target = rawTarget && rawTarget.nodeType === 3 ? rawTarget.parentElement : rawTarget;
+    if (!target || !target.closest) return;
+
+    const dismissBtn = target.closest('[data-bs-dismiss="modal"], [data-dismiss="modal"], .modal .btn-close, .modal-close, [data-modal-close]');
+    if (dismissBtn) {
+      const hostModal = dismissBtn.closest('.modal, .modal-overlay, [data-global-modal="1"], [role="dialog"][aria-modal="true"]');
+      if (hostModal) {
+        closeAnyModalElement(hostModal);
+      } else {
+        document.querySelectorAll('.modal.open, .modal.show, [data-global-modal="1"]:not(.hidden), .modal-overlay:not(.hidden)').forEach(closeAnyModalElement);
+      }
+      return;
+    }
+
+    // Backdrop click on open modals (including portaled modals)
+    if (
+      target.matches('.modal.open, .modal.show, [data-global-modal="1"]:not(.hidden):not(.pointer-events-none), .modal-overlay:not(.hidden)')
+    ) {
+      closeAnyModalElement(target);
+    }
+  });
+
+  document.addEventListener('keydown', (e) => {
+    if (e.key !== 'Escape') return;
+    const openModals = Array.from(document.querySelectorAll('.modal.open, .modal.show, [data-global-modal="1"]:not(.hidden):not(.pointer-events-none), .modal-overlay:not(.hidden)'));
+    openModals.forEach(closeAnyModalElement);
+  });
+
+  window.enformasysCloseModal = closeAnyModalElement;
+
   if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', boot);
   } else {

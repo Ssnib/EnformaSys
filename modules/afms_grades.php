@@ -78,7 +78,10 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST' && isset($_POST['action']) && 
         }
         $conn->commit();
 
-        // Get new pending count
+        // Invalidate cached badges/bell & get new pending count
+        if (function_exists('enformasys_invalidate_dashboard_cache')) {
+            enformasys_invalidate_dashboard_cache();
+        }
         $cnt_res = $conn->query("SELECT COUNT(*) as c FROM seminarian_access_requests WHERE assignment_type = 'Academic' AND status = 'Pending'");
         $new_cnt = (int)($cnt_res->fetch_assoc()['c'] ?? 0);
 
@@ -103,22 +106,13 @@ if ($filter_academic_year === '') $filter_academic_year = get_active_academic_ye
 $filter_semester = isset($_GET['semester']) ? afms_normalize_semester_value((string)$_GET['semester']) : afms_normalize_semester_value(get_active_semester());
 $filter_student_id = isset($_GET['student_id']) ? (int)$_GET['student_id'] : 0;
 
+// Lightweight scalar count on initial page load; full request list is lazy-loaded when opening the modal
 $pending_access_requests = [];
-$stmt_par = $conn->query("SELECT r.id, r.seminarian_id, r.message, r.request_scope, r.requested_subjects, r.requested_at,
-        u.username, up.full_name, COALESCE(NULLIF(TRIM(stu.student_no),''), NULLIF(TRIM(up.student_id),''), CONCAT('SEM-', LPAD(s.id, 4, '0'))) AS student_no
-    FROM seminarian_access_requests r
-    JOIN seminarians s ON s.id = r.seminarian_id
-    JOIN users u ON u.id = s.user_id
-    LEFT JOIN students stu ON stu.user_id = u.id
-    LEFT JOIN user_profiles up ON up.user_id = u.id
-    WHERE r.assignment_type = 'Academic' AND r.status = 'Pending'
-    ORDER BY r.requested_at DESC, r.id DESC");
-if ($stmt_par) {
-    while ($row = $stmt_par->fetch_assoc()) {
-        $pending_access_requests[] = $row;
-    }
+$pending_requests_cnt = 0;
+$cnt_par = @$conn->query("SELECT COUNT(*) AS c FROM seminarian_access_requests WHERE assignment_type = 'Academic' AND status = 'Pending'");
+if ($cnt_par) {
+    $pending_requests_cnt = (int)($cnt_par->fetch_assoc()['c'] ?? 0);
 }
-$pending_requests_cnt = count($pending_access_requests);
 
 if ($can_edit && isset($_POST['add_grade'])) {
     if (!verify_csrf_token($_POST['csrf_token'] ?? '')) {
@@ -869,9 +863,9 @@ require_once __DIR__ . '/../includes/layout_app_start.php';
         </div>
         <?php } ?>
 
-        <!-- Review Grade Viewing Requests Modal -->
-        <div id="gradeRequestsModal" data-global-modal="1" class="<?php echo htmlspecialchars(global_modal_overlay_classes('opacity-0 pointer-events-none transition-opacity duration-200'), ENT_QUOTES, 'UTF-8'); ?>" onclick="if(event.target === this) closeGradeRequestsModal();" aria-modal="true" role="dialog">
-            <div class="bg-white rounded-3xl sm:rounded-[2rem] border border-[#E8C7C5]/70 shadow-2xl w-full max-w-4xl max-h-[88vh] flex flex-col overflow-hidden transform scale-95 transition-transform duration-200 font-['Inter',sans-serif]">
+        <!-- Review Grade Viewing Requests Modal (Lazy-loaded on open) -->
+        <div id="gradeRequestsModal" data-global-modal="1" class="<?php echo htmlspecialchars(global_modal_overlay_classes('hidden opacity-0 pointer-events-none transition-opacity duration-200'), ENT_QUOTES, 'UTF-8'); ?>" onclick="if(event.target === this) closeGradeRequestsModal();" aria-modal="true" aria-hidden="true" role="dialog">
+            <div class="global-modal-panel bg-white rounded-3xl sm:rounded-[2rem] border border-[#E8C7C5]/70 shadow-2xl w-full max-w-4xl max-h-[88vh] flex flex-col overflow-hidden transform scale-95 transition-transform duration-200 font-['Inter',sans-serif]" onclick="event.stopPropagation()">
                 
                 <!-- Modal Header -->
                 <div class="px-6 py-5 border-b border-[#E8C7C5]/40 flex items-center justify-between bg-gradient-to-r from-white to-[#F8EEEE]/40 shrink-0">
@@ -884,8 +878,8 @@ require_once __DIR__ . '/../includes/layout_app_start.php';
                             <p class="text-xs text-[#8B7168] mt-0.5">Approve or deny seminarians requesting access to view their semester or subject grades.</p>
                         </div>
                     </div>
-                    <button type="button" onclick="closeGradeRequestsModal()" class="w-9 h-9 rounded-2xl bg-[#F8EEEE] text-[#59443F] hover:bg-[#E8C7C5] hover:text-[#59443F] transition-all flex items-center justify-center cursor-pointer shadow-xs" title="Close Modal">
-                        <i class="fa-solid fa-xmark text-sm"></i>
+                    <button type="button" onclick="closeGradeRequestsModal()" data-modal-close data-bs-dismiss="modal" aria-label="Close modal" class="modal-close w-9 h-9 rounded-2xl bg-[#F8EEEE] text-[#59443F] hover:bg-[#E8C7C5] hover:text-[#59443F] transition-all flex items-center justify-center cursor-pointer shadow-xs" title="Close Modal">
+                        <i class="fa-solid fa-xmark text-sm" aria-hidden="true"></i>
                     </button>
                 </div>
 
@@ -904,87 +898,14 @@ require_once __DIR__ . '/../includes/layout_app_start.php';
                             </tr>
                         </thead>
                         <tbody id="modalRequestsTableBody" class="divide-y divide-[#E8C7C5]/30 text-xs text-[#59443F]">
-                            <?php if (empty($pending_access_requests)): ?>
-                                <tr id="modalEmptyRow">
-                                    <td colspan="4" class="px-6 py-12 text-center text-[#8B7168]">
-                                        <div class="flex flex-col items-center justify-center gap-2">
-                                            <div class="w-12 h-12 rounded-full bg-emerald-50 text-emerald-600 flex items-center justify-center text-xl">
-                                                <i class="fa-solid fa-circle-check"></i>
-                                            </div>
-                                            <span class="font-bold text-[#59443F]">All caught up!</span>
-                                            <span class="text-xs">There are no pending grade viewing requests.</span>
-                                        </div>
-                                    </td>
-                                </tr>
-                            <?php else: ?>
-                                <?php foreach ($pending_access_requests as $req): 
-                                    $req_id = (int)$req['id'];
-                                    $sname = trim((string)($req['full_name'] ?? ''));
-                                    if ($sname === '') $sname = (string)($req['username'] ?? 'Seminarian');
-                                    $sno = trim((string)($req['student_no'] ?? ''));
-                                    $rscope = (string)($req['request_scope'] ?? 'whole');
-                                    $rsubs = [];
-                                    if (!empty($req['requested_subjects'])) {
-                                        $rsubs = json_decode((string)$req['requested_subjects'], true) ?: [];
-                                    }
-                                    $rdate = date('M d, Y - h:i A', strtotime((string)$req['requested_at']));
-                                ?>
-                                    <tr id="request-row-<?= $req_id ?>" class="hover:bg-[#F8EEEE]/30 transition-colors">
-                                        <td class="px-5 py-4">
-                                            <div class="font-bold text-sm text-[#59443F]"><?= htmlspecialchars($sname) ?></div>
-                                            <div class="flex items-center gap-2 mt-0.5">
-                                                <?php if ($sno !== ''): ?>
-                                                    <span class="text-[10px] font-bold text-[#8B7168] bg-[#F8EEEE] px-2 py-0.5 rounded-full border border-[#E8C7C5]/60"><?= htmlspecialchars($sno) ?></span>
-                                                <?php endif; ?>
-                                                <span class="text-[10px] text-[#8B7168]">ID #<?= (int)$req['seminarian_id'] ?></span>
-                                            </div>
-                                            <?php if (!empty($req['message'])): ?>
-                                                <div class="text-[11px] text-[#8B7168] italic bg-[#F8EEEE]/40 p-2 rounded-xl border border-[#E8C7C5]/40 mt-1.5 max-w-xs">
-                                                    "<?= htmlspecialchars((string)$req['message']) ?>"
-                                                </div>
-                                            <?php endif; ?>
-                                        </td>
-                                        <td class="px-5 py-4">
-                                            <?php if ($rscope === 'selected' && !empty($rsubs)): ?>
-                                                <div class="space-y-1.5">
-                                                    <span class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-[#E8C7C5] text-[#59443F]">
-                                                        <i class="fa-solid fa-list-check text-[9px]"></i>
-                                                        Selected Subjects (<?= count($rsubs) ?>)
-                                                    </span>
-                                                    <div class="flex flex-wrap gap-1.5 pt-1">
-                                                        <?php foreach ($rsubs as $sb): ?>
-                                                            <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-bold bg-white text-[#59443F] border border-[#E8C7C5]/60 shadow-2xs" title="<?= htmlspecialchars($sb['subject_name'] ?? '') ?>">
-                                                                <i class="fa-solid fa-book text-[8px] text-[#D6A6A6]"></i>
-                                                                <?= htmlspecialchars($sb['subject_code'] ?? '') ?>
-                                                            </span>
-                                                        <?php endforeach; ?>
-                                                    </div>
-                                                </div>
-                                            <?php else: ?>
-                                                <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-[#59443F] text-white shadow-2xs">
-                                                    <i class="fa-solid fa-layer-group text-[10px] text-[#E8C7C5]"></i>
-                                                    Whole Semester
-                                                </span>
-                                            <?php endif; ?>
-                                        </td>
-                                        <td class="px-5 py-4 whitespace-nowrap text-[#8B7168] font-medium text-[11px]">
-                                            <?= htmlspecialchars($rdate) ?>
-                                        </td>
-                                        <td class="px-5 py-4 text-right whitespace-nowrap">
-                                            <div class="inline-flex items-center gap-2">
-                                                <button type="button" onclick="resolveGradeRequest(<?= $req_id ?>, 'approve_grade_request', this)" class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold bg-emerald-600 hover:bg-emerald-700 text-white shadow-xs transition-all duration-150 cursor-pointer disabled:opacity-50">
-                                                    <i class="fa-solid fa-check text-[11px]"></i>
-                                                    <span>Approve</span>
-                                                </button>
-                                                <button type="button" onclick="resolveGradeRequest(<?= $req_id ?>, 'deny_grade_request', this)" class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 hover:border-rose-300 shadow-xs transition-all duration-150 cursor-pointer disabled:opacity-50">
-                                                    <i class="fa-solid fa-xmark text-[11px]"></i>
-                                                    <span>Deny</span>
-                                                </button>
-                                            </div>
-                                        </td>
-                                    </tr>
-                                <?php endforeach; ?>
-                            <?php endif; ?>
+                            <tr id="modalEmptyRow">
+                                <td colspan="4" class="px-6 py-12 text-center text-[#8B7168]">
+                                    <div class="flex flex-col items-center justify-center gap-2">
+                                        <i class="fa-solid fa-circle-notch fa-spin text-xl text-[#8B7168]"></i>
+                                        <span class="text-xs font-semibold">Requests will load when opened...</span>
+                                    </div>
+                                </td>
+                            </tr>
                         </tbody>
                     </table>
                 </div>
@@ -992,9 +913,9 @@ require_once __DIR__ . '/../includes/layout_app_start.php';
                 <!-- Modal Footer -->
                 <div class="px-6 py-4 border-t border-[#E8C7C5]/40 bg-[#F8EEEE]/30 flex items-center justify-between shrink-0">
                     <span class="text-xs text-[#8B7168]">
-                        Showing <strong id="modalTableCount" class="text-[#59443F] font-bold"><?= count($pending_access_requests) ?></strong> pending request(s)
+                        Showing <strong id="modalTableCount" class="text-[#59443F] font-bold"><?= (int)$pending_requests_cnt ?></strong> pending request(s)
                     </span>
-                    <button type="button" onclick="closeGradeRequestsModal()" class="px-4 py-2 rounded-xl text-xs font-bold bg-white hover:bg-[#F8EEEE] text-[#59443F] border border-[#E8C7C5]/70 shadow-xs transition cursor-pointer">
+                    <button type="button" onclick="closeGradeRequestsModal()" data-modal-close data-bs-dismiss="modal" class="modal-close px-4 py-2 rounded-xl text-xs font-bold bg-white hover:bg-[#F8EEEE] text-[#59443F] border border-[#E8C7C5]/70 shadow-xs transition cursor-pointer">
                         Close
                     </button>
                 </div>
@@ -1153,28 +1074,138 @@ require_once __DIR__ . '/../includes/layout_app_start.php';
 
 
 
-        // Review Grade Requests Modal Controller & AJAX Resolution
+        // Review Grade Requests Modal Controller & Lazy-Load AJAX Resolution
+        let gradeRequestsLoaded = false;
+
+        function escapeRequestHtml(str) {
+            return String(str || '')
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&#039;');
+        }
+
+        function renderGradeRequestsRows(requests) {
+            const tbody = document.getElementById('modalRequestsTableBody');
+            if (!tbody) return;
+            if (!Array.isArray(requests) || requests.length === 0) {
+                tbody.innerHTML = `
+                    <tr id="modalEmptyRow">
+                        <td colspan="4" class="px-6 py-12 text-center text-[#8B7168]">
+                            <div class="flex flex-col items-center justify-center gap-2">
+                                <div class="w-12 h-12 rounded-full bg-emerald-50 text-emerald-600 flex items-center justify-center text-xl">
+                                    <i class="fa-solid fa-circle-check"></i>
+                                </div>
+                                <span class="font-bold text-[#59443F]">All caught up!</span>
+                                <span class="text-xs">There are no pending grade viewing requests.</span>
+                            </div>
+                        </td>
+                    </tr>`;
+                return;
+            }
+            tbody.innerHTML = requests.map((req) => {
+                const reqId = Number(req.id || 0);
+                const sname = escapeRequestHtml(req.display_name || req.full_name || req.username || 'Seminarian');
+                const sno = escapeRequestHtml(req.student_no || '');
+                const semId = Number(req.seminarian_id || 0);
+                const msgHtml = req.message
+                    ? `<div class="text-[11px] text-[#8B7168] italic bg-[#F8EEEE]/40 p-2 rounded-xl border border-[#E8C7C5]/40 mt-1.5 max-w-xs">"${escapeRequestHtml(req.message)}"</div>`
+                    : '';
+                const subs = Array.isArray(req.requested_subjects_list) ? req.requested_subjects_list : [];
+                let scopeHtml = '';
+                if (req.request_scope === 'selected' && subs.length > 0) {
+                    const chips = subs.map((sb) => `<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-bold bg-white text-[#59443F] border border-[#E8C7C5]/60 shadow-2xs" title="${escapeRequestHtml(sb.subject_name || '')}"><i class="fa-solid fa-book text-[8px] text-[#D6A6A6]"></i>${escapeRequestHtml(sb.subject_code || '')}</span>`).join('');
+                    scopeHtml = `<div class="space-y-1.5"><span class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-[#E8C7C5] text-[#59443F]"><i class="fa-solid fa-list-check text-[9px]"></i>Selected Subjects (${subs.length})</span><div class="flex flex-wrap gap-1.5 pt-1">${chips}</div></div>`;
+                } else {
+                    scopeHtml = `<span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-[#59443F] text-white shadow-2xs"><i class="fa-solid fa-layer-group text-[10px] text-[#E8C7C5]"></i>Whole Semester</span>`;
+                }
+                const rdate = escapeRequestHtml(req.requested_at_formatted || req.requested_at || '');
+                return `
+                    <tr id="request-row-${reqId}" class="hover:bg-[#F8EEEE]/30 transition-colors">
+                        <td class="px-5 py-4">
+                            <div class="font-bold text-sm text-[#59443F]">${sname}</div>
+                            <div class="flex items-center gap-2 mt-0.5">
+                                ${sno ? `<span class="text-[10px] font-bold text-[#8B7168] bg-[#F8EEEE] px-2 py-0.5 rounded-full border border-[#E8C7C5]/60">${sno}</span>` : ''}
+                                <span class="text-[10px] text-[#8B7168]">ID #${semId}</span>
+                            </div>
+                            ${msgHtml}
+                        </td>
+                        <td class="px-5 py-4">${scopeHtml}</td>
+                        <td class="px-5 py-4 whitespace-nowrap text-[#8B7168] font-medium text-[11px]">${rdate}</td>
+                        <td class="px-5 py-4 text-right whitespace-nowrap">
+                            <div class="inline-flex items-center gap-2">
+                                <button type="button" onclick="resolveGradeRequest(${reqId}, 'approve_grade_request', this)" class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold bg-emerald-600 hover:bg-emerald-700 text-white shadow-xs transition-all duration-150 cursor-pointer disabled:opacity-50">
+                                    <i class="fa-solid fa-check text-[11px]"></i><span>Approve</span>
+                                </button>
+                                <button type="button" onclick="resolveGradeRequest(${reqId}, 'deny_grade_request', this)" class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 hover:border-rose-300 shadow-xs transition-all duration-150 cursor-pointer disabled:opacity-50">
+                                    <i class="fa-solid fa-xmark text-[11px]"></i><span>Deny</span>
+                                </button>
+                            </div>
+                        </td>
+                    </tr>`;
+            }).join('');
+        }
+
+        async function loadGradeViewingRequests(forceReload = false) {
+            if (gradeRequestsLoaded && !forceReload) return;
+            const tbody = document.getElementById('modalRequestsTableBody');
+            if (tbody) {
+                tbody.innerHTML = '<tr><td colspan="4" class="px-6 py-10 text-center text-[#8B7168]"><i class="fa-solid fa-circle-notch fa-spin mr-2"></i>Loading grade viewing requests...</td></tr>';
+            }
+            try {
+                const res = await fetch('ajax.php?action=get_academic_access_requests');
+                const data = await res.json();
+                if (data && data.ok) {
+                    gradeRequestsLoaded = true;
+                    renderGradeRequestsRows(data.requests || []);
+                    updateModalState(Number(data.pending_count || 0));
+                } else if (tbody) {
+                    tbody.innerHTML = '<tr><td colspan="4" class="px-6 py-8 text-center text-rose-600 font-semibold">Failed to load grade viewing requests.</td></tr>';
+                }
+            } catch (_) {
+                if (tbody) {
+                    tbody.innerHTML = '<tr><td colspan="4" class="px-6 py-8 text-center text-rose-600 font-semibold">Network error loading requests.</td></tr>';
+                }
+            }
+        }
+
         function openGradeRequestsModal() {
             const modal = document.getElementById('gradeRequestsModal');
             if (!modal) return;
-            modal.classList.remove('opacity-0', 'pointer-events-none');
+            modal.classList.remove('hidden', 'opacity-0', 'pointer-events-none');
             modal.classList.add('opacity-100', 'pointer-events-auto');
-            const dialog = modal.querySelector('div[class*="rounded-3xl"], div[class*="rounded-[2rem]"]');
+            modal.setAttribute('aria-hidden', 'false');
+            const dialog = modal.querySelector('.global-modal-panel, div[class*="rounded-3xl"], div[class*="rounded-[2rem]"]');
             if (dialog) {
                 dialog.classList.remove('scale-95');
                 dialog.classList.add('scale-100');
             }
+            if (window.EnformaSysModalPortal && typeof window.EnformaSysModalPortal.syncScrollLock === 'function') {
+                window.EnformaSysModalPortal.syncScrollLock();
+            } else {
+                document.body.style.overflow = 'hidden';
+            }
+            loadGradeViewingRequests(false);
         }
 
         function closeGradeRequestsModal() {
             const modal = document.getElementById('gradeRequestsModal');
             if (!modal) return;
             modal.classList.remove('opacity-100', 'pointer-events-auto');
-            modal.classList.add('opacity-0', 'pointer-events-none');
-            const dialog = modal.querySelector('div[class*="rounded-3xl"], div[class*="rounded-[2rem]"]');
+            modal.classList.add('hidden', 'opacity-0', 'pointer-events-none');
+            modal.setAttribute('aria-hidden', 'true');
+            const dialog = modal.querySelector('.global-modal-panel, div[class*="rounded-3xl"], div[class*="rounded-[2rem]"]');
             if (dialog) {
                 dialog.classList.remove('scale-100');
                 dialog.classList.add('scale-95');
+            }
+            if (typeof window.enformasysCloseModal === 'function') {
+                window.enformasysCloseModal(modal);
+            } else {
+                document.querySelectorAll('.modal-backdrop').forEach((bd) => bd.remove());
+                document.body.classList.remove('modal-open');
+                document.body.style.overflow = '';
             }
         }
 

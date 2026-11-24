@@ -2547,6 +2547,18 @@ CREATE TABLE IF NOT EXISTS `php_sessions` (
   PRIMARY KEY (`id`),
   KEY `idx_php_sessions_last_accessed` (`last_accessed`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- Performance composite indexes for Vercel / Aiven MySQL (<5ms queries)
+CREATE INDEX `idx_grades_sem_archived` ON `grades` (`seminarian_id`, `archived_at`);
+CREATE INDEX `idx_eval_sem_arch_type` ON `evaluations` (`seminarian_id`, `archived_at`, `type`);
+CREATE INDEX `idx_sar_sem_type_status_read` ON `seminarian_access_requests` (`seminarian_id`, `assignment_type`, `status`, `is_read`);
+CREATE INDEX `idx_csr_sem_status_read` ON `cashier_soa_requests` (`seminarian_id`, `status`, `is_read`);
+CREATE INDEX `idx_ses_ay_sem_status` ON `student_enrolled_subjects` (`academic_year`, `semester`, `status`);
+CREATE INDEX `idx_ses_stu_ay_sem_status` ON `student_enrolled_subjects` (`student_id`, `academic_year`, `semester`, `status`);
+CREATE INDEX `idx_sg_stu_sub_status` ON `student_grades` (`student_id`, `subject_id`, `status`);
+CREATE INDEX `idx_li_sem_ay_sem_status` ON `lodging_invoices` (`seminarian_id`, `academic_year`, `semester`, `status`);
+CREATE INDEX `idx_lp_sem_ay_sem` ON `lodging_payments` (`seminarian_id`, `academic_year`, `semester`);
+CREATE INDEX `idx_cs_ay_yl_sem` ON `curriculum_subjects` (`academic_year_id`, `year_level`, `semester`);
 /*!40103 SET TIME_ZONE=@OLD_TIME_ZONE */;
 
 /*!40101 SET SQL_MODE=@OLD_SQL_MODE */;

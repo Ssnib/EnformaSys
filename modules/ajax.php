@@ -59,6 +59,9 @@ try {
         $uid = (int)($_SESSION['user'] ?? 0);
         $nid = (int)($_POST['notification_id'] ?? 0);
         $marked = afms_mark_system_alerts_read($conn, $uid, $nid);
+        if (function_exists('enformasys_invalidate_dashboard_cache')) {
+            enformasys_invalidate_dashboard_cache();
+        }
         $alert_data = afms_get_system_alerts($conn, $uid, 25);
         ajax_ok([
             'marked' => $marked,
@@ -90,6 +93,9 @@ try {
         if (!empty($_POST['include_alerts']) && in_array($role, ['AcademicFormator', 'Academic Formator'], true)) {
             require_once __DIR__ . '/../includes/academic_module.php';
             $alerts_marked = afms_mark_system_alerts_read($conn, $uid, 0);
+        }
+        if (function_exists('enformasys_invalidate_dashboard_cache')) {
+            enformasys_invalidate_dashboard_cache();
         }
         ajax_ok(['marked' => $marked, 'alerts_marked' => $alerts_marked, 'unread_count' => 0, 'alerts_unread' => 0]);
     }
@@ -547,6 +553,48 @@ try {
             'remaining_balance' => $breakdown['remaining_balance'] ?? ($breakdown['total_due'] - $breakdown['total_paid']),
             'student' => $student,
         ]);
+    }
+
+    if ($action === 'get_academic_access_requests') {
+        require_roles(['AcademicFormator', 'Registrar', 'Dean']);
+        $requests = [];
+        $stmt_par = $conn->query("SELECT r.id, r.seminarian_id, r.message, r.request_scope, r.requested_subjects, r.requested_at,
+                u.username, up.full_name,
+                COALESCE(NULLIF(TRIM(stu.student_no),''), NULLIF(TRIM(up.student_id),''), CONCAT('SEM-', LPAD(s.id, 4, '0'))) AS student_no
+            FROM seminarian_access_requests r
+            JOIN seminarians s ON s.id = r.seminarian_id
+            JOIN users u ON u.id = s.user_id
+            LEFT JOIN students stu ON stu.user_id = u.id
+            LEFT JOIN user_profiles up ON up.user_id = u.id
+            WHERE r.assignment_type = 'Academic' AND r.status = 'Pending'
+            ORDER BY r.requested_at DESC, r.id DESC");
+        if ($stmt_par) {
+            while ($row = $stmt_par->fetch_assoc()) {
+                $sname = trim((string)($row['full_name'] ?? ''));
+                if ($sname === '') {
+                    $sname = (string)($row['username'] ?? 'Seminarian');
+                }
+                $rsubs = [];
+                if (!empty($row['requested_subjects'])) {
+                    $decoded = json_decode((string)$row['requested_subjects'], true);
+                    if (is_array($decoded)) {
+                        $rsubs = $decoded;
+                    }
+                }
+                $requests[] = [
+                    'id' => (int)($row['id'] ?? 0),
+                    'seminarian_id' => (int)($row['seminarian_id'] ?? 0),
+                    'display_name' => $sname,
+                    'student_no' => (string)($row['student_no'] ?? ''),
+                    'message' => (string)($row['message'] ?? ''),
+                    'request_scope' => (string)($row['request_scope'] ?? 'whole'),
+                    'requested_subjects_list' => $rsubs,
+                    'requested_at' => (string)($row['requested_at'] ?? ''),
+                    'requested_at_formatted' => !empty($row['requested_at']) ? date('M d, Y - h:i A', strtotime((string)$row['requested_at'])) : '',
+                ];
+            }
+        }
+        ajax_ok(['requests' => $requests, 'pending_count' => count($requests)]);
     }
 
     if ($action === 'cashier_soa_requests_list') {
