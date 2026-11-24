@@ -354,6 +354,65 @@ require_once __DIR__ . '/../includes/layout_app_start.php';
                         </div>
                     </div>
 
+                    <!-- Dynamic Assessment Details / Fee Breakdown Panel (Auto-loads on student selection) -->
+                    <div id="assessmentBreakdownCard" class="hidden" style="margin-top: 1rem; padding: 1rem 1.25rem; background: #f8fafc; border: 1.5px solid #cbd5e1; border-radius: 12px;">
+                        <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:0.75rem; margin-bottom:0.85rem; padding-bottom:0.65rem; border-bottom:1px solid #e2e8f0;">
+                            <div>
+                                <div style="font-weight:900; font-size:0.98rem; color:#1e3a5f; display:flex; align-items:center; gap:0.45rem; flex-wrap:wrap;">
+                                    <i class="fas fa-file-invoice-dollar" style="color:#065f46;"></i>
+                                    <span>Assessment Details &amp; Fee Breakdown</span>
+                                    <span id="bdStudentTermBadge" style="font-size:0.74rem; font-weight:800; background:#e0f2fe; color:#0369a1; border:1px solid #bae6fd; padding:2px 8px; border-radius:999px;">—</span>
+                                </div>
+                                <div id="bdStudentSubtitle" style="font-size:0.8rem; color:#64748b; margin-top:0.15rem;">Live term fee summary &amp; payment balance</div>
+                            </div>
+                            <div style="display:flex; align-items:center; gap:0.5rem; flex-wrap:wrap;">
+                                <a id="printSoaBtn" href="#" target="_blank" style="display:inline-flex; align-items:center; gap:0.4rem; padding:0.45rem 0.9rem; font-size:0.8rem; font-weight:800; color:#ffffff; background:#1e3a5f; border-radius:8px; text-decoration:none; box-shadow:0 2px 6px rgba(30,58,95,0.2);">
+                                    <i class="fas fa-print"></i> <span>Print SOA / Receipt</span>
+                                </a>
+                                <button type="button" id="printBreakdownBtn" onclick="window.print()" style="width:auto; display:inline-flex; align-items:center; gap:0.4rem; padding:0.45rem 0.85rem; font-size:0.8rem; font-weight:700; color:#1e3a5f; background:#ffffff; border:1px solid #cbd5e1; border-radius:8px; cursor:pointer;">
+                                    <i class="fas fa-file-lines"></i> <span>Print Page</span>
+                                </button>
+                            </div>
+                        </div>
+
+                        <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap:0.65rem; margin-bottom:0.85rem;">
+                            <div style="background:#ffffff; border:1px solid #e2e8f0; border-radius:8px; padding:0.65rem 0.8rem;">
+                                <div style="font-size:0.7rem; font-weight:800; text-transform:uppercase; color:#64748b; letter-spacing:0.04em;">Current Semester Fees</div>
+                                <div id="bdCurrentTermFees" style="font-size:1.05rem; font-weight:900; color:#0f172a; margin-top:2px;">₱0.00</div>
+                            </div>
+                            <div style="background:#ffffff; border:1px solid #fecaca; border-radius:8px; padding:0.65rem 0.8rem;">
+                                <div style="font-size:0.7rem; font-weight:800; text-transform:uppercase; color:#991b1b; letter-spacing:0.04em;">Previous Balance</div>
+                                <div id="bdPreviousBalance" style="font-size:1.05rem; font-weight:900; color:#b91c1c; margin-top:2px;">₱0.00</div>
+                            </div>
+                            <div style="background:#ffffff; border:1px solid #a7f3d0; border-radius:8px; padding:0.65rem 0.8rem;">
+                                <div style="font-size:0.7rem; font-weight:800; text-transform:uppercase; color:#047857; letter-spacing:0.04em;">Total Paid</div>
+                                <div id="bdTotalPaid" style="font-size:1.05rem; font-weight:900; color:#059669; margin-top:2px;">₱0.00</div>
+                            </div>
+                            <div style="background:#ffffff; border:1.5px solid #065f46; border-radius:8px; padding:0.65rem 0.8rem;">
+                                <div style="font-size:0.7rem; font-weight:800; text-transform:uppercase; color:#065f46; letter-spacing:0.04em;">Remaining Balance</div>
+                                <div id="bdRemainingBalance" style="font-size:1.05rem; font-weight:900; color:#065f46; margin-top:2px;">₱0.00</div>
+                            </div>
+                        </div>
+
+                        <div style="overflow-x:auto; background:#ffffff; border:1px solid #e2e8f0; border-radius:8px;">
+                            <table style="width:100%; margin:0; border:none; border-collapse:collapse; font-size:0.82rem;">
+                                <thead>
+                                    <tr style="background:#f1f5f9;">
+                                        <th style="padding:0.5rem 0.75rem; font-size:0.72rem; text-align:left;">Fee Particular</th>
+                                        <th style="padding:0.5rem 0.75rem; font-size:0.72rem; text-align:right;">Assessed</th>
+                                        <th style="padding:0.5rem 0.75rem; font-size:0.72rem; text-align:right;">Paid</th>
+                                        <th style="padding:0.5rem 0.75rem; font-size:0.72rem; text-align:right;">Balance Due</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="bdItemsTbody">
+                                    <tr>
+                                        <td colspan="4" style="padding:0.75rem; text-align:center; color:#64748b;">Select a seminarian to view breakdown.</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+
                     <div class="form-grid two">
                         <div class="field">
                             <label>Date Paid <span style="color:#ef4444;">*</span></label>
@@ -446,6 +505,10 @@ require_once __DIR__ . '/../includes/layout_app_start.php';
                                     <span style="opacity:0.85; font-weight:600;"><i class="fas fa-calculator"></i> Grand Total Due:</span>
                                     <strong style="color:#fef08a; font-weight:900; font-size:1.05rem; margin-left:4px;" id="displayGrandTotalDue">₱0.00</strong>
                                 </div>
+                                <div style="border-left:1px solid rgba(255,255,255,0.3); padding-left:1.25rem;">
+                                    <span style="opacity:0.85; font-weight:600;"><i class="fas fa-circle-check"></i> Total Paid:</span>
+                                    <strong style="color:#a7f3d0; font-weight:800; margin-left:4px;" id="displayTotalPaidSummary">₱0.00</strong>
+                                </div>
                             </div>
                             <div style="font-size:0.75rem; background:rgba(0,0,0,0.2); padding:3px 10px; border-radius:999px; color:#a7f3d0; font-weight:700;">
                                 <i class="fas fa-arrow-down-short-wide"></i> FIFO Payment Allocation Active
@@ -507,13 +570,21 @@ require_once __DIR__ . '/../includes/layout_app_start.php';
                         <div id="overpaymentAlert" style="display:none; margin-top:1rem; padding:0.75rem 1rem; border-radius:8px; font-weight:700; font-size:0.9rem;">
                         </div>
 
-                        <div style="margin-top:1.25rem; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:1rem; border-top:1px solid rgba(255,255,255,0.2); padding-top:1rem;">
+                        <div style="margin-top:1.25rem; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:0.75rem; border-top:1px solid rgba(255,255,255,0.2); padding-top:1rem;">
                             <div style="font-size:0.85rem; opacity:0.9;">
                                 <i class="fas fa-info-circle"></i> Payments automatically allocate to term invoice items and balance.
                             </div>
-                            <button type="submit" name="record_payment" id="submitPaymentBtn" style="background:#fef08a; color:#713f12; font-weight:900; font-size:1rem; padding:0.75rem 1.75rem; border:none; border-radius:8px; cursor:pointer; box-shadow:0 3px 8px rgba(0,0,0,0.25); transition:transform 0.1s ease; display:inline-flex; align-items:center; gap:0.5rem;">
-                                <i class="fas fa-print"></i> <span>Save & Print Receipt</span> <span style="font-size:0.7rem; font-weight:700; background:rgba(113,63,18,0.15); padding:2px 6px; border-radius:4px;">Ctrl+Enter / F2</span>
-                            </button>
+                            <div style="display:flex; align-items:center; gap:0.65rem; flex-wrap:wrap;">
+                                <a id="summaryPrintSoaBtn" href="#" target="_blank" class="hidden" style="background:rgba(255,255,255,0.16); color:#ffffff; font-weight:800; font-size:0.9rem; padding:0.7rem 1.15rem; border:1px solid rgba(255,255,255,0.35); border-radius:8px; text-decoration:none; display:inline-flex; align-items:center; gap:0.45rem;">
+                                    <i class="fas fa-file-invoice"></i> <span>Print SOA</span>
+                                </a>
+                                <a id="printLastReceiptBtn" href="#" target="_blank" class="hidden" style="background:#a7f3d0; color:#064e3b; font-weight:900; font-size:0.9rem; padding:0.7rem 1.15rem; border:none; border-radius:8px; text-decoration:none; display:inline-flex; align-items:center; gap:0.45rem; box-shadow:0 3px 8px rgba(0,0,0,0.2);">
+                                    <i class="fas fa-print"></i> <span>Print Last Receipt</span>
+                                </a>
+                                <button type="submit" name="record_payment" id="submitPaymentBtn" style="background:#fef08a; color:#713f12; font-weight:900; font-size:1rem; padding:0.75rem 1.75rem; border:none; border-radius:8px; cursor:pointer; box-shadow:0 3px 8px rgba(0,0,0,0.25); transition:transform 0.1s ease; display:inline-flex; align-items:center; gap:0.5rem;">
+                                    <i class="fas fa-print"></i> <span>Save & Print Receipt</span> <span style="font-size:0.7rem; font-weight:700; background:rgba(113,63,18,0.15); padding:2px 6px; border-radius:4px;">Ctrl+Enter / F2</span>
+                                </button>
+                            </div>
                         </div>
                     </div>
                 </form>
@@ -596,7 +667,19 @@ require_once __DIR__ . '/../includes/layout_app_start.php';
             const displayCurrentTermFees = document.getElementById('displayCurrentTermFees');
             const displayPreviousTermBalance = document.getElementById('displayPreviousTermBalance');
             const displayGrandTotalDue = document.getElementById('displayGrandTotalDue');
+            const displayTotalPaidSummary = document.getElementById('displayTotalPaidSummary');
             const displayPrevBalance = document.getElementById('displayPrevBalance');
+            const assessmentBreakdownCard = document.getElementById('assessmentBreakdownCard');
+            const bdStudentTermBadge = document.getElementById('bdStudentTermBadge');
+            const bdStudentSubtitle = document.getElementById('bdStudentSubtitle');
+            const bdCurrentTermFees = document.getElementById('bdCurrentTermFees');
+            const bdPreviousBalance = document.getElementById('bdPreviousBalance');
+            const bdTotalPaid = document.getElementById('bdTotalPaid');
+            const bdRemainingBalance = document.getElementById('bdRemainingBalance');
+            const bdItemsTbody = document.getElementById('bdItemsTbody');
+            const printSoaBtn = document.getElementById('printSoaBtn');
+            const summaryPrintSoaBtn = document.getElementById('summaryPrintSoaBtn');
+            const printLastReceiptBtn = document.getElementById('printLastReceiptBtn');
             const btnPayFullBalance = document.getElementById('btnPayFullBalance');
             const displayNewRemainingBalance = document.getElementById('displayNewRemainingBalance');
             const overpaymentAlert = document.getElementById('overpaymentAlert');
@@ -1119,9 +1202,18 @@ require_once __DIR__ . '/../includes/layout_app_start.php';
                 }
                 if (!sid) {
                     checklistContainer.innerHTML = '<div style="color:var(--text-secondary); grid-column:1/-1; padding:1.5rem; text-align:center; background:var(--bg-light, #f8fafc); border-radius:8px; border:1px dashed var(--border-color, #cbd5e1);"><i class="fas fa-user-graduate" style="font-size:1.5rem; margin-bottom:0.5rem; display:block; opacity:0.5;"></i>Select a seminarian above to view the fee checklist and account balance.</div>';
+                    if (assessmentBreakdownCard) {
+                        assessmentBreakdownCard.classList.add('hidden');
+                        assessmentBreakdownCard.style.display = 'none';
+                    }
+                    if (summaryPrintSoaBtn) {
+                        summaryPrintSoaBtn.classList.add('hidden');
+                        summaryPrintSoaBtn.style.display = 'none';
+                    }
                     if (displayCurrentTermFees) displayCurrentTermFees.textContent = '₱0.00';
                     if (displayPreviousTermBalance) displayPreviousTermBalance.textContent = '₱0.00';
                     if (displayGrandTotalDue) displayGrandTotalDue.textContent = '₱0.00';
+                    if (displayTotalPaidSummary) displayTotalPaidSummary.textContent = '₱0.00';
                     if (displayPrevBalance) displayPrevBalance.textContent = '₱0.00';
                     currentPreviousBalance = 0.0;
                     if (amountPaidInput) amountPaidInput.value = '0.00';
@@ -1132,6 +1224,13 @@ require_once __DIR__ . '/../includes/layout_app_start.php';
                 }
 
                 checklistContainer.innerHTML = '<div style="grid-column:1/-1; padding:1.5rem; text-align:center; color:var(--text-secondary);"><i class="fas fa-spinner fa-spin"></i> Loading fees and account balance...</div>';
+                const soaHref = 'cashier_soa.php?student_id=' + encodeURIComponent(sid) + '&academic_year=' + encodeURIComponent(ay) + '&semester=' + encodeURIComponent(sem);
+                if (printSoaBtn) printSoaBtn.href = soaHref;
+                if (summaryPrintSoaBtn) {
+                    summaryPrintSoaBtn.href = soaHref;
+                    summaryPrintSoaBtn.classList.remove('hidden');
+                    summaryPrintSoaBtn.style.display = 'inline-flex';
+                }
 
                 try {
                     const res = await fetch('ajax.php?action=get_student_fees&seminarian_id=' + encodeURIComponent(sid) + '&academic_year=' + encodeURIComponent(ay) + '&semester=' + encodeURIComponent(sem));
@@ -1142,6 +1241,7 @@ require_once __DIR__ . '/../includes/layout_app_start.php';
                         const curTermDue = parseFloat(data.current_term_due || 0);
                         const prevBal = parseFloat(data.previous_balance || 0);
                         const grandTotal = parseFloat(data.total_due || 0);
+                        const totalPaid = parseFloat(data.total_paid || 0);
 
                         if (displayCurrentTermFees) {
                             displayCurrentTermFees.textContent = '₱' + formatCurrency(curTermDue);
@@ -1152,8 +1252,47 @@ require_once __DIR__ . '/../includes/layout_app_start.php';
                         if (displayGrandTotalDue) {
                             displayGrandTotalDue.textContent = '₱' + formatCurrency(grandTotal);
                         }
+                        if (displayTotalPaidSummary) {
+                            displayTotalPaidSummary.textContent = '₱' + formatCurrency(totalPaid);
+                        }
                         if (displayPrevBalance) {
                             displayPrevBalance.textContent = '₱' + formatCurrency(currentPreviousBalance);
+                        }
+
+                        if (assessmentBreakdownCard) {
+                            assessmentBreakdownCard.classList.remove('hidden');
+                            assessmentBreakdownCard.style.display = 'block';
+                        }
+                        if (bdStudentTermBadge) {
+                            bdStudentTermBadge.textContent = 'AY ' + ay + ' • ' + sem + ' Sem';
+                        }
+                        if (bdStudentSubtitle && data.student) {
+                            const stMeta = [data.student.full_name || '', data.student.student_id || '', data.student.program || '', data.student.year_level || ''].filter(Boolean).join(' • ');
+                            bdStudentSubtitle.textContent = stMeta || 'Live term fee summary & payment balance';
+                        }
+                        if (bdCurrentTermFees) bdCurrentTermFees.textContent = '₱' + formatCurrency(curTermDue);
+                        if (bdPreviousBalance) bdPreviousBalance.textContent = '₱' + formatCurrency(prevBal);
+                        if (bdTotalPaid) bdTotalPaid.textContent = '₱' + formatCurrency(totalPaid);
+                        if (bdRemainingBalance) bdRemainingBalance.textContent = '₱' + formatCurrency(currentPreviousBalance);
+                        if (bdItemsTbody) {
+                            const feeList = Array.isArray(data.fees) ? data.fees : [];
+                            if (feeList.length === 0) {
+                                bdItemsTbody.innerHTML = '<tr><td colspan="4" style="padding:0.75rem; text-align:center; color:#64748b; font-style:italic;">No itemized fees assessed for this term yet.</td></tr>';
+                            } else {
+                                bdItemsTbody.innerHTML = feeList.map(function (item) {
+                                    const rem = typeof item.item_remaining_balance !== 'undefined' ? parseFloat(item.item_remaining_balance) : parseFloat(item.amount || 0);
+                                    const orig = typeof item.original_amount !== 'undefined' ? parseFloat(item.original_amount) : rem;
+                                    const paidAmt = Math.max(0, orig - rem);
+                                    const rowBg = item.is_previous_balance ? 'background:#fff1f2;' : '';
+                                    const remColor = rem > 0.005 ? '#b45309' : '#059669';
+                                    return '<tr style="' + rowBg + '">' +
+                                        '<td style="padding:0.45rem 0.75rem; font-weight:700; color:#0f172a;">' + escapeHtml(item.particular || 'Fee Item') + '</td>' +
+                                        '<td style="padding:0.45rem 0.75rem; text-align:right; color:#475569;">₱' + formatCurrency(orig) + '</td>' +
+                                        '<td style="padding:0.45rem 0.75rem; text-align:right; color:#059669; font-weight:700;">₱' + formatCurrency(paidAmt) + '</td>' +
+                                        '<td style="padding:0.45rem 0.75rem; text-align:right; color:' + remColor + '; font-weight:800;">₱' + formatCurrency(rem) + '</td>' +
+                                    '</tr>';
+                                }).join('');
+                            }
                         }
 
                         renderFeeItems(data.fees || []);
@@ -1339,11 +1478,19 @@ require_once __DIR__ . '/../includes/layout_app_start.php';
                         ? 'Payment recorded. Seminarian status automatically updated to Enrolled! Remaining Balance: ₱' + formatCurrency(remBal) + '. Opening receipt...'
                         : 'Payment OR ' + (fd.get('or_number') || '') + ' recorded successfully! Updated Remaining Balance: ₱' + formatCurrency(remBal) + '. Opening receipt...';
                     setMessage('success', statusMsg);
+                    if (typeof window.showToast === 'function') {
+                        window.showToast(statusMsg, 'success', 3500);
+                    }
                     const ay = fd.get('academic_year') || '';
                     const sem = fd.get('semester') || '';
                     await loadPayments(ay, sem);
                     if (resp.receipt_url) {
                         const printUrl = resp.receipt_url + (resp.receipt_url.includes('?') ? '&' : '?') + 'auto_print=1';
+                        if (printLastReceiptBtn) {
+                            printLastReceiptBtn.href = printUrl;
+                            printLastReceiptBtn.classList.remove('hidden');
+                            printLastReceiptBtn.style.display = 'inline-flex';
+                        }
                         window.open(printUrl, '_blank');
                     }
                     form.reset();
@@ -1351,9 +1498,21 @@ require_once __DIR__ . '/../includes/layout_app_start.php';
                     userModifiedAmountPaid = false;
                     calculateChangeAndBalance();
                     checklistContainer.innerHTML = '<div style="color:var(--text-secondary); grid-column:1/-1; padding:1.5rem; text-align:center; background:var(--bg-light, #f8fafc); border-radius:8px; border:1px dashed var(--border-color, #cbd5e1);"><i class="fas fa-user-graduate" style="font-size:1.5rem; margin-bottom:0.5rem; display:block; opacity:0.5;"></i>Select a seminarian above to view the fee checklist and account balance.</div>';
+                    if (assessmentBreakdownCard) {
+                        assessmentBreakdownCard.classList.add('hidden');
+                        assessmentBreakdownCard.style.display = 'none';
+                    }
+                    if (summaryPrintSoaBtn) {
+                        summaryPrintSoaBtn.classList.add('hidden');
+                        summaryPrintSoaBtn.style.display = 'none';
+                    }
                     customContainer.innerHTML = '';
                     orFeedback.innerHTML = '';
                     orInput.style.borderColor = '';
+                    if (displayCurrentTermFees) displayCurrentTermFees.textContent = '₱0.00';
+                    if (displayPreviousTermBalance) displayPreviousTermBalance.textContent = '₱0.00';
+                    if (displayGrandTotalDue) displayGrandTotalDue.textContent = '₱0.00';
+                    if (displayTotalPaidSummary) displayTotalPaidSummary.textContent = '₱0.00';
                     displayPrevBalance.textContent = '₱0.00';
                     currentPreviousBalance = 0.0;
                     if (displayNewRemainingBalance) displayNewRemainingBalance.textContent = '₱0.00';

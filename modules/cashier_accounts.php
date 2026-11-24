@@ -553,10 +553,24 @@ require_once __DIR__ . '/../includes/layout_app_start.php';
                         <span id="drawerTermBadge" style="font-size: 0.75rem; background: #dcfce7; color: #166534; font-weight: 700; padding: 3px 8px; border-radius: 4px;">1st Sem</span>
                     </div>
 
-                    <!-- Live Transparency Breakdown Banner (if Previous Balance exists) -->
-                    <div id="drawerBreakdownBanner" style="display:none; font-size: 0.75rem; background: #fff1f2; border: 1px solid #fecaca; border-radius: 6px; padding: 0.45rem 0.75rem; margin-bottom: 0.75rem; color: #991b1b; justify-content: space-between; align-items: center;">
-                        <span><i class="fas fa-clock-rotate-left"></i> Incl. Previous Balance: <strong id="drawerPrevBalDisplay">₱0.00</strong></span>
-                        <span style="font-weight: 700; background: #fee2e2; padding: 1px 6px; border-radius: 3px; font-size: 0.7rem;"><i class="fas fa-arrow-down-short-wide"></i> FIFO Active</span>
+                    <!-- Live Assessment Breakdown Grid (Current Term, Previous Balance, Total Paid, Remaining) -->
+                    <div id="drawerBreakdownBanner" style="display:grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0.45rem; background: #f8fafc; border: 1px solid #cbd5e1; border-radius: 8px; padding: 0.6rem 0.75rem; margin-bottom: 0.75rem; font-size: 0.75rem;">
+                        <div>
+                            <span style="color:#64748b; display:block; font-size:0.68rem; text-transform:uppercase; font-weight:700;">Current Fees</span>
+                            <strong id="drawerCurFeesDisplay" style="color:#0f172a; font-weight:800;">₱0.00</strong>
+                        </div>
+                        <div>
+                            <span style="color:#991b1b; display:block; font-size:0.68rem; text-transform:uppercase; font-weight:700;">Previous Balance</span>
+                            <strong id="drawerPrevBalDisplay" style="color:#b91c1c; font-weight:800;">₱0.00</strong>
+                        </div>
+                        <div>
+                            <span style="color:#047857; display:block; font-size:0.68rem; text-transform:uppercase; font-weight:700;">Total Paid</span>
+                            <strong id="drawerPaidDisplay" style="color:#059669; font-weight:800;">₱0.00</strong>
+                        </div>
+                        <div>
+                            <span style="color:#065f46; display:block; font-size:0.68rem; text-transform:uppercase; font-weight:700;">Remaining Balance</span>
+                            <strong id="drawerRemSummaryDisplay" style="color:#065f46; font-weight:900;">₱0.00</strong>
+                        </div>
                     </div>
 
                     <!-- Live Overpayment Alert in Drawer -->
@@ -641,7 +655,10 @@ require_once __DIR__ . '/../includes/layout_app_start.php';
                         <i class="fas fa-print" style="color: #f59e0b;"></i> <span>Save & Print Receipt</span> <kbd style="font-size: 0.7rem; background: rgba(255,255,255,0.18); color: #f8fafc; padding: 2px 6px; border-radius: 4px;">Ctrl+Enter / F2</kbd>
                     </button>
 
-                    <div style="text-align: center; margin-top: 0.75rem;">
+                    <div style="display:flex; justify-content:center; align-items:center; gap:0.85rem; flex-wrap:wrap; margin-top: 0.75rem;">
+                        <a id="drawerPrintSoaLink" href="#" target="_blank" style="display:inline-flex; align-items:center; gap:0.35rem; padding:0.4rem 0.85rem; font-size: 0.8rem; font-weight: 700; color: #ffffff; background: #1e3a5f; border-radius: 6px; text-decoration: none;">
+                            <i class="fas fa-print"></i> Print SOA
+                        </a>
                         <a id="drawerFullPageLink" href="#" target="_blank" style="font-size: 0.8rem; color: #64748b; text-decoration: underline;">Open Full Payment Page ↗</a>
                     </div>
                 </form>
@@ -928,6 +945,10 @@ require_once __DIR__ . '/../includes/layout_app_start.php';
                 if (newBalElem) newBalElem.textContent = '₱' + formatCurrency(bal);
                 drawerTermBadge.textContent = curAy + ' • ' + curSem + ' Sem';
                 drawerFullPageLink.href = 'cashier_payments.php?seminarian_id=' + sid + '&academic_year=' + encodeURIComponent(curAy) + '&semester=' + encodeURIComponent(curSem);
+                const drawerPrintSoaLink = document.getElementById('drawerPrintSoaLink');
+                if (drawerPrintSoaLink) {
+                    drawerPrintSoaLink.href = 'cashier_soa.php?student_id=' + sid + '&academic_year=' + encodeURIComponent(curAy) + '&semester=' + encodeURIComponent(curSem);
+                }
 
                 drawer.classList.add('open');
                 backdrop.classList.add('open');
@@ -966,20 +987,20 @@ require_once __DIR__ . '/../includes/layout_app_start.php';
                     if (feeData && feeData.ok) {
                         const trueBal = parseFloat(feeData.remaining_balance !== undefined ? feeData.remaining_balance : (feeData.total_due || 0));
                         const prevBal = parseFloat(feeData.previous_balance || 0);
+                        const curFees = parseFloat(feeData.current_term_due || 0);
+                        const totalPaid = parseFloat(feeData.total_paid || 0);
 
                         drawerBalanceDue.textContent = '₱' + formatCurrency(trueBal);
                         drawerBalanceDue.dataset.rawBalance = trueBal;
 
-                        const breakdownBanner = document.getElementById('drawerBreakdownBanner');
+                        const curFeesDisplay = document.getElementById('drawerCurFeesDisplay');
                         const prevBalDisplay = document.getElementById('drawerPrevBalDisplay');
-                        if (breakdownBanner && prevBalDisplay) {
-                            if (prevBal > 0.0001) {
-                                prevBalDisplay.textContent = '₱' + formatCurrency(prevBal);
-                                breakdownBanner.style.display = 'flex';
-                            } else {
-                                breakdownBanner.style.display = 'none';
-                            }
-                        }
+                        const paidDisplay = document.getElementById('drawerPaidDisplay');
+                        const remSummaryDisplay = document.getElementById('drawerRemSummaryDisplay');
+                        if (curFeesDisplay) curFeesDisplay.textContent = '₱' + formatCurrency(curFees);
+                        if (prevBalDisplay) prevBalDisplay.textContent = '₱' + formatCurrency(prevBal);
+                        if (paidDisplay) paidDisplay.textContent = '₱' + formatCurrency(totalPaid);
+                        if (remSummaryDisplay) remSummaryDisplay.textContent = '₱' + formatCurrency(trueBal);
 
                         renderDrawerFees(feeData.fees || []);
                     } else {

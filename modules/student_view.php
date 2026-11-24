@@ -274,6 +274,11 @@ if ($total_enrolled_units <= 0) {
         ::-webkit-scrollbar-thumb:hover {
             background: #D6A6A6;
         }
+        @media (max-width: 991.98px) {
+            #studentProfileWidget {
+                display: none !important;
+            }
+        }
     </style>
 </head>
 <body class="bg-[#F8EEEE] text-[#59443F] min-h-screen">
@@ -289,15 +294,75 @@ if ($total_enrolled_units <= 0) {
                 <span class="font-heading font-extrabold text-[#59443F] text-base tracking-tight">EnformaSys</span>
             </div>
         </div>
-        <div class="flex items-center gap-2">
+        <div class="flex items-center gap-2 relative" id="mobileProfileMenuWrap">
             <?php require __DIR__ . '/../includes/notification_bell.php'; ?>
-            <?php if ($seminarian_avatar_url): ?>
-                <img src="<?php echo htmlspecialchars($seminarian_avatar_url, ENT_QUOTES, 'UTF-8'); ?>" alt="<?php echo htmlspecialchars($seminarian_name, ENT_QUOTES, 'UTF-8'); ?>" class="w-8 h-8 rounded-full object-cover border border-[#E8C7C5] shadow-xs">
-            <?php else: ?>
-                <div class="w-8 h-8 rounded-full bg-[#E8C7C5] text-[#59443F] font-black text-xs flex items-center justify-center shadow-xs">
-                    <?php echo htmlspecialchars($seminarian_initials); ?>
+            <button id="mobileProfileMenuBtn"
+                    type="button"
+                    aria-haspopup="menu"
+                    aria-expanded="false"
+                    aria-controls="mobileProfilePopover"
+                    aria-label="Open Profile Menu"
+                    class="relative inline-flex items-center justify-center rounded-full focus:outline-none focus:ring-2 focus:ring-[#D6A6A6] transition-transform active:scale-95 cursor-pointer">
+                <?php if ($seminarian_avatar_url): ?>
+                    <img src="<?php echo htmlspecialchars($seminarian_avatar_url, ENT_QUOTES, 'UTF-8'); ?>" alt="<?php echo htmlspecialchars($seminarian_name, ENT_QUOTES, 'UTF-8'); ?>" class="w-9 h-9 rounded-full object-cover border-2 border-[#E8C7C5] shadow-xs">
+                <?php else: ?>
+                    <span class="w-9 h-9 rounded-full bg-[#E8C7C5] text-[#59443F] font-black text-xs flex items-center justify-center border border-[#D6A6A6]/60 shadow-xs">
+                        <?php echo htmlspecialchars($seminarian_initials); ?>
+                    </span>
+                <?php endif; ?>
+                <span class="absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full bg-emerald-500 border-2 border-white" title="Active Seminarian"></span>
+            </button>
+
+            <!-- Mobile Header Profile Dropdown / Popover Menu -->
+            <div id="mobileProfilePopover"
+                 role="menu"
+                 aria-labelledby="mobileProfileMenuBtn"
+                 class="hidden absolute right-0 top-full mt-2.5 w-72 max-w-[calc(100vw-1.5rem)] bg-white rounded-3xl border border-[#E8C7C5]/80 shadow-soft-lg p-4 z-50 text-left">
+                <div class="flex items-center gap-3 pb-3 border-b border-[#E8C7C5]/35">
+                    <div class="w-11 h-11 rounded-2xl bg-[#E8C7C5] text-[#59443F] font-heading font-black text-sm flex items-center justify-center border border-[#D6A6A6]/50 shrink-0 overflow-hidden shadow-2xs">
+                        <?php if ($seminarian_avatar_url): ?>
+                            <img src="<?php echo htmlspecialchars($seminarian_avatar_url, ENT_QUOTES, 'UTF-8'); ?>" alt="<?php echo htmlspecialchars($seminarian_name, ENT_QUOTES, 'UTF-8'); ?>" class="w-full h-full object-cover">
+                        <?php else: ?>
+                            <?php echo htmlspecialchars($seminarian_initials); ?>
+                        <?php endif; ?>
+                    </div>
+                    <div class="min-w-0 flex-1">
+                        <div class="font-heading font-extrabold text-sm text-[#59443F] leading-tight truncate">
+                            <?php echo htmlspecialchars($seminarian_name); ?>
+                        </div>
+                        <div class="text-[11px] text-[#8B7168] font-medium truncate mt-0.5">
+                            <?php echo htmlspecialchars($seminarian_email); ?>
+                        </div>
+                    </div>
                 </div>
-            <?php endif; ?>
+
+                <div class="mt-2.5 mb-3">
+                    <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-bold bg-[#F8EEEE] text-[#59443F] border border-[#E8C7C5]/60">
+                        <i class="fa-solid fa-cross text-[9px] text-[#D6A6A6]"></i>
+                        <span><?php echo htmlspecialchars($seminarian_year_level); ?></span>
+                    </span>
+                </div>
+
+                <div class="space-y-1.5 text-xs">
+                    <a href="student_edit_profile.php" role="menuitem" class="w-full py-2.5 px-3 rounded-xl bg-[#59443F] hover:bg-[#6E554F] text-white font-bold transition flex items-center gap-2 no-underline">
+                        <i class="fa-solid fa-user-pen text-[11px] text-[#E8C7C5]"></i>
+                        <span>Edit Profile</span>
+                        <?php if ($seminarian_cooldown['is_active']): ?>
+                            <span class="ml-auto inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[9px] font-black bg-amber-500 text-white">
+                                <i class="fa-solid fa-lock text-[8px]"></i> Cooldown
+                            </span>
+                        <?php endif; ?>
+                    </a>
+                    <div class="grid grid-cols-2 gap-1.5">
+                        <a href="student_academic.php" role="menuitem" class="py-2 px-3 rounded-xl bg-[#F8EEEE] hover:bg-[#E8C7C5] text-[#59443F] font-bold transition border border-[#E8C7C5]/50 flex items-center justify-center gap-1.5 no-underline">
+                            <i class="fa-solid fa-graduation-cap text-[10px]"></i> My Grades
+                        </a>
+                        <a href="student_balance.php" role="menuitem" class="py-2 px-3 rounded-xl bg-[#F8EEEE] hover:bg-[#E8C7C5] text-[#59443F] font-bold transition border border-[#E8C7C5]/50 flex items-center justify-center gap-1.5 no-underline">
+                            <i class="fa-solid fa-receipt text-[10px]"></i> My Balance
+                        </a>
+                    </div>
+                </div>
+            </div>
         </div>
     </header>
 
@@ -617,8 +682,8 @@ if ($total_enrolled_units <= 0) {
             <!-- ========================================================================= -->
             <aside class="w-full space-y-6">
 
-                <!-- 1. Profile Widget (Top Right) -->
-                <div class="bg-white rounded-3xl border border-[#E8C7C5]/50 p-6 shadow-soft text-center relative overflow-hidden">
+                <!-- 1. Profile Widget (Top Right, hidden on mobile < 992px and moved to header avatar popover) -->
+                <div id="studentProfileWidget" class="hidden lg:block bg-white rounded-3xl border border-[#E8C7C5]/50 p-6 shadow-soft text-center relative overflow-hidden">
                     <!-- Subtle top banner accent -->
                     <div class="h-16 -mx-6 -mt-6 bg-gradient-to-r from-[#E8C7C5] to-[#F8EEEE] border-b border-[#E8C7C5]/40"></div>
                     
@@ -998,6 +1063,38 @@ if ($total_enrolled_units <= 0) {
 
         // Initial calendar load
         fetchCalendarEvents(calYear, calMonth);
+
+        // Mobile Header Avatar Profile Popover
+        const profileWrap = document.getElementById('mobileProfileMenuWrap');
+        const profileBtn = document.getElementById('mobileProfileMenuBtn');
+        const profilePopover = document.getElementById('mobileProfilePopover');
+        if (profileBtn && profilePopover) {
+            function closeProfilePopover() {
+                profilePopover.classList.add('hidden');
+                profileBtn.setAttribute('aria-expanded', 'false');
+            }
+            profileBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                const isClosed = profilePopover.classList.contains('hidden');
+                if (isClosed) {
+                    profilePopover.classList.remove('hidden');
+                    profileBtn.setAttribute('aria-expanded', 'true');
+                } else {
+                    closeProfilePopover();
+                }
+            });
+            document.addEventListener('click', (e) => {
+                if (profileWrap && !profileWrap.contains(e.target)) {
+                    closeProfilePopover();
+                }
+            });
+            document.addEventListener('keydown', (e) => {
+                if (e.key === 'Escape' && !profilePopover.classList.contains('hidden')) {
+                    closeProfilePopover();
+                    profileBtn.focus();
+                }
+            });
+        }
     });
     </script>
 </body>

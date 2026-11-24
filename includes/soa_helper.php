@@ -651,11 +651,24 @@ if (!function_exists('soa_render_styles')) {
     text-align: right;
 }
 
-.soa-table {
-    width: 100%;
-    table-layout: fixed;
-    border-collapse: collapse;
+.soa-table-wrap {
+    width: 100% !important;
+    max-width: 100% !important;
+    overflow-x: auto;
     margin: 1rem 0;
+}
+
+.soa-table {
+    display: table !important;
+    width: 100% !important;
+    min-width: 100% !important;
+    max-width: 100% !important;
+    table-layout: auto !important;
+    border-collapse: collapse !important;
+    margin: 0 !important;
+    border-radius: 0 !important;
+    border: none !important;
+    overflow: visible !important;
     font-variant-numeric: tabular-nums;
 }
 
@@ -670,6 +683,7 @@ if (!function_exists('soa_render_styles')) {
     font-size: 0.82rem;
     text-transform: uppercase;
     letter-spacing: 0.04em;
+    white-space: normal !important;
     word-wrap: break-word;
     overflow-wrap: break-word;
 }
@@ -680,6 +694,7 @@ if (!function_exists('soa_render_styles')) {
     font-size: 0.9rem;
     color: #1e293b;
     vertical-align: top;
+    white-space: normal !important;
     word-wrap: break-word;
     overflow-wrap: break-word;
 }
@@ -861,11 +876,19 @@ if (!function_exists('soa_render_styles')) {
     .soa-section-heading h3 {
         font-size: 0.85rem !important;
     }
-    .soa-table {
+    .soa-table-wrap {
         width: 100% !important;
         max-width: 100% !important;
-        table-layout: fixed !important;
+        overflow: visible !important;
         margin: 0.25rem 0 0.5rem 0 !important;
+    }
+    .soa-table {
+        display: table !important;
+        width: 100% !important;
+        min-width: 100% !important;
+        max-width: 100% !important;
+        table-layout: auto !important;
+        margin: 0 !important;
     }
     .soa-table th {
         padding: 0.35rem 0.45rem !important;
@@ -1058,13 +1081,14 @@ if (!function_exists('soa_render_document')) {
                         <span style="font-size:0.8rem; color:#64748b; font-weight:600;">Dynamic Schedule Ledger</span>
                     </div>
 
-                    <table class="soa-table w-full table-fixed print:text-[11px]">
+                    <div class="soa-table-wrap">
+                    <table class="soa-table print:text-[11px]" style="width: 100%; display: table;">
                         <thead>
                             <tr>
-                                <th class="print:py-1 print:text-xs" style="width: 7%; text-align: center;">#</th>
-                                <th class="print:py-1 print:text-xs" style="width: 43%;">Particulars / Fee Description</th>
-                                <th class="print:py-1 print:text-xs" style="width: 30%;">Computation / Rate</th>
-                                <th class="print:py-1 print:text-xs" style="text-align: right; width: 20%;">Amount</th>
+                                <th class="print:py-1 print:text-xs" style="width: 6%; text-align: center;">#</th>
+                                <th class="print:py-1 print:text-xs">Particulars / Fee Description</th>
+                                <th class="print:py-1 print:text-xs" style="width: 28%;">Computation / Rate</th>
+                                <th class="print:py-1 print:text-xs" style="text-align: right; width: 18%; white-space: nowrap;">Amount</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -1160,6 +1184,7 @@ if (!function_exists('soa_render_document')) {
                             <?php } ?>
                         </tbody>
                     </table>
+                    </div>
                     </div><!-- /.soa-page-1 -->
 
                     <!-- PAYMENTS CREDITED SECTION (Page 2 / Back of Bond Paper) -->
@@ -1171,15 +1196,16 @@ if (!function_exists('soa_render_document')) {
                         <span style="font-size:0.8rem; color:#64748b; font-weight:600;">Official Receipt &amp; Remittance Log</span>
                     </div>
 
-                    <table class="soa-table w-full table-fixed print:text-[11px]">
+                    <div class="soa-table-wrap">
+                    <table class="soa-table print:text-[11px]" style="width: 100%; display: table;">
                         <thead>
                             <tr>
                                 <th class="print:py-1 print:text-xs" style="width: 12%;">Date</th>
                                 <th class="print:py-1 print:text-xs" style="width: 13%;">OR Number</th>
                                 <th class="print:py-1 print:text-xs" style="width: 16%;">Payer / Remitter</th>
-                                <th class="print:py-1 print:text-xs" style="width: 27%;">Particulars</th>
+                                <th class="print:py-1 print:text-xs">Particulars</th>
                                 <th class="print:py-1 print:text-xs" style="width: 16%;">Payment Method</th>
-                                <th class="print:py-1 print:text-xs" style="text-align: right; width: 16%;">Amount Paid</th>
+                                <th class="print:py-1 print:text-xs" style="text-align: right; width: 16%; white-space: nowrap;">Amount Paid</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -1220,6 +1246,7 @@ if (!function_exists('soa_render_document')) {
                             <?php } ?>
                         </tbody>
                     </table>
+                    </div>
 
                     <!-- ACCOUNT SUMMARY LEDGER (Dynamic Totals & Balance) -->
                     <div class="soa-summary-grid<?php echo $advance_credit > 0 ? ' has-advance' : ''; ?>">
