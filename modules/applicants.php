@@ -402,7 +402,9 @@ if (isset($_POST['restore_applicant'])) {
     }
 }
 
-$filter = isset($_GET['filter']) ? $_GET['filter'] : '';
+$filter = isset($_GET['filter'])
+    ? trim((string)$_GET['filter'])
+    : (isset($_GET['status']) ? strtolower(trim((string)$_GET['status'])) : '');
 if (($filter === 'pending' || $filter === 'enrolled') && !$is_registrar) {
     $filter = '';
 }

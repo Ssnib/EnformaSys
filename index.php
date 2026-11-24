@@ -35,10 +35,12 @@ if ($is_academic_formator) {
 // Fetch Statistics & Initialize Variables
 $total_students = 0;
 $pending_enrollments = 0;
+$missing_prereq_grades_count = 0;
 $irregular_students_count = 0;
 $pending_applicants_list = [];
 $total_subjects = 0;
 $academic_year_label = 'Not set';
+$active_semester = '1st';
 
 $enrollment_status = '';
 $total_units = 0;
@@ -50,21 +52,26 @@ $activities = [];
 $student_summaries = [];
 $student_search_options = [];
 
-$ay = trim((string)get_current_academic_year());
+$ay = trim((string)(function_exists('get_active_academic_year') ? get_active_academic_year() : get_current_academic_year()));
 if ($ay !== '') {
     $academic_year_label = $ay;
+}
+$sem_raw = trim((string)(function_exists('get_active_semester') ? get_active_semester() : '1st'));
+if (in_array($sem_raw, ['1st', '2nd', 'Summer'], true)) {
+    $active_semester = $sem_raw;
 }
 
 $year_counts = [0, 0, 0, 0, 0];
 
 if ($is_admin || $is_formator) {
-    $dashCacheKey = $role . '|' . $academic_year_label;
+    $dashCacheKey = $role . '|' . $academic_year_label . '|' . $active_semester;
     $cachedDash = $_SESSION['cached_dashboard_summary'][$dashCacheKey] ?? null;
-    if (is_array($cachedDash) && isset($cachedDash['ts']) && (time() - (int)$cachedDash['ts']) < 60) {
+    if (is_array($cachedDash) && isset($cachedDash['ts'], $cachedDash['missing_prereq_grades_count']) && (time() - (int)$cachedDash['ts']) < 60) {
         $total_students = (int)($cachedDash['total_students'] ?? 0);
         $irregular_students_count = (int)($cachedDash['irregular_students_count'] ?? 0);
         $total_subjects = (int)($cachedDash['total_subjects'] ?? 0);
         $pending_enrollments = (int)($cachedDash['pending_enrollments'] ?? 0);
+        $missing_prereq_grades_count = (int)($cachedDash['missing_prereq_grades_count'] ?? 0);
         $year_counts = $cachedDash['year_counts'] ?? [0, 0, 0, 0, 0];
         $pending_applicants_list = $cachedDash['pending_applicants_list'] ?? [];
         $student_search_options = $cachedDash['student_search_options'] ?? [];
@@ -106,6 +113,36 @@ if ($is_admin || $is_formator) {
         if ($meta_res && ($m = $meta_res->fetch_assoc())) {
             $pending_enrollments = (int)($m['pending_enrollments'] ?? 0);
             $total_subjects = (int)($m['total_subjects'] ?? 0);
+        }
+
+        // 2b. Enrolled seminarians with missing/unencoded prerequisite grades for active AY & Semester
+        $stmt_prereq = @$conn->prepare("
+            SELECT COUNT(DISTINCT ses.student_id) AS missing_prereq_count
+            FROM student_enrolled_subjects ses
+            JOIN seminarians sem ON sem.id = ses.student_id
+            JOIN subjects sub ON sub.subject_id = ses.subject_id
+            WHERE (sem.is_graduate = 0 OR sem.is_graduate IS NULL)
+              AND ses.academic_year = ?
+              AND ses.semester = ?
+              AND ses.status <> 'Dropped'
+              AND sub.prerequisite_subject_id IS NOT NULL
+              AND sub.prerequisite_subject_id > 0
+              AND NOT EXISTS (
+                  SELECT 1
+                  FROM student_grades sg
+                  WHERE sg.student_id = ses.student_id
+                    AND sg.subject_id = sub.prerequisite_subject_id
+                    AND sg.status = 'Completed'
+                    AND (sg.final_computed_grade IS NOT NULL OR sg.final_grade IS NOT NULL)
+              )
+        ");
+        if ($stmt_prereq) {
+            $stmt_prereq->bind_param('ss', $academic_year_label, $active_semester);
+            if ($stmt_prereq->execute()) {
+                $row_pr = $stmt_prereq->get_result()->fetch_assoc();
+                $missing_prereq_grades_count = (int)($row_pr['missing_prereq_count'] ?? 0);
+            }
+            $stmt_prereq->close();
         }
 
         // 3. Top 5 pending applicants
@@ -248,6 +285,7 @@ if ($is_admin || $is_formator) {
             'irregular_students_count' => $irregular_students_count,
             'total_subjects' => $total_subjects,
             'pending_enrollments' => $pending_enrollments,
+            'missing_prereq_grades_count' => $missing_prereq_grades_count,
             'year_counts' => $year_counts,
             'pending_applicants_list' => $pending_applicants_list,
             'student_search_options' => $student_search_options,
@@ -486,76 +524,108 @@ require_once __DIR__ . '/includes/layout_app_start.php';
                         </div>
                     </div>
 
+                    <?php
+                    $active_alerts_count = ($missing_prereq_grades_count > 0 ? 1 : 0) + ($pending_enrollments > 0 ? 1 : 0);
+                    $resolve_grades_url = ($role === 'Rector')
+                        ? 'modules/curriculum_master.php'
+                        : ('modules/afms_grades.php?academic_year=' . urlencode($academic_year_label) . '&semester=' . urlencode($active_semester));
+                    $review_admission_url = 'modules/applicants.php?status=pending';
+                    ?>
                     <!-- 4. Action Required / Alerts (Floating Bubble Card) -->
                     <div class="dash-reveal bg-white rounded-3xl border border-[#E8C7C5]/50 shadow-xl overflow-hidden font-['Inter',sans-serif]" style="--reveal-delay: 200ms;">
-                        <div class="p-5 sm:p-6 pb-4 border-b border-[#E8C7C5]/30 flex items-center justify-between bg-white">
+                        <div class="p-5 sm:p-6 pb-4 border-b border-[#E8C7C5]/30 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 bg-white">
                             <div class="flex items-center gap-3">
                                 <div class="w-10 h-10 rounded-2xl bg-[#F8EEEE] text-[#59443F] border border-[#E8C7C5]/60 flex items-center justify-center shrink-0 shadow-xs">
                                     <i class="fa-solid fa-bell text-base text-[#D6A6A6]"></i>
                                 </div>
                                 <div>
                                     <h2 class="font-heading font-extrabold text-sm sm:text-base text-[#59443F] tracking-tight">Action Required &amp; Alerts</h2>
-                                    <p class="text-xs text-[#8B7168] font-medium">Administrative items needing Registrar attention</p>
+                                    <p class="text-xs text-[#8B7168] font-medium">Administrative items needing attention (AY <?php echo htmlspecialchars($academic_year_label); ?> &bull; <?php echo htmlspecialchars($active_semester); ?> Sem)</p>
                                 </div>
                             </div>
-                            <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-[#F8EEEE] text-[#59443F] border border-[#E8C7C5]/60 shadow-xs">
-                                <span class="w-2 h-2 rounded-full bg-[#D6A6A6] animate-pulse"></span> 2 Alerts
+                            <?php if ($active_alerts_count > 0) { ?>
+                            <span class="self-start sm:self-center inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-[#F8EEEE] text-[#59443F] border border-[#E8C7C5]/60 shadow-xs shrink-0">
+                                <span class="w-2 h-2 rounded-full bg-[#D6A6A6] animate-pulse"></span> <?php echo (int)$active_alerts_count; ?> <?php echo $active_alerts_count === 1 ? 'Alert' : 'Alerts'; ?>
                             </span>
+                            <?php } else { ?>
+                            <span class="self-start sm:self-center inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-emerald-50 text-emerald-700 border border-emerald-200/70 shadow-xs shrink-0">
+                                <span class="w-2 h-2 rounded-full bg-emerald-500"></span> 0 Alerts
+                            </span>
+                            <?php } ?>
                         </div>
 
                         <!-- Alert Notification List Items -->
-                        <div class="p-5 sm:p-6 space-y-3">
+                        <div class="p-4 sm:p-6 space-y-3">
+                            <?php if ($active_alerts_count === 0) { ?>
+                                <div class="dash-reveal p-5 rounded-2xl bg-[#F8EEEE]/40 border border-[#E8C7C5]/40 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3" style="--reveal-delay: 240ms;">
+                                    <div class="flex items-center gap-3">
+                                        <div class="w-9 h-9 rounded-xl bg-emerald-100 text-emerald-700 flex items-center justify-center shrink-0">
+                                            <i class="fa-solid fa-circle-check text-sm" aria-hidden="true"></i>
+                                        </div>
+                                        <div>
+                                            <p class="text-xs sm:text-sm font-bold text-[#59443F]">All caught up &mdash; No pending actions</p>
+                                            <p class="text-[11px] sm:text-xs text-[#8B7168] mt-0.5">No missing prerequisite grades or pending admission reviews for AY <?php echo htmlspecialchars($academic_year_label); ?> (<?php echo htmlspecialchars($active_semester); ?> Sem).</p>
+                                        </div>
+                                    </div>
+                                </div>
+                            <?php } ?>
+
+                            <?php $alert_delay_ms = 240; ?>
+                            <?php if ($missing_prereq_grades_count > 0) { ?>
                             <!-- Alert Item 1: Missing Prerequisite Grades -->
-                            <div class="p-4 rounded-2xl bg-[#F8EEEE]/60 border border-[#E8C7C5]/50 hover:bg-[#F8EEEE] transition">
+                            <div class="alert-action-card dash-reveal p-4 rounded-2xl bg-[#F8EEEE]/60 border border-[#E8C7C5]/50 hover:bg-[#F8EEEE]" style="--reveal-delay: <?php echo (int)$alert_delay_ms; ?>ms;">
                                 <div class="flex items-start gap-3">
                                     <div class="w-8 h-8 rounded-xl bg-[#E8C7C5] text-[#59443F] flex items-center justify-center shrink-0 mt-0.5">
-                                        <i class="fa-solid fa-triangle-exclamation text-xs"></i>
+                                        <i class="fa-solid fa-triangle-exclamation text-xs" aria-hidden="true"></i>
                                     </div>
                                     <div class="flex-1 min-w-0">
-                                        <div class="flex items-center justify-between gap-2">
+                                        <div class="flex flex-wrap items-center justify-between gap-2">
                                             <h3 class="text-xs font-bold text-[#59443F]">Missing Prerequisite Grades</h3>
-                                            <span class="text-[9px] font-black px-1.5 py-0.2 rounded bg-white text-[#59443F] border border-[#E8C7C5]/50 uppercase tracking-wider">
+                                            <span class="text-[9px] font-black px-1.5 py-0.5 rounded bg-white text-[#59443F] border border-[#E8C7C5]/50 uppercase tracking-wider shrink-0">
                                                 High Priority
                                             </span>
                                         </div>
                                         <p class="text-xs text-[#8B7168] mt-1 leading-snug">
-                                             <strong class="text-[#59443F]">3 students</strong> have unencoded prerequisite grades preventing semester course completion &amp; enlistment validation.
+                                            <strong class="text-[#59443F]"><?php echo (int)$missing_prereq_grades_count; ?> <?php echo $missing_prereq_grades_count === 1 ? 'student' : 'students'; ?></strong> <?php echo $missing_prereq_grades_count === 1 ? 'has' : 'have'; ?> unencoded prerequisite grades preventing semester course completion &amp; enlistment validation.
                                         </p>
-                                        <div class="mt-2.5 flex items-center justify-between">
-                                            <span class="text-[10px] text-[#8B7168] font-medium">Philosophy Department</span>
-                                            <a href="modules/afms_grades.php" class="inline-flex items-center gap-1 text-xs font-bold text-white bg-[#59443F] hover:bg-[#8B7168] px-3 py-1 rounded-xl shadow-soft transition">
-                                                Resolve Grades <i class="fa-solid fa-arrow-right text-[9px]"></i>
+                                        <div class="mt-3 flex flex-col min-[576px]:flex-row min-[576px]:items-center min-[576px]:justify-between gap-2.5">
+                                            <span class="text-[10px] text-[#8B7168] font-medium">AY <?php echo htmlspecialchars($academic_year_label); ?> &bull; <?php echo htmlspecialchars($active_semester); ?> Sem</span>
+                                            <a href="<?php echo htmlspecialchars($resolve_grades_url); ?>" class="w-full min-[576px]:w-auto inline-flex items-center justify-center gap-1.5 text-xs font-bold text-white bg-[#59443F] hover:bg-[#8B7168] px-3.5 py-2 min-[576px]:py-1.5 rounded-xl shadow-soft transition">
+                                                Resolve Grades <i class="fa-solid fa-arrow-right text-[9px]" aria-hidden="true"></i>
                                             </a>
                                         </div>
                                     </div>
                                 </div>
                             </div>
+                            <?php $alert_delay_ms += 50; } ?>
 
+                            <?php if ($pending_enrollments > 0) { ?>
                             <!-- Alert Item 2: Pending Admission Review -->
-                            <div class="p-4 rounded-2xl bg-[#F8EEEE]/60 border border-[#E8C7C5]/50 hover:bg-[#F8EEEE] transition">
+                            <div class="alert-action-card dash-reveal p-4 rounded-2xl bg-[#F8EEEE]/60 border border-[#E8C7C5]/50 hover:bg-[#F8EEEE]" style="--reveal-delay: <?php echo (int)$alert_delay_ms; ?>ms;">
                                 <div class="flex items-start gap-3">
                                     <div class="w-8 h-8 rounded-xl bg-[#E8C7C5] text-[#59443F] flex items-center justify-center shrink-0 mt-0.5">
-                                        <i class="fa-solid fa-user-clock text-xs"></i>
+                                        <i class="fa-solid fa-user-clock text-xs" aria-hidden="true"></i>
                                     </div>
                                     <div class="flex-1 min-w-0">
-                                        <div class="flex items-center justify-between gap-2">
+                                        <div class="flex flex-wrap items-center justify-between gap-2">
                                             <h3 class="text-xs font-bold text-[#59443F]">Pending Admission Review</h3>
-                                            <span class="text-[9px] font-black px-1.5 py-0.2 rounded bg-white text-[#59443F] border border-[#E8C7C5]/50 uppercase tracking-wider">
+                                            <span class="text-[9px] font-black px-1.5 py-0.5 rounded bg-white text-[#59443F] border border-[#E8C7C5]/50 uppercase tracking-wider shrink-0">
                                                 Attention
                                             </span>
                                         </div>
                                         <p class="text-xs text-[#8B7168] mt-1 leading-snug">
-                                            <strong class="text-[#59443F]"><?php echo max(1, $pending_enrollments); ?> pending applicant</strong> profile awaiting registrar document validation &amp; enrollment approval.
+                                            <strong class="text-[#59443F]"><?php echo (int)$pending_enrollments; ?> pending <?php echo $pending_enrollments === 1 ? 'applicant' : 'applicants'; ?></strong> awaiting registrar document validation &amp; enrollment approval.
                                         </p>
-                                        <div class="mt-2.5 flex items-center justify-between">
+                                        <div class="mt-3 flex flex-col min-[576px]:flex-row min-[576px]:items-center min-[576px]:justify-between gap-2.5">
                                             <span class="text-[10px] text-[#8B7168] font-medium">AY <?php echo htmlspecialchars($academic_year_label); ?></span>
-                                            <a href="modules/applicants.php?filter=pending" class="inline-flex items-center gap-1 text-xs font-bold text-[#59443F] bg-[#E8C7C5] hover:bg-[#D6A6A6] px-3 py-1 rounded-xl transition border border-[#D6A6A6]/60">
-                                                Review Admission <i class="fa-solid fa-arrow-right text-[9px]"></i>
+                                            <a href="<?php echo htmlspecialchars($review_admission_url); ?>" class="w-full min-[576px]:w-auto inline-flex items-center justify-center gap-1.5 text-xs font-bold text-[#59443F] bg-[#E8C7C5] hover:bg-[#D6A6A6] px-3.5 py-2 min-[576px]:py-1.5 rounded-xl transition border border-[#D6A6A6]/60">
+                                                Review Admission <i class="fa-solid fa-arrow-right text-[9px]" aria-hidden="true"></i>
                                             </a>
                                         </div>
                                     </div>
                                 </div>
                             </div>
+                            <?php } ?>
                         </div>
                     </div>
 
