@@ -9,8 +9,14 @@ require_once __DIR__ . '/../includes/eval_ui_helpers.php';
 $role = (string)($_SESSION['role'] ?? '');
 $is_registrar = $role === 'Registrar';
 
-$seminarian_id = isset($_GET['seminarian_id']) ? (int)$_GET['seminarian_id'] : 0;
+$seminarian_id = 0;
+if (isset($_GET['seminarian_id']) && $_GET['seminarian_id'] !== '') {
+    $seminarian_id = (int)$_GET['seminarian_id'];
+} elseif (isset($_GET['id']) && $_GET['id'] !== '') {
+    $seminarian_id = (int)$_GET['id'];
+}
 if ($seminarian_id <= 0) {
+    $_SESSION['flash_error'] = 'Invalid or missing seminarian ID.';
     header('Location: applicants.php');
     exit;
 }
@@ -282,6 +288,7 @@ $stmt->bind_param('i', $seminarian_id);
 $stmt->execute();
 $profile = $stmt->get_result()->fetch_assoc();
 if (!$profile) {
+    $_SESSION['flash_error'] = 'Seminarian profile not found.';
     header('Location: applicants.php');
     exit;
 }
@@ -833,21 +840,21 @@ if (!function_exists('get_seminarian_enrollment_tree')) {
         // Query enrollments with grades joined
         $sql1 = "SELECT 
                     es.id as enrollment_id,
-                    es.student_id,
-                    es.subject_id,
-                    es.academic_year,
-                    es.semester,
-                    COALESCE(es.program, cv.program, s_info.program, 'Bachelor of Arts in Philosophy') as raw_program,
-                    COALESCE(es.year_level, cs.year_level, s_info.year_level, 'First Year') as raw_year_level,
-                    es.status as enrollment_status,
-                    s.subject_code,
-                    s.subject_name,
-                    s.units,
-                    sg.grade_id,
-                    sg.final_grade,
-                    sg.final_computed_grade,
-                    sg.status as grade_status,
-                    sg.remarks
+                    MAX(es.student_id) as student_id,
+                    MAX(es.subject_id) as subject_id,
+                    MAX(es.academic_year) as academic_year,
+                    MAX(es.semester) as semester,
+                    COALESCE(MAX(es.program), MAX(cv.program), MAX(s_info.program), 'Bachelor of Arts in Philosophy') as raw_program,
+                    COALESCE(MAX(es.year_level), MAX(cs.year_level), MAX(s_info.year_level), 'First Year') as raw_year_level,
+                    MAX(es.status) as enrollment_status,
+                    MAX(s.subject_code) as subject_code,
+                    MAX(s.subject_name) as subject_name,
+                    MAX(s.units) as units,
+                    MAX(sg.grade_id) as grade_id,
+                    MAX(sg.final_grade) as final_grade,
+                    MAX(sg.final_computed_grade) as final_computed_grade,
+                    MAX(sg.status) as grade_status,
+                    MAX(sg.remarks) as remarks
                 FROM student_enrolled_subjects es
                 JOIN subjects s ON s.subject_id = es.subject_id
                 JOIN seminarians s_info ON s_info.id = es.student_id
@@ -863,21 +870,21 @@ if (!function_exists('get_seminarian_enrollment_tree')) {
         // Query historical/standalone grades without enrollment rows
         $sql2 = "SELECT 
                     NULL as enrollment_id,
-                    sg.student_id,
-                    sg.subject_id,
-                    sg.academic_year,
-                    sg.semester,
-                    COALESCE(cv.program, s_info.program, 'Bachelor of Arts in Philosophy') as raw_program,
-                    COALESCE(cs.year_level, s_info.year_level, 'First Year') as raw_year_level,
-                    COALESCE(sg.status, 'Completed') as enrollment_status,
-                    s.subject_code,
-                    s.subject_name,
-                    s.units,
+                    MAX(sg.student_id) as student_id,
+                    MAX(sg.subject_id) as subject_id,
+                    MAX(sg.academic_year) as academic_year,
+                    MAX(sg.semester) as semester,
+                    COALESCE(MAX(cv.program), MAX(s_info.program), 'Bachelor of Arts in Philosophy') as raw_program,
+                    COALESCE(MAX(cs.year_level), MAX(s_info.year_level), 'First Year') as raw_year_level,
+                    COALESCE(MAX(sg.status), 'Completed') as enrollment_status,
+                    MAX(s.subject_code) as subject_code,
+                    MAX(s.subject_name) as subject_name,
+                    MAX(s.units) as units,
                     sg.grade_id,
-                    sg.final_grade,
-                    sg.final_computed_grade,
-                    sg.status as grade_status,
-                    sg.remarks
+                    MAX(sg.final_grade) as final_grade,
+                    MAX(sg.final_computed_grade) as final_computed_grade,
+                    MAX(sg.status) as grade_status,
+                    MAX(sg.remarks) as remarks
                 FROM student_grades sg
                 JOIN subjects s ON s.subject_id = sg.subject_id
                 JOIN seminarians s_info ON s_info.id = sg.student_id
