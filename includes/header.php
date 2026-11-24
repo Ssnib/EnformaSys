@@ -50,14 +50,46 @@ if (!isset($academic_year_label) || $academic_year_label === '') {
     }
 }
 
-// Global Filter Variables: Capture GET parameters with fallback to active term
-$selected_header_ay = isset($_GET['academic_year']) && trim((string)$_GET['academic_year']) !== ''
+// Global Filter Variables: Capture GET parameters with fallback to page filter and active DB term
+$selected_header_ay = isset($_GET['academic_year']) && trim((string)$_GET['academic_year']) !== '' && trim((string)$_GET['academic_year']) !== 'all'
     ? trim((string)$_GET['academic_year'])
-    : (isset($filter_ay) && $filter_ay !== '' ? $filter_ay : (isset($academic_year_label) && $academic_year_label !== '' ? $academic_year_label : (function_exists('get_active_academic_year') ? get_active_academic_year() : (function_exists('get_current_academic_year') ? get_current_academic_year() : '2026-2027'))));
+    : (isset($filter_ay) && $filter_ay !== '' && $filter_ay !== 'all'
+        ? (string)$filter_ay
+        : (isset($filter_academic_year) && $filter_academic_year !== '' && $filter_academic_year !== 'all'
+            ? (string)$filter_academic_year
+            : (isset($academic_year_label) && $academic_year_label !== ''
+                ? (string)$academic_year_label
+                : (function_exists('get_active_academic_year') ? get_active_academic_year() : (function_exists('get_current_academic_year') ? get_current_academic_year() : '2026-2027')))));
 
-$selected_header_sem = isset($_GET['semester']) && in_array(trim((string)$_GET['semester']), ['1st', '2nd', 'Summer'], true)
-    ? trim((string)$_GET['semester'])
-    : (isset($filter_sem) && in_array($filter_sem, ['1st', '2nd', 'Summer'], true) ? $filter_sem : (function_exists('get_active_semester') ? get_active_semester() : '1st'));
+$__normSem = static function (?string $v): string {
+    if (function_exists('enformasys_normalize_semester')) {
+        return enformasys_normalize_semester($v);
+    }
+    $s = strtolower(trim((string)($v ?? '')));
+    if (strpos($s, '2nd') !== false || strpos($s, 'second') !== false || $s === '2') return '2nd';
+    if (strpos($s, 'summer') !== false) return 'Summer';
+    if (strpos($s, '1st') !== false || strpos($s, 'first') !== false || $s === '1') return '1st';
+    return '';
+};
+$selected_header_sem = '';
+foreach ([
+    $_GET['semester'] ?? null,
+    $filter_sem ?? null,
+    $filter_semester ?? null,
+    function_exists('get_active_semester') ? get_active_semester() : '1st',
+] as $__candSem) {
+    if ($__candSem === null) {
+        continue;
+    }
+    $__n = $__normSem((string)$__candSem);
+    if (in_array($__n, ['1st', '2nd', 'Summer'], true)) {
+        $selected_header_sem = $__n;
+        break;
+    }
+}
+if ($selected_header_sem === '') {
+    $selected_header_sem = '1st';
+}
 
 // Populate Academic Year options (cached in $_SESSION via get_all_academic_years)
 $header_ay_list = [];

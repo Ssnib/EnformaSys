@@ -16,8 +16,10 @@ if ($student_id <= 0) {
 $current_ay = get_current_academic_year();
 $filter_academic_year = isset($_GET['academic_year']) ? trim((string)$_GET['academic_year']) : '';
 if ($filter_academic_year === '') $filter_academic_year = $current_ay;
-$filter_semester = isset($_GET['semester']) ? trim((string)$_GET['semester']) : '';
-if (!in_array($filter_semester, ['1st','2nd','Summer'], true)) $filter_semester = '1st';
+$filter_semester = isset($_GET['semester']) ? enformasys_normalize_semester((string)$_GET['semester']) : '';
+if (!in_array($filter_semester, ['1st','2nd','Summer'], true)) {
+    $filter_semester = function_exists('get_active_semester') ? get_active_semester() : '1st';
+}
 
 $stmt_profile = $conn->prepare("SELECT s.id as student_id, s.year_level, s.formation_stage, s.academic_status, s.enrollment_status, s.academic_remarks, s.profile_picture, s.last_profile_update,
         u.username, up.full_name

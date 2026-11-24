@@ -11,7 +11,7 @@ if (!in_array($current_ay, $ay_options, true)) {
 
 $filter_student_id = (int)($_GET['student_id'] ?? 0);
 $filter_ay = trim((string)($_GET['academic_year'] ?? ''));
-$filter_semester = trim((string)($_GET['semester'] ?? ''));
+$filter_semester = isset($_GET['semester']) ? enformasys_normalize_semester((string)$_GET['semester']) : '';
 $filter_program = trim((string)($_GET['program'] ?? ''));
 $filter_year_level = trim((string)($_GET['year_level'] ?? ''));
 

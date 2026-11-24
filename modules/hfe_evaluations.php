@@ -11,7 +11,7 @@ $show_archived = isset($_GET['archived']) && $_GET['archived'] === '1';
 $current_ay = get_current_academic_year();
 $filter_academic_year = isset($_GET['academic_year']) ? trim((string)$_GET['academic_year']) : '';
 if ($filter_academic_year === '') $filter_academic_year = $current_ay;
-$filter_semester = isset($_GET['semester']) ? trim((string)$_GET['semester']) : '';
+$filter_semester = isset($_GET['semester']) ? enformasys_normalize_semester((string)$_GET['semester']) : '';
 if (!in_array($filter_semester, ['1st','2nd','Summer'], true)) $filter_semester = hfe_get_default_semester();
 
 $year_level_options = eval_year_level_filter_options();

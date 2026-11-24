@@ -12,11 +12,15 @@ if (!in_array($current_ay, $ay_options, true)) {
 
 $preselected_seminarian = (int)($_GET['seminarian_id'] ?? $_GET['student_id'] ?? 0);
 $preselected_ay = trim((string)($_GET['academic_year'] ?? ''));
-$preselected_sem = trim((string)($_GET['semester'] ?? ''));
+$preselected_sem = enformasys_normalize_semester((string)($_GET['semester'] ?? ''));
 if ($preselected_ay !== '' && in_array($preselected_ay, $ay_options, true)) {
     $current_ay = $preselected_ay;
 }
-$current_sem = in_array($preselected_sem, ['1st', '2nd'], true) ? $preselected_sem : '1st';
+$active_sem_default = function_exists('get_active_semester') ? enformasys_normalize_semester(get_active_semester()) : '1st';
+if (!in_array($active_sem_default, ['1st', '2nd'], true)) {
+    $active_sem_default = '1st';
+}
+$current_sem = in_array($preselected_sem, ['1st', '2nd'], true) ? $preselected_sem : $active_sem_default;
 
 $students = [];
 $res_students = $conn->query(
@@ -258,12 +262,12 @@ if (isset($_POST['record_payment'])) {
 }
 
 $filter_ay = trim((string)($_GET['academic_year'] ?? ''));
-$filter_sem = trim((string)($_GET['semester'] ?? ''));
+$filter_sem = enformasys_normalize_semester((string)($_GET['semester'] ?? ''));
 if ($filter_ay === '' || !in_array($filter_ay, $ay_options, true)) {
     $filter_ay = $current_ay;
 }
 if (!in_array($filter_sem, ['1st', '2nd'], true)) {
-    $filter_sem = '1st';
+    $filter_sem = $active_sem_default;
 }
 
 $payments = [];

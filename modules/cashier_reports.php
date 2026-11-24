@@ -22,7 +22,11 @@ if ($ay_extra_res) {
 }
 
 $academic_year = trim((string)($_GET['academic_year'] ?? $current_ay));
-$semester = trim((string)($_GET['semester'] ?? '1st'));
+$active_sem_default = function_exists('get_active_semester') ? enformasys_normalize_semester(get_active_semester()) : '1st';
+if (!in_array($active_sem_default, ['1st', '2nd'], true)) {
+    $active_sem_default = '1st';
+}
+$semester = isset($_GET['semester']) ? enformasys_normalize_semester((string)$_GET['semester']) : $active_sem_default;
 $from = trim((string)($_GET['from'] ?? ''));
 $to = trim((string)($_GET['to'] ?? ''));
 
@@ -30,7 +34,7 @@ if (!in_array($academic_year, $ay_options, true)) {
     $academic_year = $current_ay;
 }
 if (!in_array($semester, ['1st', '2nd'], true)) {
-    $semester = '1st';
+    $semester = $active_sem_default;
 }
 if ($from !== '' && !preg_match('/^\d{4}-\d{2}-\d{2}$/', $from)) {
     $from = '';

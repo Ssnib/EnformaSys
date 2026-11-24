@@ -10,10 +10,45 @@ declare(strict_types=1);
 
 require_once __DIR__ . '/url.php';
 
+if (!function_exists('ensure_seminarian_profile_picture_column')) {
+    /**
+     * Ensures seminarians.profile_picture exists and uses MEDIUMTEXT so
+     * compact data:image/...;base64,... URIs store safely on read-only serverless hosts.
+     */
+    function ensure_seminarian_profile_picture_column(mysqli $conn): void
+    {
+        static $verified = false;
+        if ($verified) {
+            return;
+        }
+        $verified = true;
+
+        $col_res = @$conn->query(
+            "SELECT COLUMN_NAME, DATA_TYPE FROM INFORMATION_SCHEMA.COLUMNS
+             WHERE TABLE_SCHEMA = DATABASE()
+               AND TABLE_NAME = 'seminarians'
+               AND COLUMN_NAME = 'profile_picture'
+             LIMIT 1"
+        );
+        if (!$col_res) {
+            return;
+        }
+        $row = $col_res->fetch_assoc();
+        if (!$row) {
+            @$conn->query("ALTER TABLE `seminarians` ADD COLUMN `profile_picture` MEDIUMTEXT NULL");
+            return;
+        }
+        $dtype = strtolower(trim((string)($row['DATA_TYPE'] ?? '')));
+        if (!in_array($dtype, ['mediumtext', 'longtext', 'text'], true)) {
+            @$conn->query("ALTER TABLE `seminarians` MODIFY COLUMN `profile_picture` MEDIUMTEXT NULL");
+        }
+    }
+}
+
 if (!function_exists('ensure_seminarian_profile_schema')) {
     /**
      * Idempotently verifies and adds profile_picture and last_profile_update columns
-     * to the seminarians table, and initializes the uploads directory.
+     * to the seminarians table, and initializes the uploads directory on writable hosts.
      */
     function ensure_seminarian_profile_schema(mysqli $conn): void
     {
@@ -23,52 +58,62 @@ if (!function_exists('ensure_seminarian_profile_schema')) {
         }
         $checked = true;
 
-        // Check columns in seminarians table
+        ensure_seminarian_profile_picture_column($conn);
+
         $cols_res = @$conn->query(
             "SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS 
              WHERE TABLE_SCHEMA = DATABASE() 
                AND TABLE_NAME = 'seminarians' 
-               AND COLUMN_NAME IN ('profile_picture', 'last_profile_update')"
+               AND COLUMN_NAME = 'last_profile_update'"
         );
-        $existing_cols = [];
-        if ($cols_res) {
-            while ($row = $cols_res->fetch_assoc()) {
-                $existing_cols[] = strtolower((string)$row['COLUMN_NAME']);
-            }
-        }
-
-        if (!in_array('profile_picture', $existing_cols, true)) {
-            @$conn->query("ALTER TABLE `seminarians` ADD COLUMN `profile_picture` VARCHAR(255) NULL");
-        }
-
-        if (!in_array('last_profile_update', $existing_cols, true)) {
+        if ($cols_res && $cols_res->num_rows === 0) {
             @$conn->query("ALTER TABLE `seminarians` ADD COLUMN `last_profile_update` DATETIME NULL");
         }
 
-        // Initialize secure uploads directory
-        $upload_dir = __DIR__ . '/../uploads/profile_pictures';
-        if (!is_dir($upload_dir)) {
-            @mkdir($upload_dir, 0755, true);
-        }
-        $index_file = $upload_dir . '/index.html';
-        if (!file_exists($index_file)) {
-            @file_put_contents($index_file, '<!DOCTYPE html><html><head><title>403 Forbidden</title></head><body><h1>Directory access is forbidden.</h1></body></html>');
+        // Initialize secure uploads directory only when filesystem is writable
+        $is_vercel = (getenv('VERCEL') !== false && getenv('VERCEL') !== '')
+            || (getenv('VERCEL_ENV') !== false && getenv('VERCEL_ENV') !== '')
+            || !empty($_ENV['VERCEL'])
+            || !empty($_SERVER['VERCEL']);
+        if (!$is_vercel) {
+            $upload_dir = __DIR__ . '/../uploads/profile_pictures';
+            if (!is_dir($upload_dir)) {
+                @mkdir($upload_dir, 0755, true);
+            }
+            if (is_dir($upload_dir) && is_writable($upload_dir)) {
+                $index_file = $upload_dir . '/index.html';
+                if (!file_exists($index_file)) {
+                    @file_put_contents($index_file, '<!DOCTYPE html><html><head><title>403 Forbidden</title></head><body><h1>Directory access is forbidden.</h1></body></html>');
+                }
+            }
         }
     }
 }
 
 if (!function_exists('get_seminarian_avatar_url')) {
     /**
-     * Resolve a web-accessible URL for a seminarian profile picture.
-     * Returns null if no picture is set or if the file does not exist on disk.
+     * Resolve a web-accessible URL (or safe base64 data URI) for a seminarian profile picture.
+     * Returns null if no picture is set or if a local file does not exist on disk.
      */
     function get_seminarian_avatar_url(?string $profile_picture): ?string
     {
-        if ($profile_picture === null || trim($profile_picture) === '') {
+        if ($profile_picture === null) {
+            return null;
+        }
+        $trimmed = trim($profile_picture);
+        if ($trimmed === '') {
             return null;
         }
 
-        $clean_rel = ltrim(trim($profile_picture), '/\\');
+        if (preg_match('#^data:image/(jpeg|jpg|png|webp|gif);base64,[A-Za-z0-9+/=\r\n]+$#i', $trimmed)) {
+            return preg_replace('/\s+/', '', $trimmed);
+        }
+
+        if (preg_match('#^https?://#i', $trimmed)) {
+            return $trimmed;
+        }
+
+        $clean_rel = ltrim($trimmed, '/\\');
         $full_path = __DIR__ . '/../' . $clean_rel;
 
         if (is_file($full_path) && is_readable($full_path)) {
@@ -176,25 +221,122 @@ if (!function_exists('get_seminarian_cooldown_status')) {
     }
 }
 
+if (!function_exists('enformasys_encode_avatar_data_uri')) {
+    /**
+     * Resizes and compresses a validated avatar image (max 300x300 px) via PHP GD
+     * and returns a data:image/...;base64,... URI. Falls back to raw base64 if GD is unavailable.
+     */
+    function enformasys_encode_avatar_data_uri(string $tmp_path, string $mime): ?string
+    {
+        if (!is_file($tmp_path) || !is_readable($tmp_path)) {
+            return null;
+        }
+
+        if (extension_loaded('gd')) {
+            $src = null;
+            if ($mime === 'image/jpeg' && function_exists('imagecreatefromjpeg')) {
+                $src = @imagecreatefromjpeg($tmp_path);
+                if ($src && function_exists('exif_read_data')) {
+                    $exif = @exif_read_data($tmp_path);
+                    $orientation = (int)($exif['Orientation'] ?? 1);
+                    if ($orientation === 3 && function_exists('imagerotate')) {
+                        $rot = @imagerotate($src, 180, 0);
+                        if ($rot) $src = $rot;
+                    } elseif ($orientation === 6 && function_exists('imagerotate')) {
+                        $rot = @imagerotate($src, -90, 0);
+                        if ($rot) $src = $rot;
+                    } elseif ($orientation === 8 && function_exists('imagerotate')) {
+                        $rot = @imagerotate($src, 90, 0);
+                        if ($rot) $src = $rot;
+                    }
+                }
+            } elseif ($mime === 'image/png' && function_exists('imagecreatefrompng')) {
+                $src = @imagecreatefrompng($tmp_path);
+            } elseif ($mime === 'image/webp' && function_exists('imagecreatefromwebp')) {
+                $src = @imagecreatefromwebp($tmp_path);
+            }
+
+            if ($src) {
+                $w = @imagesx($src);
+                $h = @imagesy($src);
+                if ($w > 0 && $h > 0) {
+                    $max_dim = 300;
+                    if ($w > $max_dim || $h > $max_dim) {
+                        $scale = $max_dim / max($w, $h);
+                        $nw = max(1, (int)round($w * $scale));
+                        $nh = max(1, (int)round($h * $scale));
+                    } else {
+                        $nw = $w;
+                        $nh = $h;
+                    }
+
+                    $dst = @imagecreatetruecolor($nw, $nh);
+                    if ($dst) {
+                        $use_webp = function_exists('imagewebp');
+                        if ($use_webp) {
+                            @imagealphablending($dst, false);
+                            @imagesavealpha($dst, true);
+                            $transparent = @imagecolorallocatealpha($dst, 255, 255, 255, 127);
+                            if ($transparent !== false) {
+                                @imagefilledrectangle($dst, 0, 0, $nw, $nh, $transparent);
+                            }
+                        } else {
+                            $white = @imagecolorallocate($dst, 255, 255, 255);
+                            if ($white !== false) {
+                                @imagefilledrectangle($dst, 0, 0, $nw, $nh, $white);
+                            }
+                        }
+                        @imagecopyresampled($dst, $src, 0, 0, 0, 0, $nw, $nh, $w, $h);
+
+                        ob_start();
+                        $ok = false;
+                        $out_mime = 'image/jpeg';
+                        if ($use_webp) {
+                            $ok = @imagewebp($dst, null, 82);
+                            $out_mime = 'image/webp';
+                        } elseif (function_exists('imagejpeg')) {
+                            $ok = @imagejpeg($dst, null, 85);
+                            $out_mime = 'image/jpeg';
+                        }
+                        $bytes = ob_get_clean();
+                        unset($dst, $src);
+
+                        if ($ok && is_string($bytes) && $bytes !== '') {
+                            return 'data:' . $out_mime . ';base64,' . base64_encode($bytes);
+                        }
+                    }
+                }
+                unset($src);
+            }
+        }
+
+        $raw = @file_get_contents($tmp_path);
+        if (!is_string($raw) || $raw === '') {
+            return null;
+        }
+        return 'data:' . $mime . ';base64,' . base64_encode($raw);
+    }
+}
+
 if (!function_exists('save_seminarian_profile_picture')) {
     /**
      * Validates and saves an uploaded avatar image for a seminarian.
-     * Enforces file size limits, MIME type inspection, image dimension checks,
-     * secure unique naming, and cleanup of old picture files.
+     * Enforces file size limits, MIME type inspection, and image dimension checks.
+     * On Vercel or read-only filesystems, compresses via GD and returns a compact data URI.
      *
      * @param int $seminarian_id
      * @param array $file Typically $_FILES['profile_picture']
-     * @param string|null $old_picture Existing database path
+     * @param string|null $old_picture Existing database value
+     * @param mysqli|null $conn Optional DB connection to ensure MEDIUMTEXT storage
      * @return array{success: bool, path: ?string, error: ?string}
      */
-    function save_seminarian_profile_picture(int $seminarian_id, array $file, ?string $old_picture = null): array
+    function save_seminarian_profile_picture(int $seminarian_id, array $file, ?string $old_picture = null, ?mysqli $conn = null): array
     {
         if (!isset($file['error']) || is_array($file['error'])) {
             return ['success' => false, 'path' => null, 'error' => 'Invalid file upload parameter.'];
         }
 
         if ($file['error'] === UPLOAD_ERR_NO_FILE) {
-            // No file uploaded is acceptable (user may be editing profile details without changing photo)
             return ['success' => true, 'path' => null, 'error' => null];
         }
 
@@ -211,23 +353,22 @@ if (!function_exists('save_seminarian_profile_picture')) {
             return ['success' => false, 'path' => null, 'error' => $err_msg];
         }
 
-        // Limit file size to 2MB
         $max_size = 2 * 1024 * 1024;
         if ((int)$file['size'] > $max_size) {
             return ['success' => false, 'path' => null, 'error' => 'File size exceeds the 2MB limit. Please upload a smaller image.'];
         }
 
-        // Validate extension
         $raw_ext = strtolower(pathinfo((string)$file['name'], PATHINFO_EXTENSION));
         $allowed_exts = ['jpg', 'jpeg', 'png', 'webp'];
         if (!in_array($raw_ext, $allowed_exts, true)) {
             return ['success' => false, 'path' => null, 'error' => 'Invalid file format. Only JPG, PNG, and WebP images are allowed.'];
         }
 
-        // Validate MIME type via finfo
         $finfo = finfo_open(FILEINFO_MIME_TYPE);
-        $mime = finfo_file($finfo, (string)$file['tmp_name']);
-        finfo_close($finfo);
+        $mime = $finfo ? (string)finfo_file($finfo, (string)$file['tmp_name']) : '';
+        if ($finfo) {
+            finfo_close($finfo);
+        }
 
         $allowed_mimes = [
             'image/jpeg' => 'jpg',
@@ -236,51 +377,65 @@ if (!function_exists('save_seminarian_profile_picture')) {
         ];
 
         if (!isset($allowed_mimes[$mime])) {
-            return ['success' => false, 'path' => null, 'error' => 'Invalid image content type (' . htmlspecialchars((string)$mime) . '). Only valid JPG, PNG, and WebP images are accepted.'];
+            return ['success' => false, 'path' => null, 'error' => 'Invalid image content type (' . htmlspecialchars($mime) . '). Only valid JPG, PNG, and WebP images are accepted.'];
         }
 
         $canonical_ext = $allowed_mimes[$mime];
 
-        // Validate image dimensions to ensure file is an authentic image
         $dimensions = @getimagesize((string)$file['tmp_name']);
         if ($dimensions === false || $dimensions[0] <= 0 || $dimensions[1] <= 0) {
             return ['success' => false, 'path' => null, 'error' => 'Corrupt or unreadable image file.'];
         }
 
-        // Target directory
+        $is_vercel = (getenv('VERCEL') !== false && getenv('VERCEL') !== '')
+            || (getenv('VERCEL_ENV') !== false && getenv('VERCEL_ENV') !== '')
+            || !empty($_ENV['VERCEL'])
+            || !empty($_SERVER['VERCEL'])
+            || !empty($_ENV['VERCEL_ENV'])
+            || !empty($_SERVER['VERCEL_ENV']);
+
         $target_dir = __DIR__ . '/../uploads/profile_pictures/';
-        if (!is_dir($target_dir)) {
-            if (!@mkdir($target_dir, 0755, true)) {
-                return ['success' => false, 'path' => null, 'error' => 'Unable to create profile pictures storage directory.'];
+        $saved_rel_path = null;
+
+        if (!$is_vercel) {
+            if (!is_dir($target_dir)) {
+                @mkdir($target_dir, 0755, true);
+            }
+            if (is_dir($target_dir) && is_writable($target_dir)) {
+                $unique_name = sprintf(
+                    'seminarian_%d_%d_%s.%s',
+                    $seminarian_id,
+                    time(),
+                    bin2hex(random_bytes(4)),
+                    $canonical_ext
+                );
+                $dest_path = $target_dir . $unique_name;
+                $moved = is_uploaded_file((string)$file['tmp_name'])
+                    ? @move_uploaded_file((string)$file['tmp_name'], $dest_path)
+                    : (@copy((string)$file['tmp_name'], $dest_path) && @unlink((string)$file['tmp_name']));
+
+                if ($moved && is_file($dest_path)) {
+                    @chmod($dest_path, 0644);
+                    $saved_rel_path = 'uploads/profile_pictures/' . $unique_name;
+                }
             }
         }
 
-        // Generate clean, collision-free filename
-        $unique_name = sprintf(
-            'seminarian_%d_%d_%s.%s',
-            $seminarian_id,
-            time(),
-            bin2hex(random_bytes(4)),
-            $canonical_ext
-        );
-        $dest_path = $target_dir . $unique_name;
-
-        $moved = is_uploaded_file((string)$file['tmp_name'])
-            ? move_uploaded_file((string)$file['tmp_name'], $dest_path)
-            : (@copy((string)$file['tmp_name'], $dest_path) && @unlink((string)$file['tmp_name']));
-
-        if (!$moved) {
-            return ['success' => false, 'path' => null, 'error' => 'Failed to save uploaded image to destination folder.'];
+        if ($saved_rel_path === null) {
+            $data_uri = enformasys_encode_avatar_data_uri((string)$file['tmp_name'], $mime);
+            if ($data_uri === null) {
+                return ['success' => false, 'path' => null, 'error' => 'Failed to process uploaded image.'];
+            }
+            if ($conn instanceof mysqli) {
+                ensure_seminarian_profile_picture_column($conn);
+            }
+            $saved_rel_path = $data_uri;
         }
 
-        @chmod($dest_path, 0644);
-
-        $rel_path = 'uploads/profile_pictures/' . $unique_name;
-
-        // Clean up previous picture if it exists within the profile pictures folder
+        // Clean up previous local file picture if it exists inside writable uploads/profile_pictures
         if (!empty($old_picture)) {
             $old_clean = ltrim(trim($old_picture), '/\\');
-            if (strpos($old_clean, 'uploads/profile_pictures/') === 0) {
+            if (strpos($old_clean, 'uploads/profile_pictures/') === 0 && is_dir($target_dir) && is_writable($target_dir)) {
                 $old_full = realpath(__DIR__ . '/../' . $old_clean);
                 $allowed_dir = realpath($target_dir);
                 if ($old_full && $allowed_dir && strpos($old_full, $allowed_dir) === 0 && is_file($old_full)) {
@@ -289,6 +444,6 @@ if (!function_exists('save_seminarian_profile_picture')) {
             }
         }
 
-        return ['success' => true, 'path' => $rel_path, 'error' => null];
+        return ['success' => true, 'path' => $saved_rel_path, 'error' => null];
     }
 }

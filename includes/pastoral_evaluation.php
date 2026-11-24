@@ -1,11 +1,12 @@
 <?php
 function pfe_get_default_semester(): string {
-    $m = (int)date('n');
-    if ($m >= 11 || $m <= 3) {
-        return '2nd';
-    }
-    if ($m >= 4 && $m <= 5) {
-        return 'Summer';
+    if (function_exists('get_active_semester')) {
+        $active = function_exists('enformasys_normalize_semester')
+            ? enformasys_normalize_semester((string)get_active_semester())
+            : trim((string)get_active_semester());
+        if (in_array($active, ['1st', '2nd', 'Summer'], true)) {
+            return $active;
+        }
     }
     return '1st';
 }

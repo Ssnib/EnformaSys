@@ -51,21 +51,25 @@ if (!in_array($current_ay, $ay_options, true)) {
     array_unshift($ay_options, $current_ay);
 }
 
-// Resolve active term (Academic Year & Semester) from latest enrollment when available
-$active_ay = $current_ay;
-$active_sem = '1st';
+// Resolve active term (Academic Year & Semester) from session/DB default, then unlocked enrollment
+$active_ay = get_current_academic_year();
+$active_sem = function_exists('get_active_semester') ? enformasys_normalize_semester(get_active_semester()) : '1st';
+if (!in_array($active_sem, ['1st', '2nd'], true)) {
+    $active_sem = '1st';
+}
 if ($seminarian_id > 0) {
-    $stmt_enr = $conn->prepare("SELECT academic_year, semester FROM enrollments WHERE student_id = ? AND academic_year = ? ORDER BY is_locked ASC, FIELD(semester, '2nd', '1st') ASC, id DESC LIMIT 1");
+    $stmt_enr = $conn->prepare("SELECT academic_year, semester FROM enrollments WHERE student_id = ? AND academic_year = ? ORDER BY is_locked ASC, (semester = ?) DESC, FIELD(semester, '1st', '2nd') ASC, id DESC LIMIT 1");
     if ($stmt_enr) {
-        $stmt_enr->bind_param('is', $seminarian_id, $current_ay);
+        $stmt_enr->bind_param('iss', $seminarian_id, $current_ay, $active_sem);
         $stmt_enr->execute();
         $erow = $stmt_enr->get_result()->fetch_assoc();
         if ($erow) {
             if (!empty($erow['academic_year']) && in_array((string)$erow['academic_year'], $ay_options, true)) {
                 $active_ay = (string)$erow['academic_year'];
             }
-            if (in_array((string)($erow['semester'] ?? ''), ['1st', '2nd'], true)) {
-                $active_sem = (string)$erow['semester'];
+            $erow_sem = enformasys_normalize_semester((string)($erow['semester'] ?? ''));
+            if (in_array($erow_sem, ['1st', '2nd'], true)) {
+                $active_sem = $erow_sem;
             }
         }
     }
@@ -75,7 +79,7 @@ $selected_ay = trim((string)($_POST['academic_year'] ?? $_GET['academic_year'] ?
 if (!in_array($selected_ay, $ay_options, true)) {
     $selected_ay = $active_ay;
 }
-$selected_sem = trim((string)($_POST['semester'] ?? $_GET['semester'] ?? $active_sem));
+$selected_sem = enformasys_normalize_semester((string)($_POST['semester'] ?? $_GET['semester'] ?? $active_sem));
 if (!in_array($selected_sem, ['1st', '2nd'], true)) {
     $selected_sem = $active_sem;
 }

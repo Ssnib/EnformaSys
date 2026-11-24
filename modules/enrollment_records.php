@@ -569,7 +569,7 @@ if ($student_id > 0) {
 
 // Roster Mode Filters (when viewing all enrollments across students)
 $filter_ay = isset($_GET['academic_year']) ? trim((string)$_GET['academic_year']) : '';
-$filter_sem = isset($_GET['semester']) ? trim((string)$_GET['semester']) : '';
+$filter_sem = isset($_GET['semester']) ? enformasys_normalize_semester((string)$_GET['semester']) : '';
 $filter_yl = isset($_GET['year_level']) ? trim((string)$_GET['year_level']) : '';
 $filter_q = isset($_GET['q']) ? trim((string)$_GET['q']) : '';
 $roster_page = isset($_GET['page']) ? max(1, (int)$_GET['page']) : 1;

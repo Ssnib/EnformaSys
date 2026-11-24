@@ -72,10 +72,15 @@ if ($academic_year === '') {
 }
 
 // Default semester: '1st', '2nd', or 'all'
-if ($semester === '') {
-    $semester = '1st';
-} elseif (!in_array($semester, ['1st', '2nd', 'all'], true)) {
-    $semester = '1st';
+$active_sem_default = function_exists('get_active_semester') ? enformasys_normalize_semester(get_active_semester()) : '1st';
+if (!in_array($active_sem_default, ['1st', '2nd'], true)) {
+    $active_sem_default = '1st';
+}
+if (strtolower($semester) === 'all') {
+    $semester = 'all';
+} else {
+    $sem_norm = enformasys_normalize_semester($semester);
+    $semester = in_array($sem_norm, ['1st', '2nd'], true) ? $sem_norm : $active_sem_default;
 }
 
 $semester_label = 'First Semester';

@@ -12,6 +12,14 @@ if (!($conn instanceof mysqli)) {
 
 require_once __DIR__ . '/seminarian_assignments.php';
 
+if (
+    isset($_SESSION)
+    && function_exists('enformasys_refresh_ay_cache')
+    && (empty($_SESSION['active_academic_year']) || empty($_SESSION['active_semester']))
+) {
+    enformasys_refresh_ay_cache($conn);
+}
+
 $skip_runtime_schema_sync = !defined('ENFORMASYS_ALLOW_RUNTIME_SCHEMA_SYNC')
     && ($is_vercel_db || $is_prod_db || strtolower(trim((string)enformasys_env('DB_SKIP_SCHEMA_SYNC', 'false'))) === 'true');
 

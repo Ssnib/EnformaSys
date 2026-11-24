@@ -34,8 +34,10 @@ if ($student_id > 0) {
 $current_ay = get_current_academic_year();
 $filter_academic_year = isset($_GET['academic_year']) ? trim((string)$_GET['academic_year']) : '';
 if ($filter_academic_year === '') $filter_academic_year = $current_ay;
-$filter_semester = isset($_GET['semester']) ? trim((string)$_GET['semester']) : '';
-if (!in_array($filter_semester, ['1st','2nd','Summer'], true)) $filter_semester = '1st';
+$filter_semester = isset($_GET['semester']) ? enformasys_normalize_semester((string)$_GET['semester']) : '';
+if (!in_array($filter_semester, ['1st','2nd','Summer'], true)) {
+    $filter_semester = function_exists('get_active_semester') ? get_active_semester() : '1st';
+}
 
 $ay_options = [$current_ay];
 $stmt_ay = $conn->prepare("SELECT DISTINCT academic_year FROM student_grades WHERE student_id = ? AND academic_year IS NOT NULL AND academic_year <> '' ORDER BY academic_year DESC");

@@ -21,7 +21,7 @@ if ($ay_extra_res) {
 }
 
 $academic_year = trim((string)($_GET['academic_year'] ?? ''));
-$semester = trim((string)($_GET['semester'] ?? ''));
+$semester = enformasys_normalize_semester((string)($_GET['semester'] ?? ''));
 $year_level = trim((string)($_GET['year_level'] ?? ''));
 
 if ($academic_year === '') {
@@ -31,7 +31,8 @@ if (!in_array($academic_year, $ay_options, true) && !preg_match('/^\d{4}-\d{4}$/
     $academic_year = $current_ay;
 }
 if (!in_array($semester, ['1st', '2nd'], true)) {
-    $semester = '1st';
+    $active_sem_default = function_exists('get_active_semester') ? enformasys_normalize_semester(get_active_semester()) : '1st';
+    $semester = in_array($active_sem_default, ['1st', '2nd'], true) ? $active_sem_default : '1st';
 }
 
 $allowed_year_levels = [

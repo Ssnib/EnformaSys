@@ -122,16 +122,39 @@ if (!function_exists('require_roles')) {
     }
 }
 
+if (!function_exists('enformasys_normalize_semester')) {
+    /**
+     * Normalizes semester aliases ('1st Semester', 'First Semester', '1st', '1', etc.)
+     * to canonical term tokens ('1st', '2nd', 'Summer') or '' if unrecognized/empty.
+     */
+    function enformasys_normalize_semester(?string $sem): string {
+        $s = strtolower(trim((string)($sem ?? '')));
+        if ($s === '' || $s === 'all') {
+            return '';
+        }
+        if (strpos($s, '2nd') !== false || strpos($s, 'second') !== false || $s === '2') {
+            return '2nd';
+        }
+        if (strpos($s, 'summer') !== false || $s === 'midyear' || $s === '3') {
+            return 'Summer';
+        }
+        if (strpos($s, '1st') !== false || strpos($s, 'first') !== false || $s === '1') {
+            return '1st';
+        }
+        return '';
+    }
+}
+
 // Auto-persist active academic term in session so users don't need to re-select term across modules
 if (isset($_GET['academic_year']) && trim((string)$_GET['academic_year']) !== '') {
     $__ayParam = trim((string)$_GET['academic_year']);
-    if ((string)($_SESSION['active_academic_year'] ?? '') !== $__ayParam) {
+    if ($__ayParam !== 'all' && (string)($_SESSION['active_academic_year'] ?? '') !== $__ayParam) {
         $_SESSION['active_academic_year'] = $__ayParam;
     }
 }
 if (isset($_GET['semester']) && trim((string)$_GET['semester']) !== '') {
-    $__semParam = trim((string)$_GET['semester']);
-    if ((string)($_SESSION['active_semester'] ?? '') !== $__semParam) {
+    $__semParam = enformasys_normalize_semester((string)$_GET['semester']);
+    if ($__semParam !== '' && (string)($_SESSION['active_semester'] ?? '') !== $__semParam) {
         $_SESSION['active_semester'] = $__semParam;
     }
 }
@@ -171,11 +194,86 @@ if (!function_exists('enformasys_invalidate_ay_cache')) {
     function enformasys_invalidate_ay_cache(): void {
         unset(
             $_SESSION['cached_current_ay'],
+            $_SESSION['cached_active_sem'],
             $_SESSION['cached_active_ays'],
             $_SESSION['cached_all_ays'],
             $_SESSION['cached_ay_ts'],
             $_SESSION['cached_dashboard_summary']
         );
+    }
+}
+
+if (!function_exists('enformasys_detect_db_active_semester')) {
+    /**
+     * Resolves the active semester ('1st', '2nd', or 'Summer') from the database.
+     * Prioritizes explicit academic_years semester metadata if present, then unlocked
+     * active enrollments / enrolled subjects for the active AY, falling back to '1st'.
+     */
+    function enformasys_detect_db_active_semester(mysqli $conn, string $active_ay, ?array $active_ay_row = null): string {
+        if ($active_ay_row !== null) {
+            foreach (['active_semester', 'current_semester', 'semester'] as $col) {
+                if (isset($active_ay_row[$col]) && trim((string)$active_ay_row[$col]) !== '') {
+                    $norm = enformasys_normalize_semester((string)$active_ay_row[$col]);
+                    if ($norm !== '') {
+                        return $norm;
+                    }
+                }
+            }
+        }
+
+        if ($active_ay !== '') {
+            $stmt_enr = @$conn->prepare(
+                "SELECT semester, COUNT(*) AS cnt
+                 FROM enrollments
+                 WHERE academic_year = ?
+                   AND is_locked = 0
+                   AND enrollment_status IN ('Enrolled', 'Partially Paid', 'Pending')
+                 GROUP BY semester
+                 ORDER BY cnt DESC, FIELD(semester, '1st', '2nd', 'Summer') ASC
+                 LIMIT 1"
+            );
+            if ($stmt_enr) {
+                $stmt_enr->bind_param('s', $active_ay);
+                if ($stmt_enr->execute()) {
+                    $erow = $stmt_enr->get_result()->fetch_assoc();
+                    $stmt_enr->close();
+                    if ($erow && !empty($erow['semester'])) {
+                        $norm = enformasys_normalize_semester((string)$erow['semester']);
+                        if ($norm !== '') {
+                            return $norm;
+                        }
+                    }
+                } else {
+                    $stmt_enr->close();
+                }
+            }
+
+            $stmt_ses = @$conn->prepare(
+                "SELECT semester, COUNT(*) AS cnt
+                 FROM student_enrolled_subjects
+                 WHERE academic_year = ?
+                 GROUP BY semester
+                 ORDER BY cnt DESC, FIELD(semester, '1st', '2nd', 'Summer') ASC
+                 LIMIT 1"
+            );
+            if ($stmt_ses) {
+                $stmt_ses->bind_param('s', $active_ay);
+                if ($stmt_ses->execute()) {
+                    $srow = $stmt_ses->get_result()->fetch_assoc();
+                    $stmt_ses->close();
+                    if ($srow && !empty($srow['semester'])) {
+                        $norm = enformasys_normalize_semester((string)$srow['semester']);
+                        if ($norm !== '') {
+                            return $norm;
+                        }
+                    }
+                } else {
+                    $stmt_ses->close();
+                }
+            }
+        }
+
+        return '1st';
     }
 }
 
@@ -188,9 +286,12 @@ if (!function_exists('enformasys_refresh_ay_cache')) {
             return;
         }
         $cur = '';
+        $curRow = null;
+        $firstActive = '';
+        $firstActiveRow = null;
         $active = [];
         $all = [];
-        $res = @$conn->query("SELECT label, is_active, is_current, archived_at FROM academic_years ORDER BY start_year DESC, end_year DESC");
+        $res = @$conn->query("SELECT * FROM academic_years ORDER BY (is_current = 1) DESC, (is_active = 1) DESC, start_year DESC, end_year DESC");
         if ($res) {
             while ($row = $res->fetch_assoc()) {
                 $lbl = trim((string)($row['label'] ?? ''));
@@ -201,12 +302,21 @@ if (!function_exists('enformasys_refresh_ay_cache')) {
                 if ($row['archived_at'] === null) {
                     if ((int)($row['is_active'] ?? 0) === 1) {
                         $active[] = $lbl;
+                        if ($firstActive === '') {
+                            $firstActive = $lbl;
+                            $firstActiveRow = $row;
+                        }
                     }
                     if ($cur === '' && (int)($row['is_current'] ?? 0) === 1) {
                         $cur = $lbl;
+                        $curRow = $row;
                     }
                 }
             }
+        }
+        if ($cur === '' && $firstActive !== '') {
+            $cur = $firstActive;
+            $curRow = $firstActiveRow;
         }
         if ($cur === '') {
             $y = (int)date('Y');
@@ -232,23 +342,43 @@ if (!function_exists('enformasys_refresh_ay_cache')) {
             $allIncludingArchived = [$cur];
         }
 
+        $activeSem = enformasys_detect_db_active_semester($conn, $cur, $curRow);
+
         $_SESSION['cached_current_ay'] = $cur;
+        $_SESSION['cached_active_sem'] = $activeSem;
         $_SESSION['cached_active_ays'] = $active;
         $_SESSION['cached_all_ays'] = [
             'active_only' => $allUnarchived,
             'all' => $allIncludingArchived,
         ];
         $_SESSION['cached_ay_ts'] = time();
+
+        if (empty($_SESSION['active_academic_year'])) {
+            $_SESSION['active_academic_year'] = $cur;
+        }
+        if (empty($_SESSION['active_semester']) || enformasys_normalize_semester((string)$_SESSION['active_semester']) === '') {
+            $_SESSION['active_semester'] = $activeSem;
+        }
     }
 }
 
 if (!function_exists('enformasys_warm_session_cache')) {
     /**
-     * Preloads academic-year lookups and role/student profile attributes into $_SESSION
-     * upon login so shared layout components (header/sidebar) avoid repeated queries.
+     * Preloads academic-year & active-semester lookups and role/student profile attributes
+     * into $_SESSION upon login so shared layout components avoid repeated queries.
      */
     function enformasys_warm_session_cache(mysqli $conn, int $uid, string $username, string $role): void {
         enformasys_refresh_ay_cache($conn);
+
+        if (!empty($_SESSION['cached_current_ay'])) {
+            $_SESSION['active_academic_year'] = (string)$_SESSION['cached_current_ay'];
+        }
+        if (!empty($_SESSION['cached_active_sem'])) {
+            $normSem = enformasys_normalize_semester((string)$_SESSION['cached_active_sem']);
+            $_SESSION['active_semester'] = $normSem !== '' ? $normSem : '1st';
+        } elseif (empty($_SESSION['active_semester'])) {
+            $_SESSION['active_semester'] = '1st';
+        }
 
         $profile = [
             'id' => $uid,
@@ -293,7 +423,27 @@ function get_active_academic_year(): string {
 
 function get_active_semester(): string {
     if (!empty($_SESSION['active_semester'])) {
-        return (string)$_SESSION['active_semester'];
+        $norm = enformasys_normalize_semester((string)$_SESSION['active_semester']);
+        if ($norm !== '') {
+            return $norm;
+        }
+    }
+    $cacheTs = (int)($_SESSION['cached_ay_ts'] ?? 0);
+    if (!empty($_SESSION['cached_active_sem']) && $cacheTs > 0 && (time() - $cacheTs) < 300) {
+        $norm = enformasys_normalize_semester((string)$_SESSION['cached_active_sem']);
+        if ($norm !== '') {
+            return $norm;
+        }
+    }
+    global $conn;
+    if (isset($conn) && $conn instanceof mysqli) {
+        enformasys_refresh_ay_cache($conn);
+        if (!empty($_SESSION['cached_active_sem'])) {
+            $norm = enformasys_normalize_semester((string)$_SESSION['cached_active_sem']);
+            if ($norm !== '') {
+                return $norm;
+            }
+        }
     }
     return '1st';
 }

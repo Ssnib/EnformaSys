@@ -99,7 +99,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $upload_res = save_seminarian_profile_picture(
                     $seminarian_id,
                     $_FILES['profile_picture'],
-                    $seminarian['profile_picture'] ?? null
+                    $seminarian['profile_picture'] ?? null,
+                    $conn
                 );
                 if (!$upload_res['success']) {
                     $upload_error = $upload_res['error'];
@@ -111,6 +112,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             if ($upload_error !== null) {
                 $flash_error = $upload_error;
             } else {
+                if ($uploaded_picture_path !== null && strpos($uploaded_picture_path, 'data:image/') === 0 && function_exists('ensure_seminarian_profile_picture_column')) {
+                    ensure_seminarian_profile_picture_column($conn);
+                }
                 $conn->begin_transaction();
                 try {
                     // Update seminarians table: profile_picture (if updated) and last_profile_update timestamp
@@ -212,6 +216,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
                     // Re-calculate cooldown with newly saved timestamp
                     $cooldown = get_seminarian_cooldown_status($seminarian['last_profile_update'] ?? null);
+
+                    // Sync cached header/sidebar avatar immediately
+                    if (!isset($_SESSION['cached_user_profile']) || !is_array($_SESSION['cached_user_profile'])) {
+                        $_SESSION['cached_user_profile'] = [];
+                    }
+                    $_SESSION['cached_user_profile']['avatar_url'] = get_seminarian_avatar_url($seminarian['profile_picture'] ?? null);
                 } catch (\Throwable $ex) {
                     $conn->rollback();
                     $flash_error = 'An error occurred while saving profile changes: ' . $ex->getMessage();

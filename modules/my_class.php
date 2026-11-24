@@ -25,8 +25,9 @@ $filter_ay = isset($_GET['academic_year']) && trim((string)$_GET['academic_year'
     ? trim((string)$_GET['academic_year']) 
     : $current_ay;
 
-$filter_sem = isset($_GET['semester']) && in_array(trim((string)$_GET['semester']), ['1st', '2nd', 'Summer'], true) 
-    ? trim((string)$_GET['semester']) 
+$filter_sem_raw = isset($_GET['semester']) ? enformasys_normalize_semester((string)$_GET['semester']) : '';
+$filter_sem = in_array($filter_sem_raw, ['1st', '2nd', 'Summer'], true)
+    ? $filter_sem_raw
     : $current_sem;
 if (!in_array($filter_sem, ['1st', '2nd', 'Summer'], true)) {
     $filter_sem = '1st';

@@ -56,7 +56,9 @@ $ay = trim((string)(function_exists('get_active_academic_year') ? get_active_aca
 if ($ay !== '') {
     $academic_year_label = $ay;
 }
-$sem_raw = trim((string)(function_exists('get_active_semester') ? get_active_semester() : '1st'));
+$sem_raw = function_exists('enformasys_normalize_semester')
+    ? enformasys_normalize_semester((string)(function_exists('get_active_semester') ? get_active_semester() : '1st'))
+    : trim((string)(function_exists('get_active_semester') ? get_active_semester() : '1st'));
 if (in_array($sem_raw, ['1st', '2nd', 'Summer'], true)) {
     $active_semester = $sem_raw;
 }
