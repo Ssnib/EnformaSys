@@ -766,16 +766,27 @@ function eval_init_group_batch(
     }
 
     $part = eval_partition_batch_ids($conn, $module, $evaluator_id, $raw_ids, $academic_year, $semester, 0);
-    $pending_ids = array_map(fn($item) => (int)$item['id'], $part['pending']);
+    $enrolled_map = eval_get_active_enrolled_seminarian_ids($conn, $academic_year, $semester);
+    $filtered_pending = [];
+    $removed_not_enrolled = [];
+    foreach ($part['pending'] as $item) {
+        if (!empty($enrolled_map[(int)$item['id']])) {
+            $filtered_pending[] = $item;
+        } else {
+            $removed_not_enrolled[] = $item;
+        }
+    }
+    $pending_ids = array_map(fn($item) => (int)$item['id'], $filtered_pending);
 
     return [
         'active' => true,
-        'pending_items' => $part['pending'],
+        'pending_items' => $filtered_pending,
         'pending_ids' => $pending_ids,
         'removed_already_evaluated' => $part['already_evaluated'],
         'removed_graduated' => $part['graduated'] ?? [],
+        'removed_not_enrolled' => $removed_not_enrolled,
         'removed_unassigned' => $part['unassigned_ids'],
-        'has_recipients' => !empty($part['pending']),
+        'has_recipients' => !empty($filtered_pending),
     ];
 }
 
@@ -797,9 +808,33 @@ function eval_render_group_evaluation_header(
     $back_url = $cfg['list_file'] . '?academic_year=' . urlencode($academic_year) . '&semester=' . urlencode($semester);
     $removed = $group_ctx['removed_already_evaluated'] ?? [];
     $removed_grad = $group_ctx['removed_graduated'] ?? [];
+    $removed_not_enr = $group_ctx['removed_not_enrolled'] ?? [];
     $pending = $group_ctx['pending_items'] ?? [];
     $names_csv = implode(', ', array_map(fn($x) => (string)$x['name'], $pending));
     ?>
+
+    <?php if (!empty($removed_not_enr)) {
+        $not_enr_names = implode(', ', array_map(fn($x) => (string)$x['name'], $removed_not_enr));
+    ?>
+        <div class="bg-white rounded-3xl shadow-lg border border-amber-200 p-5 mb-5" role="alert">
+            <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                <div class="flex items-start gap-3">
+                    <div class="w-10 h-10 rounded-2xl bg-amber-50 border border-amber-200 flex items-center justify-center text-amber-700 shrink-0">
+                        <i class="fas fa-user-slash"></i>
+                    </div>
+                    <div>
+                        <div class="text-sm font-extrabold text-[#59443F]">Unenrolled Seminarians Excluded</div>
+                        <p class="text-xs font-semibold text-[#8B7168] mt-1 mb-0">
+                            Excluded <strong class="text-[#59443F]"><?php echo htmlspecialchars($not_enr_names, ENT_QUOTES, 'UTF-8'); ?></strong> because
+                            <?php echo count($removed_not_enr) === 1 ? 'this seminarian is not actively enrolled' : 'these seminarians are not actively enrolled'; ?>
+                            for AY <?php echo htmlspecialchars($academic_year, ENT_QUOTES, 'UTF-8'); ?> (<?php echo htmlspecialchars($semester, ENT_QUOTES, 'UTF-8'); ?> Semester).
+                        </p>
+                    </div>
+                </div>
+                <span class="bg-amber-50 text-amber-700 border border-amber-200 text-xs px-2.5 py-1 rounded-full font-bold shrink-0 self-start sm:self-center">Not Enrolled</span>
+            </div>
+        </div>
+    <?php } ?>
 
     <?php if (!empty($removed_grad)) {
         $grad_names = implode(', ', array_map(fn($x) => (string)$x['name'], $removed_grad));
@@ -975,6 +1010,11 @@ function eval_render_batch_panel(
     string $year_level_filter = ''
 ): void {
     $cfg = eval_module_config($module);
+    $auth_term = eval_get_authoritative_active_term($conn);
+    $is_active_term_batch = ($academic_year === $auth_term['academic_year'] && $semester === $auth_term['semester']);
+    $can_evaluate_term = $can_evaluate && $is_active_term_batch;
+    $enrolled_active_map = $is_active_term_batch ? eval_get_active_enrolled_seminarian_ids($conn, $academic_year, $semester) : [];
+
     $page = max(1, (int)($_GET['page'] ?? 1));
     $per_page = 10;
     $status_filter = isset($_GET['batch_status']) ? trim((string)$_GET['batch_status']) : 'all';
@@ -1017,7 +1057,8 @@ function eval_render_batch_panel(
     $page_pending_count = 0;
     foreach ($rows as $r) {
         $r_grad = !empty($r['is_graduated']) || in_array(strtolower((string)($r['status'] ?? '')), ['graduated', 'completed'], true);
-        if (empty($r['evaluated']) && !$r_grad) {
+        $r_enrolled = !$is_active_term_batch || !empty($enrolled_active_map[(int)$r['seminarian_id']]);
+        if (empty($r['evaluated']) && !$r_grad && $r_enrolled) {
             $page_pending_count++;
         }
     }
@@ -1159,7 +1200,17 @@ function eval_render_batch_panel(
                 <input type="hidden" name="academic_year" value="<?php echo htmlspecialchars($academic_year, ENT_QUOTES, 'UTF-8'); ?>">
                 <input type="hidden" name="semester" value="<?php echo htmlspecialchars($semester, ENT_QUOTES, 'UTF-8'); ?>">
 
-                <?php if ($can_evaluate && count($rows) > 0) { ?>
+                <?php if (!$is_active_term_batch && $can_evaluate) { ?>
+                <div class="mt-4 mb-2 px-4 py-3 rounded-2xl bg-amber-50 border border-amber-200 flex flex-wrap items-center justify-between gap-2 text-xs font-bold text-amber-900">
+                    <span><i class="fas fa-lock mr-1.5"></i> Active Term Only &mdash; Advance evaluation disabled. Viewing AY <?php echo htmlspecialchars($academic_year, ENT_QUOTES, 'UTF-8'); ?> (<?php echo htmlspecialchars($semester, ENT_QUOTES, 'UTF-8'); ?> Sem) read-only.</span>
+                    <a href="<?php echo htmlspecialchars($list_file . '?academic_year=' . urlencode($auth_term['academic_year']) . '&semester=' . urlencode($auth_term['semester']), ENT_QUOTES, 'UTF-8'); ?>"
+                       class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-amber-900 text-white text-xs font-bold hover:bg-amber-800" style="text-decoration:none;">
+                        <i class="fas fa-calendar-check"></i> Switch to Active Term (<?php echo htmlspecialchars($auth_term['academic_year'] . ' · ' . $auth_term['semester']); ?>)
+                    </a>
+                </div>
+                <?php } ?>
+
+                <?php if ($can_evaluate_term && count($rows) > 0) { ?>
                 <div class="mt-4 mb-2 px-4 py-3 rounded-2xl bg-[#FDF8F8] border border-[#EFE2E1] flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
                     <label for="<?php echo htmlspecialchars($select_all_id, ENT_QUOTES, 'UTF-8'); ?>"
                            class="inline-flex items-center gap-3 cursor-pointer select-none m-0">
@@ -1199,6 +1250,7 @@ function eval_render_batch_panel(
                             $is_evaluated = !empty($row['evaluated']);
                             $is_graduated = !empty($row['is_graduated'])
                                 || in_array(strtolower((string)($row['status'] ?? '')), ['graduated', 'completed'], true);
+                            $is_enrolled_active = !$is_active_term_batch || !empty($enrolled_active_map[$sid]);
                             $eval_id = (int)$row['evaluation_id'];
                             $avg = $row['average_score'];
                             $eval_url = $form_url_base . '?student_id=' . $sid
@@ -1207,11 +1259,16 @@ function eval_render_batch_panel(
                         ?>
                         <div class="py-3.5 px-3 rounded-2xl hover:bg-[#FDF9F9] transition-colors flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
                             <div class="flex items-center gap-3.5 min-w-0">
-                                <?php if ($can_evaluate) { ?>
+                                <?php if ($can_evaluate_term) { ?>
                                     <?php if ($is_graduated) { ?>
                                         <span class="inline-flex items-center justify-center w-6 h-6 rounded-lg bg-gray-100 text-gray-500 border border-gray-200 shrink-0 cursor-not-allowed"
                                               title="Graduated / Completed — evaluation disabled">
                                             <i class="fas fa-user-graduate text-[11px]"></i>
+                                        </span>
+                                    <?php } elseif (!$is_enrolled_active) { ?>
+                                        <span class="inline-flex items-center justify-center w-6 h-6 rounded-lg bg-slate-100 text-slate-400 border border-slate-200 shrink-0 cursor-not-allowed"
+                                              title="Not enrolled in the active Academic Year / Semester">
+                                            <i class="fas fa-ban text-[11px]"></i>
                                         </span>
                                     <?php } elseif ($is_evaluated) { ?>
                                         <span class="inline-flex items-center justify-center w-6 h-6 rounded-lg bg-emerald-50 text-emerald-600 border border-emerald-200 shrink-0"
@@ -1287,11 +1344,21 @@ function eval_render_batch_panel(
                                           title="This seminarian has already been evaluated for the selected term">
                                         <i class="fas fa-circle-check"></i> Already Evaluated
                                     </span>
-                                <?php } elseif ($can_evaluate) { ?>
+                                <?php } elseif ($can_evaluate_term && !$is_enrolled_active) { ?>
+                                    <span class="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-slate-100 text-slate-500 border border-slate-200 text-xs font-bold cursor-not-allowed"
+                                          title="Seminarian is not enrolled in the active term">
+                                        <i class="fas fa-user-slash"></i> Not Enrolled
+                                    </span>
+                                <?php } elseif ($can_evaluate_term) { ?>
                                     <a href="<?php echo htmlspecialchars($eval_url, ENT_QUOTES, 'UTF-8'); ?>"
                                        class="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-[#59443F] hover:bg-[#43322E] text-white text-xs font-bold shadow-sm transition-colors">
                                         <i class="fas fa-clipboard-check"></i> Evaluate
                                     </a>
+                                <?php } elseif (!$is_active_term_batch && $can_evaluate) { ?>
+                                    <span class="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-amber-50 text-amber-800 border border-amber-200 text-xs font-bold cursor-not-allowed"
+                                          title="Active Term Only — Advance evaluation disabled">
+                                        <i class="fas fa-lock"></i> Locked
+                                    </span>
                                 <?php } else { ?>
                                     <span class="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-slate-100 text-slate-500 border border-slate-200 text-xs font-bold">
                                         <i class="fas fa-clock"></i> Pending
@@ -1950,6 +2017,245 @@ function eval_default_semester(): string {
         }
     }
     return '1st';
+}
+
+/**
+ * Returns the authoritative active Academic Year and Semester from the database,
+ * ignoring URL/GET filter overrides so advance evaluations cannot be forged.
+ *
+ * @return array{academic_year:string,semester:string}
+ */
+function eval_get_authoritative_active_term(mysqli $conn): array {
+    static $cached = null;
+    if ($cached !== null) {
+        return $cached;
+    }
+
+    $ay = '';
+    $ayRow = null;
+    $res = @$conn->query(
+        "SELECT * FROM academic_years
+         WHERE archived_at IS NULL AND is_active = 1
+         ORDER BY (is_current = 1) DESC, start_year DESC, end_year DESC
+         LIMIT 1"
+    );
+    if ($res && ($row = $res->fetch_assoc())) {
+        $ayRow = $row;
+        $ay = trim((string)($row['label'] ?? ''));
+    }
+    if ($ay === '') {
+        $ay = function_exists('get_current_academic_year') ? get_current_academic_year() : (date('Y') . '-' . (date('Y') + 1));
+    }
+
+    $sem = function_exists('enformasys_detect_db_active_semester')
+        ? enformasys_detect_db_active_semester($conn, $ay, $ayRow)
+        : '1st';
+    if (!in_array($sem, ['1st', '2nd', 'Summer'], true)) {
+        $sem = '1st';
+    }
+
+    $cached = [
+        'academic_year' => $ay,
+        'semester' => $sem,
+    ];
+    return $cached;
+}
+
+/**
+ * Returns an associative map [seminarian_id => true] of all seminarians actively
+ * enrolled in the specified Academic Year and Semester.
+ *
+ * @return array<int,bool>
+ */
+function eval_get_active_enrolled_seminarian_ids(mysqli $conn, string $academic_year, string $semester): array {
+    static $termCache = [];
+    $key = $academic_year . '|' . $semester;
+    if (isset($termCache[$key])) {
+        return $termCache[$key];
+    }
+
+    $map = [];
+    $stmt_enr = @$conn->prepare(
+        "SELECT DISTINCT student_id
+         FROM enrollments
+         WHERE academic_year = ?
+           AND semester = ?
+           AND is_locked = 0
+           AND enrollment_status IN ('Enrolled', 'Partially Paid', 'Pending')"
+    );
+    if ($stmt_enr) {
+        $stmt_enr->bind_param('ss', $academic_year, $semester);
+        if ($stmt_enr->execute()) {
+            $res = $stmt_enr->get_result();
+            while ($res && ($row = $res->fetch_assoc())) {
+                $sid = (int)($row['student_id'] ?? 0);
+                if ($sid > 0) {
+                    $map[$sid] = true;
+                }
+            }
+        }
+        $stmt_enr->close();
+    }
+
+    $stmt_ses = @$conn->prepare(
+        "SELECT DISTINCT student_id
+         FROM student_enrolled_subjects
+         WHERE academic_year = ?
+           AND semester = ?
+           AND status <> 'Dropped'"
+    );
+    if ($stmt_ses) {
+        $stmt_ses->bind_param('ss', $academic_year, $semester);
+        if ($stmt_ses->execute()) {
+            $res = $stmt_ses->get_result();
+            while ($res && ($row = $res->fetch_assoc())) {
+                $sid = (int)($row['student_id'] ?? 0);
+                if ($sid > 0) {
+                    $map[$sid] = true;
+                }
+            }
+        }
+        $stmt_ses->close();
+    }
+
+    $termCache[$key] = $map;
+    return $map;
+}
+
+/**
+ * Server-side POST enforcement: verifies that the submitted Academic Year and Semester
+ * match the database active term AND every target seminarian is enrolled in that active term.
+ *
+ * @param int[] $target_ids
+ */
+function eval_validate_active_term_submission(mysqli $conn, string $submitted_ay, string $submitted_sem, array $target_ids): ?string {
+    $auth = eval_get_authoritative_active_term($conn);
+    $active_ay = $auth['academic_year'];
+    $active_sem = $auth['semester'];
+
+    $clean_ay = trim($submitted_ay);
+    $clean_sem = function_exists('enformasys_normalize_semester')
+        ? enformasys_normalize_semester($submitted_sem)
+        : trim($submitted_sem);
+
+    if ($clean_ay !== $active_ay || $clean_sem !== $active_sem) {
+        if (!headers_sent()) {
+            http_response_code(403);
+        }
+        return "Evaluation submission rejected: Evaluations are locked to the active term only (AY {$active_ay} · {$active_sem} Semester). Advance or inactive term submissions are not allowed.";
+    }
+
+    $enrolled_map = eval_get_active_enrolled_seminarian_ids($conn, $active_ay, $active_sem);
+    foreach ($target_ids as $sid) {
+        $sid_int = (int)$sid;
+        if ($sid_int <= 0 || empty($enrolled_map[$sid_int])) {
+            if (!headers_sent()) {
+                http_response_code(403);
+            }
+            return "Evaluation submission rejected: Selected seminarian (#{$sid_int}) is not actively enrolled for AY {$active_ay} ({$active_sem} Semester).";
+        }
+    }
+
+    return null;
+}
+
+/**
+ * Renders the "Active Term Only — Advance evaluation disabled" badge and optional lock warning.
+ */
+function eval_render_active_term_lock_badge(string $active_ay, string $active_sem, bool $rejected_attempt = false): void {
+    ?>
+    <div style="display:flex;flex-wrap:wrap;align-items:center;gap:0.5rem;margin-top:0.75rem;">
+        <span style="display:inline-flex;align-items:center;gap:0.4rem;padding:0.3rem 0.75rem;border-radius:9999px;background:#ecfdf5;border:1px solid #a7f3d0;color:#065f46;font-size:0.75rem;font-weight:800;">
+            <i class="fas fa-lock" aria-hidden="true"></i>
+            Active Term Only (AY <?php echo htmlspecialchars($active_ay, ENT_QUOTES, 'UTF-8'); ?> &middot; <?php echo htmlspecialchars($active_sem, ENT_QUOTES, 'UTF-8'); ?> Sem) &mdash; Advance evaluation disabled
+        </span>
+        <?php if ($rejected_attempt) { ?>
+            <span style="display:inline-flex;align-items:center;gap:0.4rem;padding:0.3rem 0.75rem;border-radius:9999px;background:#fef3c7;border:1px solid #fcd34d;color:#92400e;font-size:0.75rem;font-weight:700;">
+                <i class="fas fa-triangle-exclamation" aria-hidden="true"></i>
+                Requested future/inactive term was reset to active term.
+            </span>
+        <?php } ?>
+    </div>
+    <?php
+}
+
+/**
+ * Renders a read-only notice card when opening a historical (non-active term) evaluation in a form page.
+ */
+function eval_render_inactive_term_blocked_banner(
+    string $module,
+    string $student_label,
+    string $active_ay,
+    string $active_sem,
+    int $evaluation_id = 0,
+    string $record_ay = '',
+    string $record_sem = ''
+): void {
+    $cfg = eval_module_config($module);
+    $report_url = $cfg['report_file'] . '?evaluation_id=' . $evaluation_id;
+    $list_url = $cfg['list_file'];
+    ?>
+    <div style="margin-top: 1.25rem; background: #fffbeb; border: 1.5px solid #fcd34d; border-radius: 14px; padding: 1.5rem; color: #78350f;">
+        <div style="display:flex;align-items:flex-start;gap:0.9rem;flex-wrap:wrap;">
+            <div style="width:42px;height:42px;border-radius:12px;background:#fef3c7;color:#b45309;display:inline-flex;align-items:center;justify-content:center;font-size:1.1rem;flex-shrink:0;">
+                <i class="fas fa-lock" aria-hidden="true"></i>
+            </div>
+            <div style="flex:1;min-width:220px;">
+                <div style="font-size:1rem;font-weight:800;margin-bottom:0.25rem;">Read-Only Historical Evaluation</div>
+                <p style="margin:0 0 0.85rem 0;font-size:0.88rem;line-height:1.5;color:#92400e;">
+                    This <?php echo htmlspecialchars($cfg['title'], ENT_QUOTES, 'UTF-8'); ?> record for
+                    <strong><?php echo htmlspecialchars($student_label !== '' ? $student_label : 'Seminarian', ENT_QUOTES, 'UTF-8'); ?></strong>
+                    belongs to <strong><?php echo htmlspecialchars($record_ay . ' (' . $record_sem . ' Semester)', ENT_QUOTES, 'UTF-8'); ?></strong>.
+                    New and edited evaluations are locked to the active term only
+                    (<strong>AY <?php echo htmlspecialchars($active_ay . ' · ' . $active_sem . ' Semester', ENT_QUOTES, 'UTF-8'); ?></strong>).
+                </p>
+                <div style="display:flex;flex-wrap:wrap;gap:0.65rem;">
+                    <?php if ($evaluation_id > 0) { ?>
+                        <a href="<?php echo htmlspecialchars($report_url, ENT_QUOTES, 'UTF-8'); ?>" class="btn btn-primary" style="display:inline-flex;align-items:center;gap:0.45rem;">
+                            <i class="fas fa-file-lines" aria-hidden="true"></i> View Read-Only Report
+                        </a>
+                    <?php } ?>
+                    <a href="<?php echo htmlspecialchars($list_url, ENT_QUOTES, 'UTF-8'); ?>" class="btn btn-secondary" style="display:inline-flex;align-items:center;gap:0.45rem;">
+                        <i class="fas fa-list" aria-hidden="true"></i> Back to Evaluations
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+    <?php
+}
+
+/**
+ * Renders an informational banner when a selected seminarian has no active enrollment in the current term.
+ */
+function eval_render_not_enrolled_blocked_banner(
+    string $module,
+    string $student_label,
+    string $active_ay,
+    string $active_sem
+): void {
+    $cfg = eval_module_config($module);
+    ?>
+    <div style="margin-top: 1.25rem; background: #fff1f2; border: 1.5px solid #fecdd3; border-radius: 14px; padding: 1.5rem; color: #881337;">
+        <div style="display:flex;align-items:flex-start;gap:0.9rem;flex-wrap:wrap;">
+            <div style="width:42px;height:42px;border-radius:12px;background:#ffe4e6;color:#be123c;display:inline-flex;align-items:center;justify-content:center;font-size:1.1rem;flex-shrink:0;">
+                <i class="fas fa-user-slash" aria-hidden="true"></i>
+            </div>
+            <div style="flex:1;min-width:220px;">
+                <div style="font-size:1rem;font-weight:800;margin-bottom:0.25rem;">Seminarian Not Enrolled in Active Term</div>
+                <p style="margin:0 0 0.85rem 0;font-size:0.88rem;line-height:1.5;color:#9f1239;">
+                    <strong><?php echo htmlspecialchars($student_label !== '' ? $student_label : 'Selected seminarian', ENT_QUOTES, 'UTF-8'); ?></strong>
+                    is not actively enrolled for
+                    <strong>AY <?php echo htmlspecialchars($active_ay . ' · ' . $active_sem . ' Semester', ENT_QUOTES, 'UTF-8'); ?></strong>.
+                    Only actively enrolled seminarians can be evaluated for the current term.
+                </p>
+                <a href="<?php echo htmlspecialchars($cfg['list_file'], ENT_QUOTES, 'UTF-8'); ?>" class="btn btn-secondary" style="display:inline-flex;align-items:center;gap:0.45rem;">
+                    <i class="fas fa-list" aria-hidden="true"></i> Back to Evaluations
+                </a>
+            </div>
+        </div>
+    </div>
+    <?php
 }
 
 /**

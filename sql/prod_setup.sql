@@ -2559,6 +2559,12 @@ CREATE INDEX `idx_sg_stu_sub_status` ON `student_grades` (`student_id`, `subject
 CREATE INDEX `idx_li_sem_ay_sem_status` ON `lodging_invoices` (`seminarian_id`, `academic_year`, `semester`, `status`);
 CREATE INDEX `idx_lp_sem_ay_sem` ON `lodging_payments` (`seminarian_id`, `academic_year`, `semester`);
 CREATE INDEX `idx_cs_ay_yl_sem` ON `curriculum_subjects` (`academic_year_id`, `year_level`, `semester`);
+CREATE INDEX `idx_activities_ts_id` ON `activities` (`timestamp`, `id`);
+CREATE INDEX `idx_history_logs_changed_at` ON `history_logs` (`changed_at`);
+CREATE INDEX `idx_ae_stu_term_arch` ON `academic_evaluations` (`student_id`, `academic_year`, `semester`, `archived_at`);
+CREATE INDEX `idx_he_sem_term_arch` ON `human_evaluations` (`seminarian_id`, `academic_year`, `semester`, `archived_at`);
+CREATE INDEX `idx_pe_sem_term_arch` ON `pastoral_evaluations` (`seminarian_id`, `academic_year`, `semester`, `archived_at`);
+CREATE INDEX `idx_se_sem_term_arch` ON `spiritual_evaluations` (`seminarian_id`, `academic_year`, `semester`, `archived_at`);
 /*!40103 SET TIME_ZONE=@OLD_TIME_ZONE */;
 
 /*!40101 SET SQL_MODE=@OLD_SQL_MODE */;

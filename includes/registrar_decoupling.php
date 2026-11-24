@@ -17,6 +17,21 @@ if (!function_exists('registrar_ensure_decoupled_schema')) {
      */
     function registrar_ensure_decoupled_schema(mysqli $conn): void
     {
+        static $verified = false;
+        if ($verified) {
+            return;
+        }
+        $verified = true;
+
+        $skipSchemaSync = !defined('ENFORMASYS_ALLOW_RUNTIME_SCHEMA_SYNC')
+            && (
+                (function_exists('enformasys_env') && (enformasys_env('VERCEL', '') !== '' || enformasys_env('VERCEL_ENV', '') !== ''))
+                || (function_exists('enformasys_is_production') && enformasys_is_production())
+                || (function_exists('enformasys_env') && strtolower(trim((string)enformasys_env('DB_SKIP_SCHEMA_SYNC', 'false'))) === 'true')
+            );
+        if ($skipSchemaSync) {
+            return;
+        }
         // 1. Static Student Profile Table (`id` matches `seminarians.id` for seamless 1:1 compatibility)
         $conn->query(
             "CREATE TABLE IF NOT EXISTS students (\n"

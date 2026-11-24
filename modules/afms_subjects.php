@@ -263,8 +263,13 @@ if ($res_t) {
 }
 
 $teacher_assignments = [];
-$chk_sta = $conn->query("SELECT COUNT(*) as c FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'subject_teacher_assignments'");
-if ($chk_sta && (int)($chk_sta->fetch_assoc()['c'] ?? 0) > 0) {
+$has_sta = !empty($skip_runtime_schema_sync) || !empty($_SESSION['cached_has_sta_table']);
+if (!$has_sta) {
+    $chk_sta = @$conn->query("SELECT COUNT(*) as c FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'subject_teacher_assignments'");
+    $has_sta = ($chk_sta && (int)($chk_sta->fetch_assoc()['c'] ?? 0) > 0);
+    $_SESSION['cached_has_sta_table'] = $has_sta;
+}
+if ($has_sta) {
     $stmt_ta = $conn->prepare("SELECT sta.*, sub.subject_code, sub.subject_name, sub.units,
             COALESCE(sta.teacher_name_override, up.full_name, u.username) as teacher_display
         FROM subject_teacher_assignments sta

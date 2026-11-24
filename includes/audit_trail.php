@@ -325,10 +325,6 @@ if (!function_exists('audit_fetch_activity_logs')) {
     function audit_fetch_activity_logs(mysqli $conn, int $limit = 50): array
     {
         $limit = max(1, min(200, $limit));
-        $chk = @$conn->query("SHOW TABLES LIKE 'activities'");
-        if (!$chk || $chk->num_rows === 0) {
-            return [];
-        }
 
         $sql = "SELECT a.id, a.user_id, a.action, a.entity_type, a.entity_id, a.field_name, a.previous_value, a.new_value, a.timestamp,
                        u.username, u.role AS user_role

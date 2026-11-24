@@ -189,7 +189,10 @@ if ($is_admin || $is_formator) {
             JOIN seminarians s ON e.seminarian_id = s.id
             JOIN users u ON s.user_id = u.id
             LEFT JOIN user_profiles up ON up.user_id = u.id
+            WHERE e.archived_at IS NULL
             GROUP BY u.username, display_name, e.type
+            ORDER BY display_name ASC
+            LIMIT 250
         ");
         if ($summary_res) {
             while ($row = $summary_res->fetch_assoc()) {
@@ -208,6 +211,7 @@ if ($is_admin || $is_formator) {
                 JOIN users u ON s.user_id = u.id
                 WHERE g.archived_at IS NULL
                 GROUP BY u.username
+                LIMIT 250
             ");
             if ($acad_res) {
                 while ($row = $acad_res->fetch_assoc()) {

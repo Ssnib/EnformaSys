@@ -6,6 +6,8 @@
  * while preserving original working directory, `PHP_SELF`, and `SCRIPT_NAME`.
  */
 
+date_default_timezone_set('Asia/Manila');
+
 $projectRoot = realpath(dirname(__DIR__));
 if ($projectRoot === false) {
     http_response_code(500);

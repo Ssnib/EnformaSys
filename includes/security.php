@@ -10,6 +10,7 @@ if (defined('CAPSTONE_SECURITY_LOADED')) {
     return;
 }
 define('CAPSTONE_SECURITY_LOADED', true);
+date_default_timezone_set('Asia/Manila');
 
 require_once __DIR__ . '/env.php';
 
@@ -208,6 +209,7 @@ if (!function_exists('enformasys_get_db')) {
                 throw new RuntimeException($c->connect_error ?: 'Database connection failed.');
             }
             $c->set_charset('utf8mb4');
+            @$c->query("SET time_zone = '+08:00'");
             $GLOBALS['ENFORMASYS_TIMINGS']['db_connect_ms'] += (microtime(true) - $t0) * 1000.0;
             $sharedConn = $c;
             return $sharedConn;

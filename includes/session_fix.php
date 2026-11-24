@@ -159,6 +159,22 @@ if (isset($_GET['semester']) && trim((string)$_GET['semester']) !== '') {
     }
 }
 
+if (!function_exists('enformasys_release_session_lock_on_get')) {
+    /**
+     * Releases the PHP session lock on read-only GET requests once session reads/cache writes finish
+     * so concurrent AJAX or asset requests never stall behind page rendering.
+     */
+    function enformasys_release_session_lock_on_get(): void {
+        if (
+            PHP_SAPI !== 'cli'
+            && strtoupper((string)($_SERVER['REQUEST_METHOD'] ?? 'GET')) === 'GET'
+            && session_status() === PHP_SESSION_ACTIVE
+        ) {
+            @session_write_close();
+        }
+    }
+}
+
 if (!function_exists('enformasys_invalidate_dashboard_cache')) {
     function enformasys_invalidate_dashboard_cache(): void {
         unset(

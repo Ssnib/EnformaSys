@@ -6,16 +6,23 @@ include '../includes/pastoral_evaluation.php';
 
 $formator_id = (int)($_SESSION['user'] ?? 0);
 
-$current_ay = get_current_academic_year();
-$filter_academic_year = isset($_GET['academic_year']) ? trim((string)$_GET['academic_year']) : '';
-if ($filter_academic_year === '') $filter_academic_year = $current_ay;
-$filter_semester = isset($_GET['semester']) ? enformasys_normalize_semester((string)$_GET['semester']) : '';
-if (!in_array($filter_semester, ['1st','2nd','Summer'], true)) $filter_semester = pfe_get_default_semester();
+require_once __DIR__ . '/../includes/eval_ui_helpers.php';
+$auth_term = eval_get_authoritative_active_term($conn);
+$active_term_ay = $auth_term['academic_year'];
+$active_term_sem = $auth_term['semester'];
+$requested_ay_get = isset($_GET['academic_year']) ? trim((string)$_GET['academic_year']) : '';
+$requested_sem_get = isset($_GET['semester']) ? enformasys_normalize_semester((string)$_GET['semester']) : '';
+$advance_term_rejected = (
+    ($requested_ay_get !== '' && $requested_ay_get !== $active_term_ay)
+    || ($requested_sem_get !== '' && $requested_sem_get !== $active_term_sem)
+);
+$current_ay = $active_term_ay;
+$filter_academic_year = $active_term_ay;
+$filter_semester = $active_term_sem;
 
 $evaluation_id = isset($_GET['evaluation_id']) ? (int)$_GET['evaluation_id'] : 0;
 $student_id = isset($_GET['student_id']) ? (int)$_GET['student_id'] : 0;
 
-require_once __DIR__ . '/../includes/eval_ui_helpers.php';
 $group_ctx = eval_init_group_batch($conn, 'pastoral', $formator_id, $filter_academic_year, $filter_semester, $evaluation_id);
 $is_group_mode = !empty($group_ctx['active']);
 
@@ -43,9 +50,11 @@ $stmt_students = $conn->prepare("SELECT s.id, u.username, up.full_name, s.pastor
     ORDER BY COALESCE(up.full_name, u.username) ASC");
 $stmt_students->bind_param('i', $formator_id);
 $stmt_students->execute();
+$enrolled_active_map = eval_get_active_enrolled_seminarian_ids($conn, $active_term_ay, $active_term_sem);
 $res_s = $stmt_students->get_result();
 while ($res_s && ($row = $res_s->fetch_assoc())) {
     $row['is_graduated'] = eval_is_seminarian_graduated($row);
+    $row['is_enrolled_active'] = !empty($enrolled_active_map[(int)$row['id']]);
     $row['status'] = $row['is_graduated'] ? 'graduated' : 'active';
     $students[] = $row;
 }
@@ -90,6 +99,10 @@ if ($evaluation_id > 0) {
         }
     }
 }
+$is_historical_readonly = ($edit !== null && (
+    trim((string)($edit['academic_year'] ?? '')) !== $active_term_ay
+    || enformasys_normalize_semester((string)($edit['semester'] ?? '')) !== $active_term_sem
+));
 
 if (isset($_POST['save_evaluation'])) {
     if (!verify_csrf_token($_POST['csrf_token'] ?? '')) {
@@ -121,21 +134,26 @@ if (isset($_POST['save_evaluation'])) {
     if (empty($target_ids) || $academic_year_post === '' || !in_array($semester_post, ['1st','2nd','Summer'], true)) {
         $error = 'Please select seminarian(s), academic year, and semester.';
     } else {
-        foreach ($target_ids as $chk_sid) {
-            if (eval_check_seminarian_graduated_db($conn, (int)$chk_sid)) {
-                $error = eval_block_graduated_submission();
-                break;
+        $term_lock_error = eval_validate_active_term_submission($conn, $academic_year_post, $semester_post, $target_ids);
+        if ($term_lock_error !== null) {
+            $error = $term_lock_error;
+        } else {
+            foreach ($target_ids as $chk_sid) {
+                if (eval_check_seminarian_graduated_db($conn, (int)$chk_sid)) {
+                    $error = eval_block_graduated_submission();
+                    break;
+                }
             }
-        }
-        if (!isset($error)) {
-            $part = eval_partition_batch_ids($conn, 'pastoral', $formator_id, $target_ids, $academic_year_post, $semester_post, $evaluation_id_post);
-            if (!empty($part['graduated'])) {
-                $error = eval_block_graduated_submission();
-            } elseif (!empty($part['unassigned_ids'])) {
-                $error = 'One or more selected seminarians are not assigned to you.';
-            } elseif (!empty($part['already_evaluated'])) {
-                $dup_names = implode(', ', array_map(fn($x) => (string)$x['name'], $part['already_evaluated']));
-                $error = 'Duplicate evaluations are not allowed. Already evaluated for ' . $academic_year_post . ' (' . $semester_post . ' Semester): ' . $dup_names . '.';
+            if (!isset($error)) {
+                $part = eval_partition_batch_ids($conn, 'pastoral', $formator_id, $target_ids, $academic_year_post, $semester_post, $evaluation_id_post);
+                if (!empty($part['graduated'])) {
+                    $error = eval_block_graduated_submission();
+                } elseif (!empty($part['unassigned_ids'])) {
+                    $error = 'One or more selected seminarians are not assigned to you.';
+                } elseif (!empty($part['already_evaluated'])) {
+                    $dup_names = implode(', ', array_map(fn($x) => (string)$x['name'], $part['already_evaluated']));
+                    $error = 'Duplicate evaluations are not allowed. Already evaluated for ' . $academic_year_post . ' (' . $semester_post . ' Semester): ' . $dup_names . '.';
+                }
             }
         }
     }
@@ -317,11 +335,19 @@ foreach ($questions as $q) {
             $is_selected_graduated = (!$is_group_mode && $student_id > 0)
                 ? eval_check_seminarian_graduated_db($conn, $student_id)
                 : false;
-            $duplicate_eval = (!$is_group_mode && !$is_selected_graduated && $evaluation_id <= 0 && $student_id > 0)
+            $is_selected_unenrolled = (!$is_group_mode && !$is_selected_graduated && $evaluation_id <= 0 && $student_id > 0 && empty($enrolled_active_map[$student_id]));
+            $duplicate_eval = (!$is_group_mode && !$is_selected_graduated && !$is_selected_unenrolled && $evaluation_id <= 0 && $student_id > 0)
                 ? eval_find_active_duplicate($conn, 'pastoral', $student_id, $filter_academic_year, $filter_semester)
                 : null;
-            if ($is_selected_graduated) {
+            if ($is_historical_readonly) {
+                eval_render_active_term_lock_badge($active_term_ay, $active_term_sem, $advance_term_rejected && $evaluation_id <= 0);
+                eval_render_inactive_term_blocked_banner('pastoral', $student_label, $active_term_ay, $active_term_sem, (int)$evaluation_id, (string)($edit['academic_year'] ?? ''), (string)($edit['semester'] ?? ''));
+            } elseif ($is_selected_graduated) {
+                eval_render_active_term_lock_badge($active_term_ay, $active_term_sem, $advance_term_rejected && $evaluation_id <= 0);
                 eval_render_graduated_blocked_banner('pastoral', $student_label, $filter_academic_year, $filter_semester);
+            } elseif ($is_selected_unenrolled) {
+                eval_render_active_term_lock_badge($active_term_ay, $active_term_sem, $advance_term_rejected && $evaluation_id <= 0);
+                eval_render_not_enrolled_blocked_banner('pastoral', $student_label, $active_term_ay, $active_term_sem);
             } elseif ($duplicate_eval) {
                 $dup_student_name = '';
                 foreach ($students as $s_opt) {
@@ -331,8 +357,10 @@ foreach ($questions as $q) {
                         break;
                     }
                 }
+                eval_render_active_term_lock_badge($active_term_ay, $active_term_sem, $advance_term_rejected && $evaluation_id <= 0);
                 eval_render_already_evaluated_banner('pastoral', (int)$duplicate_eval['evaluation_id'], $dup_student_name, $filter_academic_year, $filter_semester);
             } elseif ($is_group_mode && empty($group_ctx['has_recipients'])) {
+                eval_render_active_term_lock_badge($active_term_ay, $active_term_sem, $advance_term_rejected && $evaluation_id <= 0);
                 // Header card already informs the Formator that no eligible recipients remain
             } else {
             ?>
@@ -359,9 +387,11 @@ foreach ($questions as $q) {
                                     $name = trim((string)($s['full_name'] ?? ''));
                                     if ($name === '') $name = (string)($s['username'] ?? '');
                                     $s_grad = !empty($s['is_graduated']);
+                                    $s_enrolled = !empty($s['is_enrolled_active']);
+                                    $s_disabled = ($s_grad || !$s_enrolled);
                                 ?>
-                                    <option value="<?php echo (int)$s['id']; ?>" <?php echo (int)$s['id'] === (int)$student_id ? 'selected' : ''; ?> <?php echo $s_grad ? 'disabled' : ''; ?>>
-                                        <?php echo htmlspecialchars($name); ?> (#<?php echo (int)$s['id']; ?>)<?php echo $s_grad ? ' — [Graduated]' : ''; ?>
+                                    <option value="<?php echo (int)$s['id']; ?>" <?php echo (int)$s['id'] === (int)$student_id ? 'selected' : ''; ?> <?php echo $s_disabled ? 'disabled' : ''; ?>>
+                                        <?php echo htmlspecialchars($name); ?> (#<?php echo (int)$s['id']; ?>)<?php echo $s_grad ? ' — [Graduated]' : (!$s_enrolled ? ' — [Not Enrolled in Active Term]' : ''); ?>
                                     </option>
                                 <?php } ?>
                             </select>
@@ -369,11 +399,13 @@ foreach ($questions as $q) {
                         <?php } ?>
                         <div class="eval-filter-field">
                             <label for="pfeAcademicYearInput">Academic Year</label>
-                            <input id="pfeAcademicYearInput" type="text" name="academic_year" value="<?php echo htmlspecialchars($filter_academic_year); ?>" required>
+                            <input type="hidden" name="academic_year" value="<?php echo htmlspecialchars($active_term_ay); ?>">
+                            <input id="pfeAcademicYearInput" type="text" value="<?php echo htmlspecialchars($filter_academic_year); ?>" disabled style="background:#f8fafc;color:#334155;cursor:not-allowed;">
                         </div>
                         <div class="eval-filter-field">
                             <label for="pfeSemesterSelect">Semester</label>
-                            <select id="pfeSemesterSelect" name="semester" required>
+                            <input type="hidden" name="semester" value="<?php echo htmlspecialchars($active_term_sem); ?>">
+                            <select id="pfeSemesterSelect" disabled style="background:#f8fafc;color:#334155;cursor:not-allowed;">
                                 <?php foreach (['1st','2nd','Summer'] as $s) { ?>
                                     <option value="<?php echo $s; ?>" <?php echo $s === $filter_semester ? 'selected' : ''; ?>><?php echo $s; ?></option>
                                 <?php } ?>
@@ -384,6 +416,8 @@ foreach ($questions as $q) {
                             <input id="pfeEvalDateInput" type="date" name="evaluation_date" value="<?php echo htmlspecialchars($edit ? (string)$edit['evaluation_date'] : date('Y-m-d')); ?>" required>
                         </div>
                     </div>
+
+                    <?php eval_render_active_term_lock_badge($active_term_ay, $active_term_sem, $advance_term_rejected && $evaluation_id <= 0); ?>
 
                     <?php
                     eval_render_rating_scale_strip(

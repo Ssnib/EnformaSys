@@ -13,6 +13,22 @@ function timetable_ensure_schema(mysqli $conn): array {
         return $cached;
     }
 
+    $skipSchemaSync = !defined('ENFORMASYS_ALLOW_RUNTIME_SCHEMA_SYNC')
+        && (
+            (function_exists('enformasys_env') && (enformasys_env('VERCEL', '') !== '' || enformasys_env('VERCEL_ENV', '') !== ''))
+            || (function_exists('enformasys_is_production') && enformasys_is_production())
+            || (function_exists('enformasys_env') && strtolower(trim((string)enformasys_env('DB_SKIP_SCHEMA_SYNC', 'false'))) === 'true')
+        );
+    if ($skipSchemaSync) {
+        $cached = [
+            'has_end_time' => true,
+            'has_location' => true,
+            'has_created_by' => true,
+            'has_visibility' => true,
+        ];
+        return $cached;
+    }
+
     $hasCol = function(string $col) use ($conn): bool {
         $stmt = $conn->prepare(
             "SELECT COUNT(*) as c FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'timetable' AND COLUMN_NAME = ?"

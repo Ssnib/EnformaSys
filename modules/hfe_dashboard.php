@@ -579,7 +579,7 @@ require_once __DIR__ . '/../includes/layout_app_start.php';
                 </div>
         </div>
 
-        <script src="<?php echo htmlspecialchars(capstone_url('assets/academic_calendar.js')); ?>?v=<?php echo file_exists(__DIR__ . '/../assets/academic_calendar.js') ? filemtime(__DIR__ . '/../assets/academic_calendar.js') : '1'; ?>"></script>
+        <script defer src="<?php echo htmlspecialchars(capstone_url('assets/academic_calendar.js')); ?>?v=<?php echo file_exists(__DIR__ . '/../assets/academic_calendar.js') ? filemtime(__DIR__ . '/../assets/academic_calendar.js') : '1'; ?>"></script>
         <script>
         document.addEventListener('DOMContentLoaded', () => {
             if (document.getElementById('academicCalendarWidget') && window.AcademicCalendar) {

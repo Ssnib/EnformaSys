@@ -241,4 +241,9 @@ if ($activeToast !== null):
 })();
 </script>
 <?php endif; ?>
+<?php
+if (function_exists('enformasys_release_session_lock_on_get')) {
+    enformasys_release_session_lock_on_get();
+}
+?>
 

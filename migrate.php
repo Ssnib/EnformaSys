@@ -332,6 +332,47 @@ function apply_applicants_fields_migration(mysqli $conn): void
     }
 }
 
+function apply_performance_composite_indexes_migration(mysqli $conn): void
+{
+    $indexes = [
+        ['table' => 'activities', 'index' => 'idx_activities_ts_id', 'cols' => '`timestamp`, `id`'],
+        ['table' => 'history_logs', 'index' => 'idx_history_logs_changed_at', 'cols' => '`changed_at`'],
+        ['table' => 'enrollments', 'index' => 'idx_enrollments_term', 'cols' => '`academic_year`, `semester`, `enrollment_status`'],
+        ['table' => 'evaluations', 'index' => 'idx_eval_sem_arch_type', 'cols' => '`seminarian_id`, `archived_at`, `type`'],
+        ['table' => 'academic_evaluations', 'index' => 'idx_ae_stu_term_arch', 'cols' => '`student_id`, `academic_year`, `semester`, `archived_at`'],
+        ['table' => 'human_evaluations', 'index' => 'idx_he_sem_term_arch', 'cols' => '`seminarian_id`, `academic_year`, `semester`, `archived_at`'],
+        ['table' => 'pastoral_evaluations', 'index' => 'idx_pe_sem_term_arch', 'cols' => '`seminarian_id`, `academic_year`, `semester`, `archived_at`'],
+        ['table' => 'spiritual_evaluations', 'index' => 'idx_se_sem_term_arch', 'cols' => '`seminarian_id`, `academic_year`, `semester`, `archived_at`'],
+    ];
+
+    $stmtTbl = $conn->prepare(
+        "SELECT COUNT(*) AS c FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ?"
+    );
+    $stmtIdx = $conn->prepare(
+        "SELECT COUNT(*) AS c FROM INFORMATION_SCHEMA.STATISTICS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ? AND INDEX_NAME = ?"
+    );
+    if (!$stmtTbl || !$stmtIdx) {
+        return;
+    }
+
+    foreach ($indexes as $def) {
+        $tbl = $def['table'];
+        $idx = $def['index'];
+        $stmtTbl->bind_param('s', $tbl);
+        $stmtTbl->execute();
+        if ((int)($stmtTbl->get_result()->fetch_assoc()['c'] ?? 0) === 0) {
+            continue;
+        }
+        $stmtIdx->bind_param('ss', $tbl, $idx);
+        $stmtIdx->execute();
+        if ((int)($stmtIdx->get_result()->fetch_assoc()['c'] ?? 0) === 0) {
+            @$conn->query("CREATE INDEX `{$idx}` ON `{$tbl}` ({$def['cols']})");
+        }
+    }
+    $stmtTbl->close();
+    $stmtIdx->close();
+}
+
 ensure_schema_migrations_table($conn);
 
 $migrations = [
@@ -390,6 +431,13 @@ $migrations = [
         'apply' => function (mysqli $conn): void {
             require_once __DIR__ . '/includes/registrar_decoupling.php';
             registrar_sync_and_migrate($conn, true);
+        }
+    ],
+    [
+        'version' => '2026_11_24_performance_composite_indexes',
+        'name' => 'Performance: Composite indexes on activities, history_logs, enrollments, and evaluation tables',
+        'apply' => function (mysqli $conn): void {
+            apply_performance_composite_indexes_migration($conn);
         }
     ],
 ];
