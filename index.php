@@ -294,10 +294,12 @@ require_once __DIR__ . '/includes/layout_app_start.php';
                 <!-- 1. Top Header (Title, Search, Filters) -->
                 <?php require __DIR__ . '/includes/header.php'; ?>
 
-                <!-- 2. 3 Stat Cards in Single Horizontal Row -->
+                <!-- 2. 3 Stat Cards in Single Horizontal Row (Interactive KPI Drill-Down Links) -->
                 <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
                         <!-- Card 1: Enrolled Seminarians -->
-                        <div class="bg-white rounded-3xl border border-[#E8C7C5]/50 p-5 sm:p-6 shadow-lg hover:shadow-xl transition-all duration-200 flex flex-col justify-between">
+                        <a href="modules/student_profiles.php"
+                           class="kpi-card-link bg-white rounded-3xl border border-[#E8C7C5]/50 p-5 sm:p-6 shadow-lg flex flex-col justify-between"
+                           aria-label="View Enrolled Seminarians in Student Profiles">
                             <div class="flex items-center justify-between gap-2 mb-2 sm:mb-3">
                                 <span class="text-xs font-semibold text-[#8B7168] tracking-wider uppercase">Enrolled Seminarians</span>
                                 <div class="w-9 h-9 sm:w-10 sm:h-10 rounded-2xl bg-[#F8EEEE] text-[#59443F] border border-[#E8C7C5]/60 flex items-center justify-center text-sm shadow-xs shrink-0">
@@ -308,12 +310,17 @@ require_once __DIR__ . '/includes/layout_app_start.php';
                                 <div class="text-2xl sm:text-3xl font-black text-[#59443F] leading-tight">
                                     <?php echo (int)$total_students; ?>
                                 </div>
-                                <span class="text-[11px] sm:text-xs font-medium text-[#8B7168] mt-1.5 block">Total Enrolled</span>
+                                <div class="mt-1.5 flex items-center justify-between gap-2">
+                                    <span class="text-[11px] sm:text-xs font-medium text-[#8B7168]">Total Enrolled</span>
+                                    <i class="fa-solid fa-arrow-right text-[10px] text-[#8B7168] kpi-card-chevron" aria-hidden="true"></i>
+                                </div>
                             </div>
-                        </div>
+                        </a>
 
                         <!-- Card 2: Irregular Students -->
-                        <div class="bg-white rounded-3xl border border-[#E8C7C5]/50 p-5 sm:p-6 shadow-lg hover:shadow-xl transition-all duration-200 flex flex-col justify-between">
+                        <a href="modules/student_profiles.php?standing=irregular"
+                           class="kpi-card-link bg-white rounded-3xl border border-[#E8C7C5]/50 p-5 sm:p-6 shadow-lg flex flex-col justify-between"
+                           aria-label="View Irregular Seminarians">
                             <div class="flex items-center justify-between gap-2 mb-2 sm:mb-3">
                                 <span class="text-xs font-semibold text-[#8B7168] tracking-wider uppercase">Irregular Students</span>
                                 <div class="w-9 h-9 sm:w-10 sm:h-10 rounded-2xl bg-[#F8EEEE] text-[#59443F] border border-[#E8C7C5]/60 flex items-center justify-center text-sm shadow-xs shrink-0">
@@ -324,12 +331,17 @@ require_once __DIR__ . '/includes/layout_app_start.php';
                                 <div class="text-2xl sm:text-3xl font-black text-[#59443F] leading-tight">
                                     <?php echo (int)$irregular_students_count; ?>
                                 </div>
-                                <span class="text-[11px] sm:text-xs font-medium text-[#8B7168] mt-1.5 block truncate" title="<?php echo $irregular_students_count > 0 ? 'Requires Evaluation' : 'All Regular Standing'; ?>"><?php echo $irregular_students_count > 0 ? 'Requires Evaluation' : 'All Regular Standing'; ?></span>
+                                <div class="mt-1.5 flex items-center justify-between gap-2">
+                                    <span class="text-[11px] sm:text-xs font-medium text-[#8B7168] truncate" title="<?php echo $irregular_students_count > 0 ? 'Requires Evaluation' : 'All Regular Standing'; ?>"><?php echo $irregular_students_count > 0 ? 'Requires Evaluation' : 'All Regular Standing'; ?></span>
+                                    <i class="fa-solid fa-arrow-right text-[10px] text-[#8B7168] kpi-card-chevron shrink-0" aria-hidden="true"></i>
+                                </div>
                             </div>
-                        </div>
+                        </a>
 
                         <!-- Card 3: Total Subjects -->
-                        <div class="bg-white rounded-3xl border border-[#E8C7C5]/50 p-5 sm:p-6 shadow-lg hover:shadow-xl transition-all duration-200 flex flex-col justify-between">
+                        <a href="modules/curriculum_master.php"
+                           class="kpi-card-link bg-white rounded-3xl border border-[#E8C7C5]/50 p-5 sm:p-6 shadow-lg flex flex-col justify-between"
+                           aria-label="View Curriculum and Subjects">
                             <div class="flex items-center justify-between gap-2 mb-2 sm:mb-3">
                                 <span class="text-xs font-semibold text-[#8B7168] tracking-wider uppercase">Total Subjects</span>
                                 <div class="w-9 h-9 sm:w-10 sm:h-10 rounded-2xl bg-[#F8EEEE] text-[#59443F] border border-[#E8C7C5]/60 flex items-center justify-center text-sm shadow-xs shrink-0">
@@ -340,9 +352,12 @@ require_once __DIR__ . '/includes/layout_app_start.php';
                                 <div class="text-2xl sm:text-3xl font-black text-[#59443F] leading-tight">
                                     <?php echo (int)$total_subjects; ?>
                                 </div>
-                                <span class="text-[11px] sm:text-xs font-medium text-[#8B7168] mt-1.5 block">Curriculum Offerings</span>
+                                <div class="mt-1.5 flex items-center justify-between gap-2">
+                                    <span class="text-[11px] sm:text-xs font-medium text-[#8B7168]">Curriculum Offerings</span>
+                                    <i class="fa-solid fa-arrow-right text-[10px] text-[#8B7168] kpi-card-chevron shrink-0" aria-hidden="true"></i>
+                                </div>
                             </div>
-                        </div>
+                        </a>
                     </div>
 
                 <!-- 3. Enrollment by Year Level (Bar Chart) (Floating Bubble Card) -->
@@ -374,19 +389,26 @@ require_once __DIR__ . '/includes/layout_app_start.php';
 
                         <!-- Card Body: Micro Stat Pills & Bar Chart Canvas -->
                         <div class="p-4 sm:p-6">
-                            <!-- Stage Population Distribution Cards (Clean 2x2 Grid on Mobile < 768px, 4-Column Row >= 768px) -->
+                            <!-- Stage Population Distribution Cards (Interactive 2x2 Grid on Mobile < 768px, 4-Column Row >= 768px) -->
                             <div class="grid grid-cols-2 md:grid-cols-4 gap-3 mb-5">
-                                <div class="p-3 sm:p-3.5 rounded-2xl bg-[#F8EEEE] border border-[#E8C7C5]/30">
+                                <a href="modules/student_profiles.php?year_level=propaedeutic"
+                                   class="kpi-card-link p-3 sm:p-3.5 rounded-2xl bg-[#F8EEEE] border border-[#E8C7C5]/30"
+                                   aria-label="Filter Propaedeutic Seminarians">
                                     <div class="flex items-center justify-between gap-1.5">
                                         <span class="text-[10px] sm:text-[11px] font-semibold text-[#8B7168] tracking-wider uppercase truncate">Propaedeutic</span>
                                         <span class="w-2.5 h-2.5 rounded-full bg-[#10b981] shrink-0"></span>
                                     </div>
-                                    <div class="mt-1 flex items-baseline gap-1.5">
-                                        <span class="text-xl font-black text-[#59443F]"><?php echo (int)$prep_count; ?></span>
-                                        <span class="text-xs font-semibold text-[#8B7168]"><?php echo (int)$prep_pct; ?>%</span>
+                                    <div class="mt-1 flex items-baseline justify-between gap-1.5">
+                                        <div class="flex items-baseline gap-1.5">
+                                            <span class="text-xl font-black text-[#59443F]"><?php echo (int)$prep_count; ?></span>
+                                            <span class="text-xs font-semibold text-[#8B7168]"><?php echo (int)$prep_pct; ?>%</span>
+                                        </div>
+                                        <i class="fa-solid fa-chevron-right text-[9px] text-[#8B7168] kpi-card-chevron" aria-hidden="true"></i>
                                     </div>
-                                </div>
-                                <div class="p-3 sm:p-3.5 rounded-2xl bg-[#F8EEEE] border border-[#E8C7C5]/30">
+                                </a>
+                                <a href="modules/student_profiles.php?year_level=1st-2nd"
+                                   class="kpi-card-link p-3 sm:p-3.5 rounded-2xl bg-[#F8EEEE] border border-[#E8C7C5]/30"
+                                   aria-label="Filter 1st and 2nd Year Seminarians">
                                     <div class="flex items-center justify-between gap-1.5">
                                         <span class="text-[10px] sm:text-[11px] font-semibold text-[#8B7168] tracking-wider uppercase truncate">1st &amp; 2nd Year</span>
                                         <span class="inline-flex items-center gap-1 shrink-0">
@@ -394,12 +416,17 @@ require_once __DIR__ . '/includes/layout_app_start.php';
                                             <span class="w-2 h-2 rounded-full bg-[#6366f1]"></span>
                                         </span>
                                     </div>
-                                    <div class="mt-1 flex items-baseline gap-1.5">
-                                        <span class="text-xl font-black text-[#59443F]"><?php echo (int)$philo12_count; ?></span>
-                                        <span class="text-xs font-semibold text-[#8B7168]"><?php echo (int)$philo12_pct; ?>%</span>
+                                    <div class="mt-1 flex items-baseline justify-between gap-1.5">
+                                        <div class="flex items-baseline gap-1.5">
+                                            <span class="text-xl font-black text-[#59443F]"><?php echo (int)$philo12_count; ?></span>
+                                            <span class="text-xs font-semibold text-[#8B7168]"><?php echo (int)$philo12_pct; ?>%</span>
+                                        </div>
+                                        <i class="fa-solid fa-chevron-right text-[9px] text-[#8B7168] kpi-card-chevron" aria-hidden="true"></i>
                                     </div>
-                                </div>
-                                <div class="p-3 sm:p-3.5 rounded-2xl bg-[#F8EEEE] border border-[#E8C7C5]/30">
+                                </a>
+                                <a href="modules/student_profiles.php?year_level=3rd-4th"
+                                   class="kpi-card-link p-3 sm:p-3.5 rounded-2xl bg-[#F8EEEE] border border-[#E8C7C5]/30"
+                                   aria-label="Filter 3rd and 4th Year Seminarians">
                                     <div class="flex items-center justify-between gap-1.5">
                                         <span class="text-[10px] sm:text-[11px] font-semibold text-[#8B7168] tracking-wider uppercase truncate">3rd &amp; 4th Year</span>
                                         <span class="inline-flex items-center gap-1 shrink-0">
@@ -407,21 +434,29 @@ require_once __DIR__ . '/includes/layout_app_start.php';
                                             <span class="w-2 h-2 rounded-full bg-[#0f172a]"></span>
                                         </span>
                                     </div>
-                                    <div class="mt-1 flex items-baseline gap-1.5">
-                                        <span class="text-xl font-black text-[#59443F]"><?php echo (int)$philo34_count; ?></span>
-                                        <span class="text-xs font-semibold text-[#8B7168]"><?php echo (int)$philo34_pct; ?>%</span>
+                                    <div class="mt-1 flex items-baseline justify-between gap-1.5">
+                                        <div class="flex items-baseline gap-1.5">
+                                            <span class="text-xl font-black text-[#59443F]"><?php echo (int)$philo34_count; ?></span>
+                                            <span class="text-xs font-semibold text-[#8B7168]"><?php echo (int)$philo34_pct; ?>%</span>
+                                        </div>
+                                        <i class="fa-solid fa-chevron-right text-[9px] text-[#8B7168] kpi-card-chevron" aria-hidden="true"></i>
                                     </div>
-                                </div>
-                                <div class="p-3 sm:p-3.5 rounded-2xl bg-[#F8EEEE] border border-[#E8C7C5]/30">
+                                </a>
+                                <a href="modules/student_profiles.php?status=Active"
+                                   class="kpi-card-link p-3 sm:p-3.5 rounded-2xl bg-[#F8EEEE] border border-[#E8C7C5]/30"
+                                   aria-label="Filter Active Seminarians">
                                     <div class="flex items-center justify-between gap-1.5">
                                         <span class="text-[10px] sm:text-[11px] font-semibold text-[#8B7168] tracking-wider uppercase truncate">Active Status</span>
                                         <span class="w-2.5 h-2.5 rounded-full bg-[#10b981] shrink-0"></span>
                                     </div>
-                                    <div class="mt-1 flex items-baseline gap-1.5">
-                                        <span class="text-xl font-black text-[#59443F]"><?php echo (int)$active_status_pct; ?>%</span>
-                                        <span class="text-xs font-semibold text-emerald-700"><?php echo $total_students > 0 ? 'Enrolled' : 'Ready'; ?></span>
+                                    <div class="mt-1 flex items-baseline justify-between gap-1.5">
+                                        <div class="flex items-baseline gap-1.5">
+                                            <span class="text-xl font-black text-[#59443F]"><?php echo (int)$active_status_pct; ?>%</span>
+                                            <span class="text-xs font-semibold text-emerald-700"><?php echo $total_students > 0 ? 'Enrolled' : 'Ready'; ?></span>
+                                        </div>
+                                        <i class="fa-solid fa-chevron-right text-[9px] text-[#8B7168] kpi-card-chevron" aria-hidden="true"></i>
                                     </div>
-                                </div>
+                                </a>
                             </div>
 
                             <!-- Responsive Fixed-Height Canvas Container -->

@@ -270,9 +270,29 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['update_static_profile
 $search = trim((string)($_GET['q'] ?? ''));
 $filter_program = trim((string)($_GET['program'] ?? ''));
 $filter_status = trim((string)($_GET['status'] ?? ''));
+$filter_standing = strtolower(trim((string)($_GET['standing'] ?? '')));
+if (!in_array($filter_standing, ['regular', 'irregular'], true)) {
+    $filter_standing = '';
+}
+$filter_year_level = trim((string)($_GET['year_level'] ?? ''));
+$allowed_yl_filters = ['propaedeutic', '1st-2nd', '3rd-4th', 'Propaedeutic Stage', 'First Year', 'Second Year', 'Third Year', 'Fourth Year'];
+if ($filter_year_level !== '' && !in_array($filter_year_level, $allowed_yl_filters, true)) {
+    $filter_year_level = '';
+}
 $page = max(1, (int)($_GET['page'] ?? 1));
 $per_page = 25;
 $offset = ($page - 1) * $per_page;
+
+$joinSql = "
+        FROM students s
+        LEFT JOIN users u ON u.id = s.user_id
+        LEFT JOIN seminarians sem ON sem.id = s.id
+        LEFT JOIN enrollments le ON le.id = (
+            SELECT e2.id FROM enrollments e2
+            WHERE e2.student_id = s.id
+            ORDER BY e2.academic_year DESC, FIELD(e2.semester, 'Summer', '2nd', '1st') ASC, e2.id DESC
+            LIMIT 1
+        )";
 
 $whereSql = " WHERE 1=1";
 $params = [];
@@ -304,8 +324,30 @@ if ($filter_status !== '') {
     }
 }
 
+if ($filter_standing === 'irregular') {
+    $whereSql .= " AND LOWER(TRIM(COALESCE(NULLIF(le.academic_standing, ''), sem.academic_status, ''))) = 'irregular'";
+} elseif ($filter_standing === 'regular') {
+    $whereSql .= " AND LOWER(TRIM(COALESCE(NULLIF(le.academic_standing, ''), sem.academic_status, 'regular'))) = 'regular'";
+}
+
+if ($filter_year_level !== '') {
+    $ylLower = strtolower($filter_year_level);
+    $ylExpr = "LOWER(COALESCE(NULLIF(le.year_level, ''), sem.year_level, ''))";
+    if ($ylLower === 'propaedeutic' || $ylLower === 'propaedeutic stage') {
+        $whereSql .= " AND ({$ylExpr} LIKE '%propaedeutic%' OR {$ylExpr} LIKE '%prep%')";
+    } elseif ($ylLower === '1st-2nd') {
+        $whereSql .= " AND ({$ylExpr} LIKE '%first%' OR {$ylExpr} LIKE '%1st%' OR {$ylExpr} LIKE '%second%' OR {$ylExpr} LIKE '%2nd%')";
+    } elseif ($ylLower === '3rd-4th') {
+        $whereSql .= " AND ({$ylExpr} LIKE '%third%' OR {$ylExpr} LIKE '%3rd%' OR {$ylExpr} LIKE '%fourth%' OR {$ylExpr} LIKE '%4th%')";
+    } else {
+        $whereSql .= " AND COALESCE(NULLIF(le.year_level, ''), sem.year_level, '') = ?";
+        $params[] = $filter_year_level;
+        $types .= 's';
+    }
+}
+
 $total_filtered = 0;
-$stmtCount = $conn->prepare("SELECT COUNT(*) AS c FROM students s" . $whereSql);
+$stmtCount = $conn->prepare("SELECT COUNT(*) AS c" . $joinSql . $whereSql);
 if ($stmtCount) {
     if ($types !== '') {
         $bindC = [&$types];
@@ -330,17 +372,11 @@ $sql = "SELECT
             u.username AS linked_username,
             le.academic_year AS current_academic_year,
             le.semester AS current_semester,
-            le.year_level AS latest_year_level,
+            COALESCE(NULLIF(le.year_level, ''), sem.year_level) AS latest_year_level,
+            COALESCE(NULLIF(le.academic_standing, ''), sem.academic_status, 'Regular') AS latest_standing,
             le.enrollment_status AS latest_enrollment_status,
-            COALESCE(ec.total_terms_count, 0) AS total_terms_count
-        FROM students s
-        LEFT JOIN users u ON u.id = s.user_id
-        LEFT JOIN enrollments le ON le.id = (
-            SELECT e2.id FROM enrollments e2
-            WHERE e2.student_id = s.id
-            ORDER BY e2.academic_year DESC, FIELD(e2.semester, 'Summer', '2nd', '1st') ASC, e2.id DESC
-            LIMIT 1
-        )
+            COALESCE(ec.total_terms_count, 0) AS total_terms_count"
+    . $joinSql . "
         LEFT JOIN (
             SELECT student_id, COUNT(*) AS total_terms_count
             FROM enrollments
@@ -519,6 +555,27 @@ require_once __DIR__ . '/../includes/layout_app_start.php';
                     <option value="Graduated" <?php echo $filter_status === 'Graduated' ? 'selected' : ''; ?>>Graduated</option>
                 </select>
 
+                <select name="standing"
+                        aria-label="Academic Standing"
+                        class="w-full sm:w-36 px-2.5 py-1.5 text-xs font-medium rounded-lg border border-slate-200 bg-white text-slate-700 focus:outline-none focus:ring-2 focus:ring-teal-500/30 focus:border-teal-600 transition">
+                    <option value="">All Standing</option>
+                    <option value="regular" <?php echo $filter_standing === 'regular' ? 'selected' : ''; ?>>Regular</option>
+                    <option value="irregular" <?php echo $filter_standing === 'irregular' ? 'selected' : ''; ?>>Irregular</option>
+                </select>
+
+                <select name="year_level"
+                        aria-label="Year Level"
+                        class="w-full sm:w-40 px-2.5 py-1.5 text-xs font-medium rounded-lg border border-slate-200 bg-white text-slate-700 focus:outline-none focus:ring-2 focus:ring-teal-500/30 focus:border-teal-600 transition">
+                    <option value="">All Year Levels</option>
+                    <option value="propaedeutic" <?php echo $filter_year_level === 'propaedeutic' || $filter_year_level === 'Propaedeutic Stage' ? 'selected' : ''; ?>>Propaedeutic</option>
+                    <option value="1st-2nd" <?php echo $filter_year_level === '1st-2nd' ? 'selected' : ''; ?>>1st &amp; 2nd Year</option>
+                    <option value="3rd-4th" <?php echo $filter_year_level === '3rd-4th' ? 'selected' : ''; ?>>3rd &amp; 4th Year</option>
+                    <option value="First Year" <?php echo $filter_year_level === 'First Year' ? 'selected' : ''; ?>>First Year</option>
+                    <option value="Second Year" <?php echo $filter_year_level === 'Second Year' ? 'selected' : ''; ?>>Second Year</option>
+                    <option value="Third Year" <?php echo $filter_year_level === 'Third Year' ? 'selected' : ''; ?>>Third Year</option>
+                    <option value="Fourth Year" <?php echo $filter_year_level === 'Fourth Year' ? 'selected' : ''; ?>>Fourth Year</option>
+                </select>
+
                 <button type="submit"
                         style="width: auto;"
                         class="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-xs font-bold bg-[#59443F] text-white hover:bg-[#463430] transition cursor-pointer border-0 shadow-2xs">
@@ -526,7 +583,7 @@ require_once __DIR__ . '/../includes/layout_app_start.php';
                     <span>Filter</span>
                 </button>
 
-                <?php if ($search !== '' || $filter_program !== '' || $filter_status !== '') { ?>
+                <?php if ($search !== '' || $filter_program !== '' || $filter_status !== '' || $filter_standing !== '' || $filter_year_level !== '') { ?>
                     <a href="student_profiles.php"
                        class="inline-flex items-center px-3 py-1.5 rounded-lg text-xs font-bold bg-white text-slate-600 hover:bg-slate-100 border border-slate-200 transition no-underline">
                         Reset
