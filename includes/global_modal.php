@@ -12,7 +12,7 @@ declare(strict_types=1);
 if (!function_exists('global_modal_overlay_classes')) {
     function global_modal_overlay_classes(string $extra = ''): string
     {
-        $base = 'fixed inset-0 z-[99999] !z-[99999] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4 sm:p-6';
+        $base = 'global-modal-overlay fixed inset-0 z-[99999] !z-[99999] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4 sm:p-6';
         return trim($base . ($extra !== '' ? ' ' . $extra : ''));
     }
 }
@@ -20,7 +20,7 @@ if (!function_exists('global_modal_overlay_classes')) {
 if (!function_exists('global_modal_panel_classes')) {
     function global_modal_panel_classes(string $maxWidth = 'max-w-2xl', string $extra = ''): string
     {
-        $base = 'max-h-[90vh] overflow-y-auto bg-white rounded-xl shadow-2xl w-full ' . trim($maxWidth);
+        $base = 'global-modal-panel max-h-[90vh] overflow-y-auto bg-white rounded-xl shadow-2xl w-full ' . trim($maxWidth);
         return trim($base . ($extra !== '' ? ' ' . $extra : ''));
     }
 }

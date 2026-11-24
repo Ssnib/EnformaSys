@@ -1,6 +1,23 @@
+@keyframes fadeSlideUp {
+  from {
+    opacity: 0;
+    transform: translate3d(0, 12px, 0);
+  }
+  to {
+    opacity: 1;
+    transform: translate3d(0, 0, 0);
+  }
+}
+
 @keyframes capstone-fade-up {
-  from { opacity: 0; transform: translateY(10px); }
-  to { opacity: 1; transform: translateY(0); }
+  from {
+    opacity: 0;
+    transform: translate3d(0, 10px, 0);
+  }
+  to {
+    opacity: 1;
+    transform: translate3d(0, 0, 0);
+  }
 }
 
 @keyframes capstone-fade-in {
@@ -8,76 +25,164 @@
   to { opacity: 1; }
 }
 
-@media (prefers-reduced-motion: reduce) {
-  * { animation: none !important; transition-duration: 0.01ms !important; scroll-behavior: auto !important; }
+@keyframes modalBackdropFade {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes modalPanelScaleIn {
+  from {
+    opacity: 0;
+    transform: scale(0.96) translate3d(0, 8px, 0);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translate3d(0, 0, 0);
+  }
+}
+
+@keyframes alertFadeIn {
+  from {
+    opacity: 0;
+    transform: translate3d(0, 6px, 0);
+  }
+  to {
+    opacity: 1;
+    transform: translate3d(0, 0, 0);
+  }
 }
 
 /* Note: Avoid persistent animation-fill-mode/opacity/transform on body or <main>,
    as CSS animations with fill-mode/opacity create stacking contexts that trap fixed modals. */
-body {
-  animation: none;
-}
-
+body,
 .capstone-animate-in {
   animation: none;
 }
 
-.card,
-.table-container,
-.stats-grid > div,
-.stat-card {
-  animation: capstone-fade-up 420ms cubic-bezier(0.16, 1, 0.3, 1) both;
-}
-
-.stat-card {
-  transition: transform 160ms ease, box-shadow 160ms ease, background-color 160ms ease;
-  will-change: transform;
-}
-
-.stat-card:hover {
-  transform: translateY(-3px);
-  box-shadow: 0 18px 40px -22px rgba(2, 6, 23, 0.45);
-}
-
-.stat-card:active {
-  transform: translateY(-1px);
-}
-
-.card {
-  will-change: transform;
-}
-
-.card:hover {
-  transform: translateY(-2px);
-}
-
-#sidebar nav a i {
-  transition: transform 160ms ease;
-}
-
-#sidebar nav a:hover i {
-  transform: translateX(1px);
-}
-
+/* Base non-motion transitions stay active regardless of reduced-motion preference */
 button,
 .btn,
+.btn-bubble-primary,
+.btn-bubble-accent,
+.btn-bubble-light,
 input,
 select,
 textarea,
 a {
-  transition: transform 140ms ease, box-shadow 140ms ease, background-color 140ms ease, color 140ms ease, border-color 140ms ease, opacity 140ms ease;
-}
-
-button:hover,
-.btn:hover {
-  transform: translateY(-1px);
-}
-
-button:active,
-.btn:active {
-  transform: translateY(0);
+  transition: background-color 150ms ease, color 150ms ease, border-color 150ms ease, box-shadow 180ms ease, opacity 150ms ease;
 }
 
 tbody tr {
-  transition: background-color 140ms ease;
+  transition: background-color 150ms ease;
+}
+
+.sidebar-dropdown-toggle .fa-chevron-down {
+  transition: color 160ms ease;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .dash-reveal {
+    animation: fadeSlideUp 350ms cubic-bezier(0.16, 1, 0.3, 1) var(--reveal-delay, 0ms) both;
+    will-change: transform, opacity;
+  }
+
+  .card,
+  .table-container,
+  .stats-grid > div,
+  .stat-card {
+    animation: fadeSlideUp 350ms cubic-bezier(0.16, 1, 0.3, 1) both;
+  }
+
+  .stat-card {
+    transition: transform 180ms cubic-bezier(0.16, 1, 0.3, 1), box-shadow 180ms ease, background-color 160ms ease, border-color 160ms ease;
+    will-change: transform;
+  }
+
+  .stat-card:hover {
+    transform: translate3d(0, -3px, 0);
+    box-shadow: 0 18px 40px -22px rgba(89, 68, 63, 0.22);
+  }
+
+  .stat-card:active {
+    transform: translate3d(0, -1px, 0) scale(0.99);
+  }
+
+  button,
+  .btn,
+  .btn-bubble-primary,
+  .btn-bubble-accent,
+  .btn-bubble-light,
+  a {
+    transition: transform 160ms cubic-bezier(0.16, 1, 0.3, 1), box-shadow 180ms ease, background-color 150ms ease, color 150ms ease, border-color 150ms ease, opacity 150ms ease;
+  }
+
+  button:not(:disabled):hover,
+  .btn:not(:disabled):hover {
+    transform: translate3d(0, -2px, 0);
+  }
+
+  button:not(:disabled):active,
+  .btn:not(:disabled):active,
+  .btn-bubble-primary:active,
+  .btn-bubble-accent:active,
+  .btn-bubble-light:active {
+    transform: scale(0.99);
+  }
+
+  tbody tr {
+    transition: transform 150ms cubic-bezier(0.16, 1, 0.3, 1), background-color 150ms ease;
+  }
+
+  tbody tr[onclick]:hover,
+  tbody tr.clickable-row:hover {
+    transform: translate3d(0, -1px, 0);
+  }
+
+  tbody tr[onclick]:active,
+  tbody tr.clickable-row:active {
+    transform: scale(0.995);
+  }
+
+  #sidebar nav a i {
+    transition: transform 160ms cubic-bezier(0.16, 1, 0.3, 1);
+  }
+
+  #sidebar nav a:hover i {
+    transform: translate3d(2px, 0, 0);
+  }
+
+  .sidebar-dropdown-toggle .fa-chevron-down {
+    transition: transform 240ms cubic-bezier(0.16, 1, 0.3, 1), color 160ms ease;
+  }
+
+  .sidebar-dropdown-toggle[aria-expanded="true"] .fa-chevron-down {
+    transform: rotate(180deg);
+  }
+
+  /* Modal & Dialog Transitions */
+  .global-modal-overlay:not(.hidden),
+  [data-global-modal="1"]:not(.hidden),
+  .modal.open,
+  .modal-overlay:not(.hidden) {
+    animation: modalBackdropFade 200ms ease-out both;
+  }
+
+  .global-modal-overlay:not(.hidden) > .global-modal-panel,
+  [data-global-modal="1"]:not(.hidden) > .global-modal-panel,
+  .modal.open .modal-panel,
+  .modal-overlay:not(.hidden) > .modal-panel {
+    animation: modalPanelScaleIn 240ms cubic-bezier(0.16, 1, 0.3, 1) both;
+  }
+
+  /* Alert Entrance */
+  .alert,
+  [role="alert"]:not(.toast-bubble) {
+    animation: alertFadeIn 260ms cubic-bezier(0.16, 1, 0.3, 1) both;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto !important;
+  }
 }

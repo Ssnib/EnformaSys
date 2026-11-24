@@ -298,7 +298,8 @@ require_once __DIR__ . '/includes/layout_app_start.php';
                 <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
                         <!-- Card 1: Enrolled Seminarians -->
                         <a href="modules/student_profiles.php"
-                           class="kpi-card-link bg-white rounded-3xl border border-[#E8C7C5]/50 p-5 sm:p-6 shadow-lg flex flex-col justify-between"
+                           class="kpi-card-link dash-reveal bg-white rounded-3xl border border-[#E8C7C5]/50 p-5 sm:p-6 shadow-lg flex flex-col justify-between"
+                           style="--reveal-delay: 0ms;"
                            aria-label="View Enrolled Seminarians in Student Profiles">
                             <div class="flex items-center justify-between gap-2 mb-2 sm:mb-3">
                                 <span class="text-xs font-semibold text-[#8B7168] tracking-wider uppercase">Enrolled Seminarians</span>
@@ -307,7 +308,8 @@ require_once __DIR__ . '/includes/layout_app_start.php';
                                 </div>
                             </div>
                             <div>
-                                <div class="text-2xl sm:text-3xl font-black text-[#59443F] leading-tight">
+                                <div class="js-kpi-count text-2xl sm:text-3xl font-black text-[#59443F] leading-tight"
+                                     data-target="<?php echo (int)$total_students; ?>">
                                     <?php echo (int)$total_students; ?>
                                 </div>
                                 <div class="mt-1.5 flex items-center justify-between gap-2">
@@ -319,7 +321,8 @@ require_once __DIR__ . '/includes/layout_app_start.php';
 
                         <!-- Card 2: Irregular Students -->
                         <a href="modules/student_profiles.php?standing=irregular"
-                           class="kpi-card-link bg-white rounded-3xl border border-[#E8C7C5]/50 p-5 sm:p-6 shadow-lg flex flex-col justify-between"
+                           class="kpi-card-link dash-reveal bg-white rounded-3xl border border-[#E8C7C5]/50 p-5 sm:p-6 shadow-lg flex flex-col justify-between"
+                           style="--reveal-delay: 50ms;"
                            aria-label="View Irregular Seminarians">
                             <div class="flex items-center justify-between gap-2 mb-2 sm:mb-3">
                                 <span class="text-xs font-semibold text-[#8B7168] tracking-wider uppercase">Irregular Students</span>
@@ -328,7 +331,8 @@ require_once __DIR__ . '/includes/layout_app_start.php';
                                 </div>
                             </div>
                             <div>
-                                <div class="text-2xl sm:text-3xl font-black text-[#59443F] leading-tight">
+                                <div class="js-kpi-count text-2xl sm:text-3xl font-black text-[#59443F] leading-tight"
+                                     data-target="<?php echo (int)$irregular_students_count; ?>">
                                     <?php echo (int)$irregular_students_count; ?>
                                 </div>
                                 <div class="mt-1.5 flex items-center justify-between gap-2">
@@ -340,7 +344,8 @@ require_once __DIR__ . '/includes/layout_app_start.php';
 
                         <!-- Card 3: Total Subjects -->
                         <a href="modules/curriculum_master.php"
-                           class="kpi-card-link bg-white rounded-3xl border border-[#E8C7C5]/50 p-5 sm:p-6 shadow-lg flex flex-col justify-between"
+                           class="kpi-card-link dash-reveal bg-white rounded-3xl border border-[#E8C7C5]/50 p-5 sm:p-6 shadow-lg flex flex-col justify-between"
+                           style="--reveal-delay: 100ms;"
                            aria-label="View Curriculum and Subjects">
                             <div class="flex items-center justify-between gap-2 mb-2 sm:mb-3">
                                 <span class="text-xs font-semibold text-[#8B7168] tracking-wider uppercase">Total Subjects</span>
@@ -349,7 +354,8 @@ require_once __DIR__ . '/includes/layout_app_start.php';
                                 </div>
                             </div>
                             <div>
-                                <div class="text-2xl sm:text-3xl font-black text-[#59443F] leading-tight">
+                                <div class="js-kpi-count text-2xl sm:text-3xl font-black text-[#59443F] leading-tight"
+                                     data-target="<?php echo (int)$total_subjects; ?>">
                                     <?php echo (int)$total_subjects; ?>
                                 </div>
                                 <div class="mt-1.5 flex items-center justify-between gap-2">
@@ -361,7 +367,7 @@ require_once __DIR__ . '/includes/layout_app_start.php';
                     </div>
 
                 <!-- 3. Enrollment by Year Level (Bar Chart) (Floating Bubble Card) -->
-                    <div class="bg-white rounded-3xl border border-[#E8C7C5]/50 shadow-xl overflow-hidden font-['Inter',sans-serif]">
+                    <div class="dash-reveal bg-white rounded-3xl border border-[#E8C7C5]/50 shadow-xl overflow-hidden font-['Inter',sans-serif]" style="--reveal-delay: 150ms;">
                         <!-- Card Header -->
                         <div class="p-5 sm:p-6 pb-4 border-b border-[#E8C7C5]/30 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 bg-white">
                             <div class="flex items-center gap-3">
@@ -382,7 +388,7 @@ require_once __DIR__ . '/includes/layout_app_start.php';
                             <!-- Total Population Indicator -->
                             <div class="flex items-center gap-1.5 self-start sm:self-center">
                                 <span class="inline-flex items-center gap-1.5 text-xs font-bold px-3 py-1 rounded-xl bg-[#F8EEEE] text-[#59443F] border border-[#E8C7C5]/60 shadow-xs">
-                                    <span class="w-2 h-2 rounded-full bg-emerald-500"></span> Total: <span id="totalEnrollmentCount"><?php echo (int)$total_year_pop; ?></span> Enrolled
+                                    <span class="w-2 h-2 rounded-full bg-emerald-500"></span> Total: <span id="totalEnrollmentCount" class="js-kpi-count" data-target="<?php echo (int)$total_year_pop; ?>"><?php echo (int)$total_year_pop; ?></span> Enrolled
                                 </span>
                             </div>
                         </div>
@@ -400,7 +406,7 @@ require_once __DIR__ . '/includes/layout_app_start.php';
                                     </div>
                                     <div class="mt-1 flex items-baseline justify-between gap-1.5">
                                         <div class="flex items-baseline gap-1.5">
-                                            <span class="text-xl font-black text-[#59443F]"><?php echo (int)$prep_count; ?></span>
+                                            <span class="js-kpi-count text-xl font-black text-[#59443F]" data-target="<?php echo (int)$prep_count; ?>"><?php echo (int)$prep_count; ?></span>
                                             <span class="text-xs font-semibold text-[#8B7168]"><?php echo (int)$prep_pct; ?>%</span>
                                         </div>
                                         <i class="fa-solid fa-chevron-right text-[9px] text-[#8B7168] kpi-card-chevron" aria-hidden="true"></i>
@@ -418,7 +424,7 @@ require_once __DIR__ . '/includes/layout_app_start.php';
                                     </div>
                                     <div class="mt-1 flex items-baseline justify-between gap-1.5">
                                         <div class="flex items-baseline gap-1.5">
-                                            <span class="text-xl font-black text-[#59443F]"><?php echo (int)$philo12_count; ?></span>
+                                            <span class="js-kpi-count text-xl font-black text-[#59443F]" data-target="<?php echo (int)$philo12_count; ?>"><?php echo (int)$philo12_count; ?></span>
                                             <span class="text-xs font-semibold text-[#8B7168]"><?php echo (int)$philo12_pct; ?>%</span>
                                         </div>
                                         <i class="fa-solid fa-chevron-right text-[9px] text-[#8B7168] kpi-card-chevron" aria-hidden="true"></i>
@@ -436,7 +442,7 @@ require_once __DIR__ . '/includes/layout_app_start.php';
                                     </div>
                                     <div class="mt-1 flex items-baseline justify-between gap-1.5">
                                         <div class="flex items-baseline gap-1.5">
-                                            <span class="text-xl font-black text-[#59443F]"><?php echo (int)$philo34_count; ?></span>
+                                            <span class="js-kpi-count text-xl font-black text-[#59443F]" data-target="<?php echo (int)$philo34_count; ?>"><?php echo (int)$philo34_count; ?></span>
                                             <span class="text-xs font-semibold text-[#8B7168]"><?php echo (int)$philo34_pct; ?>%</span>
                                         </div>
                                         <i class="fa-solid fa-chevron-right text-[9px] text-[#8B7168] kpi-card-chevron" aria-hidden="true"></i>
@@ -451,7 +457,7 @@ require_once __DIR__ . '/includes/layout_app_start.php';
                                     </div>
                                     <div class="mt-1 flex items-baseline justify-between gap-1.5">
                                         <div class="flex items-baseline gap-1.5">
-                                            <span class="text-xl font-black text-[#59443F]"><?php echo (int)$active_status_pct; ?>%</span>
+                                            <span class="js-kpi-count text-xl font-black text-[#59443F]" data-target="<?php echo (int)$active_status_pct; ?>" data-suffix="%"><?php echo (int)$active_status_pct; ?>%</span>
                                             <span class="text-xs font-semibold text-emerald-700"><?php echo $total_students > 0 ? 'Enrolled' : 'Ready'; ?></span>
                                         </div>
                                         <i class="fa-solid fa-chevron-right text-[9px] text-[#8B7168] kpi-card-chevron" aria-hidden="true"></i>
@@ -481,7 +487,7 @@ require_once __DIR__ . '/includes/layout_app_start.php';
                     </div>
 
                     <!-- 4. Action Required / Alerts (Floating Bubble Card) -->
-                    <div class="bg-white rounded-3xl border border-[#E8C7C5]/50 shadow-xl overflow-hidden font-['Inter',sans-serif]">
+                    <div class="dash-reveal bg-white rounded-3xl border border-[#E8C7C5]/50 shadow-xl overflow-hidden font-['Inter',sans-serif]" style="--reveal-delay: 200ms;">
                         <div class="p-5 sm:p-6 pb-4 border-b border-[#E8C7C5]/30 flex items-center justify-between bg-white">
                             <div class="flex items-center gap-3">
                                 <div class="w-10 h-10 rounded-2xl bg-[#F8EEEE] text-[#59443F] border border-[#E8C7C5]/60 flex items-center justify-center shrink-0 shadow-xs">
@@ -628,7 +634,7 @@ require_once __DIR__ . '/includes/layout_app_start.php';
                     <div id="academicCalendarWidget"></div>
 
                     <!-- 2. Recent Enrollments (Floating Bubble Card) -->
-                    <div class="bg-white rounded-3xl border border-[#E8C7C5]/50 shadow-xl overflow-hidden font-['Inter',sans-serif]">
+                    <div class="dash-reveal bg-white rounded-3xl border border-[#E8C7C5]/50 shadow-xl overflow-hidden font-['Inter',sans-serif]" style="--reveal-delay: 200ms;">
                         <div class="p-5 pb-3 border-b border-[#E8C7C5]/30 flex items-center justify-between bg-white">
                             <div class="flex items-center gap-2.5">
                                 <div class="w-8 h-8 rounded-xl bg-[#F8EEEE] text-[#59443F] border border-[#E8C7C5]/60 flex items-center justify-center shrink-0 shadow-xs">
@@ -700,7 +706,7 @@ require_once __DIR__ . '/includes/layout_app_start.php';
                     </div>
 
                     <!-- 3. Recent Activities Feed (Floating Bubble Card) -->
-                    <div class="bg-white rounded-3xl border border-[#E8C7C5]/50 shadow-xl overflow-hidden font-['Inter',sans-serif]">
+                    <div class="dash-reveal bg-white rounded-3xl border border-[#E8C7C5]/50 shadow-xl overflow-hidden font-['Inter',sans-serif]" style="--reveal-delay: 250ms;">
                         <div class="p-5 pb-3 border-b border-[#E8C7C5]/30 flex items-center justify-between bg-white">
                             <div class="flex items-center gap-2.5">
                                 <div class="w-8 h-8 rounded-xl bg-[#F8EEEE] text-[#59443F] border border-[#E8C7C5]/60 flex items-center justify-center shrink-0 shadow-xs">
@@ -932,7 +938,7 @@ function initEnrollmentYearChart() {
                 }
             },
             animation: {
-                duration: 600,
+                duration: (window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches) ? 0 : 700,
                 easing: 'easeOutQuart'
             }
         }
@@ -962,7 +968,47 @@ function initEnrollmentYearChart() {
 </script>
 <script defer src="assets/academic_calendar.js?v=<?php echo file_exists(__DIR__ . '/assets/academic_calendar.js') ? filemtime(__DIR__ . '/assets/academic_calendar.js') : '1'; ?>"></script>
 <script>
+function initKpiCountUp() {
+    const els = document.querySelectorAll('.js-kpi-count[data-target]');
+    if (!els.length) return;
+
+    const prefersReducedMotion = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    const duration = 600;
+
+    els.forEach((el) => {
+        const target = parseInt(el.dataset.target || '0', 10);
+        const prefix = el.dataset.prefix || '';
+        const suffix = el.dataset.suffix || '';
+
+        if (prefersReducedMotion || !Number.isFinite(target) || target <= 0) {
+            el.textContent = prefix + (Number.isFinite(target) ? target.toLocaleString() : '0') + suffix;
+            return;
+        }
+
+        const startTime = performance.now();
+        el.textContent = prefix + '0' + suffix;
+
+        function tick(now) {
+            const elapsed = now - startTime;
+            const progress = Math.min(elapsed / duration, 1);
+            const eased = 1 - Math.pow(1 - progress, 3);
+            const current = Math.round(target * eased);
+            el.textContent = prefix + current.toLocaleString() + suffix;
+            if (progress < 1) {
+                requestAnimationFrame(tick);
+            } else {
+                el.textContent = prefix + target.toLocaleString() + suffix;
+            }
+        }
+
+        requestAnimationFrame(tick);
+    });
+}
+
 document.addEventListener('DOMContentLoaded', () => {
+    // Animate KPI count-up values
+    initKpiCountUp();
+
     // Initialize Enrollment by Year Level Chart
     initEnrollmentYearChart();
 

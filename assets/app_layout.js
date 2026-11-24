@@ -112,8 +112,8 @@
           const otherChevron = otherBtn.querySelector('.fa-chevron-down');
           if (otherMenu) otherMenu.classList.remove('open');
           if (otherChevron) {
-            otherChevron.classList.remove('rotate-180', 'text-amber-400');
-            otherChevron.classList.add('text-slate-400');
+            otherChevron.classList.remove('rotate-180', 'text-[#59443F]');
+            otherChevron.classList.add('text-[#8B7168]');
           }
         }
       });
@@ -122,15 +122,15 @@
         btn.setAttribute('aria-expanded', 'false');
         if (menu) menu.classList.remove('open');
         if (chevron) {
-          chevron.classList.remove('rotate-180', 'text-amber-400');
-          chevron.classList.add('text-slate-400');
+          chevron.classList.remove('rotate-180', 'text-[#59443F]');
+          chevron.classList.add('text-[#8B7168]');
         }
       } else {
         btn.setAttribute('aria-expanded', 'true');
         if (menu) menu.classList.add('open');
         if (chevron) {
-          chevron.classList.add('rotate-180', 'text-amber-400');
-          chevron.classList.remove('text-slate-400');
+          chevron.classList.add('rotate-180', 'text-[#59443F]');
+          chevron.classList.remove('text-[#8B7168]');
         }
       }
     });
