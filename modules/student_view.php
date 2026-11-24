@@ -30,8 +30,12 @@ if ($seminarian_id > 0) {
     }
 }
 
-// Permission check for viewing academic grades (hidden by default until approved)
-$can_view_grades = (int)($seminarian['academic_view_enabled'] ?? 0) === 1;
+// Term-scoped permission check for viewing academic grades for the active term
+$active_term_meta = capstone_access_resolve_active_term($conn);
+$active_grade_ay = $active_term_meta['academic_year'];
+$active_grade_sem = $active_term_meta['semester'];
+$grade_perm = capstone_access_get_grade_view_permission($conn, $seminarian_id, $active_grade_ay, $active_grade_sem);
+$can_view_grades = !empty($grade_perm['can_view_any']);
 
 // Handle access request from dashboard if submitted
 $grade_request_error = null;
@@ -41,14 +45,14 @@ if (!$can_view_grades) {
         if (!verify_csrf_token($_POST['csrf_token'] ?? '')) {
             die('CSRF token validation failed.');
         }
-        $result = capstone_access_request_create($conn, $seminarian_id, 'Academic', $user_id);
+        $result = capstone_access_request_create($conn, $seminarian_id, 'Academic', $user_id, null, 'whole', null, $active_grade_ay, $active_grade_sem);
         if ($result['ok']) {
-            $grade_request_success = 'Request submitted. Please wait for your Academic Formator to approve grade access.';
+            $grade_request_success = "Request submitted for AY {$active_grade_ay} ({$active_grade_sem} Semester). Please wait for approval.";
         } else {
             $grade_request_error = (string)($result['error'] ?? 'Failed to submit request.');
         }
     }
-    $pending_grade_request = capstone_access_request_get_pending($conn, $seminarian_id, 'Academic');
+    $pending_grade_request = capstone_access_request_get_pending($conn, $seminarian_id, 'Academic', $active_grade_ay, $active_grade_sem);
 } else {
     $pending_grade_request = null;
 }
@@ -624,14 +628,14 @@ if ($total_enrolled_units <= 0) {
                                 <?php
                                 $req_scope = (string)($pending_grade_request['request_scope'] ?? 'whole');
                                 ?>
-                                <a href="student_academic.php#grade-request-form" class="inline-flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold bg-[#F8EEEE] text-[#59443F] border border-[#E8C7C5]/70 shadow-xs hover:bg-white transition">
+                                <a href="student_academic.php?academic_year=<?php echo urlencode($active_grade_ay); ?>&amp;semester=<?php echo urlencode($active_grade_sem); ?>#grade-request-form" class="inline-flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold bg-[#F8EEEE] text-[#59443F] border border-[#E8C7C5]/70 shadow-xs hover:bg-white transition">
                                     <i class="fa-regular fa-clock text-amber-600"></i>
-                                    <span>Pending Approval (<?php echo $req_scope === 'selected' ? 'Selected Subjects' : 'Whole Semester'; ?>)</span>
+                                    <span>Pending Approval (<?php echo htmlspecialchars($active_grade_sem); ?> Sem &middot; <?php echo $req_scope === 'selected' ? 'Selected Subjects' : 'Whole Semester'; ?>)</span>
                                 </a>
                             <?php else: ?>
-                                <a href="student_academic.php#grade-request-form" class="inline-flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold bg-[#59443F] hover:bg-[#8B7168] text-white shadow-soft transition-all duration-200 cursor-pointer">
+                                <a href="student_academic.php?academic_year=<?php echo urlencode($active_grade_ay); ?>&amp;semester=<?php echo urlencode($active_grade_sem); ?>#grade-request-form" class="inline-flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold bg-[#59443F] hover:bg-[#8B7168] text-white shadow-soft transition-all duration-200 cursor-pointer">
                                     <i class="fa-solid fa-key text-[#E8C7C5]"></i>
-                                    <span>Request Grade Viewing</span>
+                                    <span>Request Grade Access (<?php echo htmlspecialchars($active_grade_sem); ?> Semester)</span>
                                 </a>
                             <?php endif; ?>
                         </div>

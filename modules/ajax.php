@@ -557,8 +557,11 @@ try {
 
     if ($action === 'get_academic_access_requests') {
         require_roles(['AcademicFormator', 'Registrar', 'Dean']);
+        require_once __DIR__ . '/../includes/access_requests.php';
+        $hasTermCols = capstone_access_has_term_columns($conn);
+        $termSelect = $hasTermCols ? 'r.academic_year, r.semester, ' : '';
         $requests = [];
-        $stmt_par = $conn->query("SELECT r.id, r.seminarian_id, r.message, r.request_scope, r.requested_subjects, r.requested_at,
+        $stmt_par = $conn->query("SELECT r.id, r.seminarian_id, {$termSelect}r.message, r.request_scope, r.requested_subjects, r.requested_at,
                 u.username, up.full_name,
                 COALESCE(NULLIF(TRIM(stu.student_no),''), NULLIF(TRIM(up.student_id),''), CONCAT('SEM-', LPAD(s.id, 4, '0'))) AS student_no
             FROM seminarian_access_requests r
@@ -581,9 +584,17 @@ try {
                         $rsubs = $decoded;
                     }
                 }
+                $reqAy = trim((string)($row['academic_year'] ?? ''));
+                $reqSem = capstone_access_normalize_semester((string)($row['semester'] ?? ''));
+                $termLabel = ($reqAy !== '' && $reqSem !== '')
+                    ? ('AY ' . $reqAy . ' · ' . $reqSem . ' Sem')
+                    : ($reqAy !== '' ? ('AY ' . $reqAy) : 'Active Term');
                 $requests[] = [
                     'id' => (int)($row['id'] ?? 0),
                     'seminarian_id' => (int)($row['seminarian_id'] ?? 0),
+                    'academic_year' => $reqAy,
+                    'semester' => $reqSem,
+                    'term_label' => $termLabel,
                     'display_name' => $sname,
                     'student_no' => (string)($row['student_no'] ?? ''),
                     'message' => (string)($row['message'] ?? ''),

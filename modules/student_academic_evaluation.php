@@ -29,8 +29,14 @@ if ($student_id > 0) {
     }
 }
 
-// Formation evaluation permissions per pillar
-$can_view_grades = (int)($sem['academic_view_enabled'] ?? 0) === 1;
+// Formation evaluation permissions per pillar (Academic is scoped strictly per term)
+$active_eval_term = capstone_access_resolve_active_term($conn);
+$active_eval_ay = $active_eval_term['academic_year'];
+$active_eval_sem = $active_eval_term['semester'];
+$approved_academic_terms = capstone_access_get_approved_grade_terms($conn, $student_id);
+$active_academic_perm = capstone_access_get_grade_view_permission($conn, $student_id, $active_eval_ay, $active_eval_sem);
+
+$can_view_grades = !empty($active_academic_perm['can_view_any']);
 $allowed_academic = $can_view_grades;
 $allowed_spiritual = (int)($sem['spiritual_eval_view_enabled'] ?? 0) === 1;
 $allowed_human = (int)($sem['human_eval_view_enabled'] ?? 0) === 1;
@@ -50,7 +56,17 @@ if (isset($_POST['request_access'])) {
         $req_type = 'Academic';
     }
     $active_tab = strtolower($req_type);
-    $result = capstone_access_request_create($conn, $student_id, $req_type, $user_id);
+    $result = capstone_access_request_create(
+        $conn,
+        $student_id,
+        $req_type,
+        $user_id,
+        null,
+        'whole',
+        null,
+        $req_type === 'Academic' ? $active_eval_ay : null,
+        $req_type === 'Academic' ? $active_eval_sem : null
+    );
     if ($result['ok']) {
         $formator_title = $req_type === 'Spiritual' ? 'Spiritual Director' : ($req_type === 'Academic' ? 'Academic Formator' : "{$req_type} Formator");
         $request_successes[$req_type] = "Request submitted. Please wait for your {$formator_title} to enable access.";
@@ -60,7 +76,7 @@ if (isset($_POST['request_access'])) {
 }
 
 $pending_requests = [
-    'Academic' => capstone_access_request_get_pending($conn, $student_id, 'Academic'),
+    'Academic' => capstone_access_request_get_pending($conn, $student_id, 'Academic', $active_eval_ay, $active_eval_sem),
     'Spiritual' => capstone_access_request_get_pending($conn, $student_id, 'Spiritual'),
     'Human' => capstone_access_request_get_pending($conn, $student_id, 'Human'),
     'Pastoral' => capstone_access_request_get_pending($conn, $student_id, 'Pastoral'),
@@ -402,12 +418,15 @@ require_once __DIR__ . '/../includes/layout_app_start.php';
                                         </td>
                                     </tr>
                                 <?php } ?>
-                                <?php if ($rows) { while ($r = $rows->fetch_assoc()) { ?>
+                                <?php if ($rows) { while ($r = $rows->fetch_assoc()) {
+                                    $row_term_key = trim((string)$r['academic_year']) . '|' . capstone_access_normalize_semester((string)$r['semester']);
+                                    $row_allowed = !empty($approved_academic_terms[$row_term_key]['is_whole']) || !empty($approved_academic_terms[$row_term_key]['subject_ids']);
+                                ?>
                                     <tr class="hover:bg-[#F8EEEE]/40 transition-colors">
                                         <td class="px-6 py-4 font-bold text-[#59443F]"><?php echo htmlspecialchars((string)$r['academic_year']); ?></td>
                                         <td class="px-6 py-4 text-[#8B7168]"><?php echo htmlspecialchars((string)$r['semester']); ?></td>
                                         <td class="px-6 py-4 font-semibold text-[#59443F]">
-                                            <?php if ($allowed_academic): ?>
+                                            <?php if ($row_allowed): ?>
                                                 <?php echo $r['gpa'] === null ? '-' : htmlspecialchars(number_format((float)$r['gpa'], 2)); ?>
                                             <?php else: ?>
                                                 <span class="inline-flex items-center gap-1.5 text-xs text-[#8B7168]">
@@ -417,7 +436,7 @@ require_once __DIR__ . '/../includes/layout_app_start.php';
                                             <?php endif; ?>
                                         </td>
                                         <td class="px-6 py-4 font-semibold text-[#59443F]">
-                                            <?php if ($allowed_academic): ?>
+                                            <?php if ($row_allowed): ?>
                                                 <?php echo $r['average_score'] === null ? '-' : htmlspecialchars(number_format((float)$r['average_score'], 2)); ?>
                                             <?php else: ?>
                                                 <span class="inline-flex items-center gap-1.5 text-xs text-[#8B7168]">
@@ -427,7 +446,7 @@ require_once __DIR__ . '/../includes/layout_app_start.php';
                                             <?php endif; ?>
                                         </td>
                                         <td class="px-6 py-4">
-                                            <?php if ($allowed_academic): ?>
+                                            <?php if ($row_allowed): ?>
                                                 <?php if ($r['average_score'] !== null || !empty($r['rating_label'])) {
                                                     $ac_ev_interp = getFormationInterpretation($r['average_score'] ?? null);
                                                     $ac_ev_lbl = $r['average_score'] !== null ? $ac_ev_interp['label'] : (string)$r['rating_label'];
@@ -448,7 +467,7 @@ require_once __DIR__ . '/../includes/layout_app_start.php';
                                         </td>
                                         <td class="px-6 py-4 text-xs text-[#8B7168]"><?php echo htmlspecialchars(date('M d, Y', strtotime((string)$r['evaluation_date']))); ?></td>
                                         <td class="px-6 py-4 text-right">
-                                            <?php if ($allowed_academic): ?>
+                                            <?php if ($row_allowed): ?>
                                                 <a href="afe_report.php?evaluation_id=<?php echo (int)$r['evaluation_id']; ?>" class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold bg-[#F8EEEE] hover:bg-[#E8C7C5] text-[#59443F] border border-[#E8C7C5]/60 transition-all shadow-xs">
                                                     <i class="fa-solid fa-file-lines text-xs text-[#8B7168]"></i>
                                                     <span>View</span>

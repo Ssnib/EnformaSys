@@ -1649,6 +1649,8 @@ CREATE TABLE `seminarian_access_requests` (
   `id` int(11) NOT NULL AUTO_INCREMENT,
   `seminarian_id` int(11) NOT NULL,
   `assignment_type` varchar(30) NOT NULL,
+  `academic_year` varchar(20) DEFAULT NULL,
+  `semester` varchar(20) DEFAULT NULL,
   `assigned_user_id` int(11) DEFAULT NULL,
   `status` enum('Pending','Approved','Rejected','Cancelled') NOT NULL DEFAULT 'Pending',
   `is_read` tinyint(1) NOT NULL DEFAULT 0,
@@ -2552,6 +2554,7 @@ CREATE TABLE IF NOT EXISTS `php_sessions` (
 CREATE INDEX `idx_grades_sem_archived` ON `grades` (`seminarian_id`, `archived_at`);
 CREATE INDEX `idx_eval_sem_arch_type` ON `evaluations` (`seminarian_id`, `archived_at`, `type`);
 CREATE INDEX `idx_sar_sem_type_status_read` ON `seminarian_access_requests` (`seminarian_id`, `assignment_type`, `status`, `is_read`);
+CREATE INDEX `idx_sar_sem_type_term_status` ON `seminarian_access_requests` (`seminarian_id`, `assignment_type`, `academic_year`, `semester`, `status`);
 CREATE INDEX `idx_csr_sem_status_read` ON `cashier_soa_requests` (`seminarian_id`, `status`, `is_read`);
 CREATE INDEX `idx_ses_ay_sem_status` ON `student_enrolled_subjects` (`academic_year`, `semester`, `status`);
 CREATE INDEX `idx_ses_stu_ay_sem_status` ON `student_enrolled_subjects` (`student_id`, `academic_year`, `semester`, `status`);

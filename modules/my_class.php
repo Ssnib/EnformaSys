@@ -15,7 +15,6 @@ $stmt->bind_param("i", $user_id);
 $stmt->execute();
 $seminarian = $stmt->get_result()->fetch_assoc() ?: [];
 $seminarian_id = (int)($seminarian['id'] ?? 0);
-$can_view_grades = (int)($seminarian['academic_view_enabled'] ?? 0) === 1;
 
 // 2. Active Term and Filter Setup (Captures $_GET with fallback to current active term)
 $current_ay = get_active_academic_year();
@@ -25,13 +24,15 @@ $filter_ay = isset($_GET['academic_year']) && trim((string)$_GET['academic_year'
     ? trim((string)$_GET['academic_year']) 
     : $current_ay;
 
-$filter_sem_raw = isset($_GET['semester']) ? enformasys_normalize_semester((string)$_GET['semester']) : '';
+$filter_sem_raw = isset($_GET['semester']) ? capstone_access_normalize_semester((string)$_GET['semester']) : '';
 $filter_sem = in_array($filter_sem_raw, ['1st', '2nd', 'Summer'], true)
     ? $filter_sem_raw
-    : $current_sem;
+    : capstone_access_normalize_semester((string)$current_sem);
 if (!in_array($filter_sem, ['1st', '2nd', 'Summer'], true)) {
     $filter_sem = '1st';
 }
+$term_grade_perm = capstone_access_get_grade_view_permission($conn, $seminarian_id, $filter_ay, $filter_sem);
+$can_view_grades = !empty($term_grade_perm['can_view_any']);
 
 // Gather available Academic Years for the top header filter dropdown
 $ay_options = [$current_ay];

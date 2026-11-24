@@ -373,6 +373,37 @@ function apply_performance_composite_indexes_migration(mysqli $conn): void
     $stmtIdx->close();
 }
 
+function apply_term_scoped_grade_access_requests_migration(mysqli $conn): void
+{
+    $cols = [];
+    $res = $conn->query("SHOW COLUMNS FROM seminarian_access_requests");
+    if ($res) {
+        while ($row = $res->fetch_assoc()) {
+            $cols[(string)$row['Field']] = true;
+        }
+    }
+    if (empty($cols['academic_year'])) {
+        $conn->query("ALTER TABLE seminarian_access_requests ADD COLUMN academic_year VARCHAR(20) NULL AFTER assignment_type");
+    }
+    if (empty($cols['semester'])) {
+        $conn->query("ALTER TABLE seminarian_access_requests ADD COLUMN semester VARCHAR(20) NULL AFTER academic_year");
+    }
+
+    $idxRes = $conn->query("SHOW INDEX FROM seminarian_access_requests WHERE Key_name = 'idx_sar_sem_type_term_status'");
+    if (!$idxRes || $idxRes->num_rows === 0) {
+        $conn->query("CREATE INDEX idx_sar_sem_type_term_status ON seminarian_access_requests (seminarian_id, assignment_type, academic_year, semester, status)");
+    }
+
+    $ayRow = $conn->query("SELECT label FROM academic_years WHERE archived_at IS NULL AND is_active = 1 ORDER BY (is_current = 1) DESC, start_year DESC LIMIT 1")?->fetch_assoc();
+    $fallbackAy = trim((string)($ayRow['label'] ?? '2026-2027'));
+    $stmtFill = $conn->prepare("UPDATE seminarian_access_requests SET academic_year = ?, semester = '1st' WHERE assignment_type = 'Academic' AND (academic_year IS NULL OR academic_year = '' OR semester IS NULL OR semester = '')");
+    if ($stmtFill) {
+        $stmtFill->bind_param('s', $fallbackAy);
+        $stmtFill->execute();
+        $stmtFill->close();
+    }
+}
+
 ensure_schema_migrations_table($conn);
 
 $migrations = [
@@ -438,6 +469,13 @@ $migrations = [
         'name' => 'Performance: Composite indexes on activities, history_logs, enrollments, and evaluation tables',
         'apply' => function (mysqli $conn): void {
             apply_performance_composite_indexes_migration($conn);
+        }
+    ],
+    [
+        'version' => '2026_11_24_term_scoped_grade_access_requests',
+        'name' => 'Scope grade viewing requests strictly per (seminarian_id, academic_year, semester)',
+        'apply' => function (mysqli $conn): void {
+            apply_term_scoped_grade_access_requests_migration($conn);
         }
     ],
 ];

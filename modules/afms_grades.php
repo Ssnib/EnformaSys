@@ -17,10 +17,13 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST' && isset($_POST['action']) && 
         echo json_encode(['success' => false, 'error' => 'Security token validation failed.']);
         exit;
     }
-    if (!$can_edit && $role !== 'Dean') {
+    if (!$can_edit && !in_array($role, ['Registrar', 'Dean'], true)) {
         echo json_encode(['success' => false, 'error' => 'Unauthorized action.']);
         exit;
     }
+
+    require_once __DIR__ . '/../includes/access_requests.php';
+    $hasSarTermCols = capstone_access_has_term_columns($conn);
 
     $request_id = (int)($_POST['request_id'] ?? 0);
     $action = (string)$_POST['action'];
@@ -31,7 +34,10 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST' && isset($_POST['action']) && 
         exit;
     }
 
-    $stmt_r = $conn->prepare("SELECT id, seminarian_id, status FROM seminarian_access_requests WHERE id = ? AND assignment_type = 'Academic' LIMIT 1");
+    $selCols = $hasSarTermCols
+        ? 'id, seminarian_id, status, academic_year, semester'
+        : 'id, seminarian_id, status';
+    $stmt_r = $conn->prepare("SELECT {$selCols} FROM seminarian_access_requests WHERE id = ? AND assignment_type = 'Academic' LIMIT 1");
     $stmt_r->bind_param('i', $request_id);
     $stmt_r->execute();
     $req = $stmt_r->get_result()->fetch_assoc();
@@ -46,24 +52,41 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST' && isset($_POST['action']) && 
     }
 
     $seminarian_id = (int)$req['seminarian_id'];
+    $activeTermFallback = capstone_access_resolve_active_term($conn);
+    $req_ay = trim((string)($req['academic_year'] ?? ''));
+    if ($req_ay === '') {
+        $req_ay = $activeTermFallback['academic_year'];
+    }
+    $req_sem = capstone_access_normalize_semester((string)($req['semester'] ?? ''));
+    if (!in_array($req_sem, ['1st', '2nd', 'Summer'], true)) {
+        $req_sem = $activeTermFallback['semester'];
+    }
+
     $conn->begin_transaction();
     try {
         if ($action === 'approve_grade_request') {
-            // Enable grade viewing on seminarians table so student can now see grades in their portal
-            $stmt_sem = $conn->prepare("UPDATE seminarians SET academic_view_enabled = 1 WHERE id = ?");
-            $stmt_sem->bind_param('i', $seminarian_id);
-            $stmt_sem->execute();
-
-            // Mark request Approved
-            $stmt_res = $conn->prepare("UPDATE seminarian_access_requests
-                SET status = 'Approved',
-                    assigned_user_id = COALESCE(assigned_user_id, ?),
-                    resolved_by = ?,
-                    resolved_at = NOW()
-                WHERE id = ?");
-            $stmt_res->bind_param('iii', $current_user_id, $current_user_id, $request_id);
+            // Mark request Approved strictly for this (seminarian_id, academic_year, semester)
+            if ($hasSarTermCols) {
+                $stmt_res = $conn->prepare("UPDATE seminarian_access_requests
+                    SET status = 'Approved',
+                        academic_year = ?,
+                        semester = ?,
+                        assigned_user_id = COALESCE(assigned_user_id, ?),
+                        resolved_by = ?,
+                        resolved_at = NOW()
+                    WHERE id = ?");
+                $stmt_res->bind_param('ssiii', $req_ay, $req_sem, $current_user_id, $current_user_id, $request_id);
+            } else {
+                $stmt_res = $conn->prepare("UPDATE seminarian_access_requests
+                    SET status = 'Approved',
+                        assigned_user_id = COALESCE(assigned_user_id, ?),
+                        resolved_by = ?,
+                        resolved_at = NOW()
+                    WHERE id = ?");
+                $stmt_res->bind_param('iii', $current_user_id, $current_user_id, $request_id);
+            }
             $stmt_res->execute();
-            $msg = 'Grade access approved. The seminarian can now view their grades.';
+            $msg = "Grade access approved for AY {$req_ay} ({$req_sem} Semester).";
         } else {
             // Mark request Rejected
             $stmt_res = $conn->prepare("UPDATE seminarian_access_requests
@@ -74,7 +97,7 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST' && isset($_POST['action']) && 
                 WHERE id = ?");
             $stmt_res->bind_param('iii', $current_user_id, $current_user_id, $request_id);
             $stmt_res->execute();
-            $msg = 'Grade access request denied.';
+            $msg = "Grade access request denied for AY {$req_ay} ({$req_sem} Semester).";
         }
         $conn->commit();
 
@@ -892,6 +915,7 @@ require_once __DIR__ . '/../includes/layout_app_start.php';
                         <thead>
                             <tr class="bg-[#F8EEEE]/70 border-b border-[#E8C7C5]/50 text-[11px] font-extrabold uppercase tracking-wider text-[#8B7168]">
                                 <th class="px-5 py-3.5 rounded-l-2xl">Seminarian</th>
+                                <th class="px-5 py-3.5">Academic Year &amp; Semester</th>
                                 <th class="px-5 py-3.5">Requested Scope / Subjects</th>
                                 <th class="px-5 py-3.5">Date Requested</th>
                                 <th class="px-5 py-3.5 text-right rounded-r-2xl">Action</th>
@@ -899,7 +923,7 @@ require_once __DIR__ . '/../includes/layout_app_start.php';
                         </thead>
                         <tbody id="modalRequestsTableBody" class="divide-y divide-[#E8C7C5]/30 text-xs text-[#59443F]">
                             <tr id="modalEmptyRow">
-                                <td colspan="4" class="px-6 py-12 text-center text-[#8B7168]">
+                                <td colspan="5" class="px-6 py-12 text-center text-[#8B7168]">
                                     <div class="flex flex-col items-center justify-center gap-2">
                                         <i class="fa-solid fa-circle-notch fa-spin text-xl text-[#8B7168]"></i>
                                         <span class="text-xs font-semibold">Requests will load when opened...</span>
@@ -1092,7 +1116,7 @@ require_once __DIR__ . '/../includes/layout_app_start.php';
             if (!Array.isArray(requests) || requests.length === 0) {
                 tbody.innerHTML = `
                     <tr id="modalEmptyRow">
-                        <td colspan="4" class="px-6 py-12 text-center text-[#8B7168]">
+                        <td colspan="5" class="px-6 py-12 text-center text-[#8B7168]">
                             <div class="flex flex-col items-center justify-center gap-2">
                                 <div class="w-12 h-12 rounded-full bg-emerald-50 text-emerald-600 flex items-center justify-center text-xl">
                                     <i class="fa-solid fa-circle-check"></i>
@@ -1109,6 +1133,11 @@ require_once __DIR__ . '/../includes/layout_app_start.php';
                 const sname = escapeRequestHtml(req.display_name || req.full_name || req.username || 'Seminarian');
                 const sno = escapeRequestHtml(req.student_no || '');
                 const semId = Number(req.seminarian_id || 0);
+                const reqAy = escapeRequestHtml(req.academic_year || '');
+                const reqSem = escapeRequestHtml(req.semester || '');
+                const termText = (reqAy && reqSem)
+                    ? `AY ${reqAy} &bull; ${reqSem} Sem`
+                    : escapeRequestHtml(req.term_label || 'Active Term');
                 const msgHtml = req.message
                     ? `<div class="text-[11px] text-[#8B7168] italic bg-[#F8EEEE]/40 p-2 rounded-xl border border-[#E8C7C5]/40 mt-1.5 max-w-xs">"${escapeRequestHtml(req.message)}"</div>`
                     : '';
@@ -1131,6 +1160,12 @@ require_once __DIR__ . '/../includes/layout_app_start.php';
                             </div>
                             ${msgHtml}
                         </td>
+                        <td class="px-5 py-4 whitespace-nowrap">
+                            <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-amber-50 text-amber-800 border border-amber-200/80 shadow-2xs">
+                                <i class="fa-regular fa-calendar text-[10px] text-amber-600"></i>
+                                <span>${termText}</span>
+                            </span>
+                        </td>
                         <td class="px-5 py-4">${scopeHtml}</td>
                         <td class="px-5 py-4 whitespace-nowrap text-[#8B7168] font-medium text-[11px]">${rdate}</td>
                         <td class="px-5 py-4 text-right whitespace-nowrap">
@@ -1151,7 +1186,7 @@ require_once __DIR__ . '/../includes/layout_app_start.php';
             if (gradeRequestsLoaded && !forceReload) return;
             const tbody = document.getElementById('modalRequestsTableBody');
             if (tbody) {
-                tbody.innerHTML = '<tr><td colspan="4" class="px-6 py-10 text-center text-[#8B7168]"><i class="fa-solid fa-circle-notch fa-spin mr-2"></i>Loading grade viewing requests...</td></tr>';
+                tbody.innerHTML = '<tr><td colspan="5" class="px-6 py-10 text-center text-[#8B7168]"><i class="fa-solid fa-circle-notch fa-spin mr-2"></i>Loading grade viewing requests...</td></tr>';
             }
             try {
                 const res = await fetch('ajax.php?action=get_academic_access_requests');
@@ -1161,11 +1196,11 @@ require_once __DIR__ . '/../includes/layout_app_start.php';
                     renderGradeRequestsRows(data.requests || []);
                     updateModalState(Number(data.pending_count || 0));
                 } else if (tbody) {
-                    tbody.innerHTML = '<tr><td colspan="4" class="px-6 py-8 text-center text-rose-600 font-semibold">Failed to load grade viewing requests.</td></tr>';
+                    tbody.innerHTML = '<tr><td colspan="5" class="px-6 py-8 text-center text-rose-600 font-semibold">Failed to load grade viewing requests.</td></tr>';
                 }
             } catch (_) {
                 if (tbody) {
-                    tbody.innerHTML = '<tr><td colspan="4" class="px-6 py-8 text-center text-rose-600 font-semibold">Network error loading requests.</td></tr>';
+                    tbody.innerHTML = '<tr><td colspan="5" class="px-6 py-8 text-center text-rose-600 font-semibold">Network error loading requests.</td></tr>';
                 }
             }
         }

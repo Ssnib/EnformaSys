@@ -37,11 +37,15 @@ if (($_SESSION['role'] ?? '') === 'AcademicFormator') {
 
 if (($_SESSION['role'] ?? '') === 'Student') {
     $uid = (int)($_SESSION['user'] ?? 0);
-    $stmt_sem = $conn->prepare("SELECT id, academic_view_enabled FROM seminarians WHERE user_id = ? LIMIT 1");
+    require_once __DIR__ . '/../includes/access_requests.php';
+    $stmt_sem = $conn->prepare("SELECT id FROM seminarians WHERE user_id = ? LIMIT 1");
     $stmt_sem->bind_param('i', $uid);
     $stmt_sem->execute();
     $sem = $stmt_sem->get_result()->fetch_assoc();
-    if (!$sem || (int)$sem['id'] !== (int)$eval['student_id'] || (int)($sem['academic_view_enabled'] ?? 0) !== 1) {
+    $perm = ($sem && (int)$sem['id'] === (int)$eval['student_id'])
+        ? capstone_access_get_grade_view_permission($conn, (int)$sem['id'], (string)($eval['academic_year'] ?? ''), (string)($eval['semester'] ?? ''))
+        : ['can_view_any' => false];
+    if (!$sem || (int)$sem['id'] !== (int)$eval['student_id'] || empty($perm['can_view_any'])) {
         header('Location: ../index.php');
         exit;
     }

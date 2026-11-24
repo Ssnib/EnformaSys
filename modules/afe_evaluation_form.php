@@ -54,9 +54,12 @@ $stmt_students = $conn->prepare("SELECT s.id, u.username, up.full_name,
     WHERE u.role = 'Student'
     ORDER BY COALESCE(NULLIF(TRIM(up.full_name), ''), u.username) ASC");
 $stmt_students->execute();
-$enrolled_active_map = eval_get_active_enrolled_seminarian_ids($conn, $active_term_ay, $active_term_sem);
 $res_s = $stmt_students->get_result();
-while ($res_s && ($row = $res_s->fetch_assoc())) {
+$student_rows_raw = $res_s ? $res_s->fetch_all(MYSQLI_ASSOC) : [];
+if ($res_s) $res_s->free();
+$stmt_students->close();
+$enrolled_active_map = eval_get_active_enrolled_seminarian_ids($conn, $active_term_ay, $active_term_sem);
+foreach ($student_rows_raw as $row) {
     $row['is_graduated'] = eval_is_seminarian_graduated($row);
     $row['is_enrolled_active'] = !empty($enrolled_active_map[(int)$row['id']]);
     $row['status'] = $row['is_graduated'] ? 'graduated' : 'active';

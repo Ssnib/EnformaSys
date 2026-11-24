@@ -18,25 +18,53 @@ if (!$sem) {
     exit;
 }
 $student_id = (int)$sem['id'];
-$can_view_grades = (int)($sem['academic_view_enabled'] ?? 0) === 1;
-$view_enabled = $can_view_grades;
-
-// Mark approved academic requests as read when seminarian visits grades
-if ($student_id > 0) {
-    $stmt_mark = @$conn->prepare("UPDATE seminarian_access_requests SET is_read = 1 WHERE seminarian_id = ? AND assignment_type = 'Academic' AND status = 'Approved' AND is_read = 0");
-    if ($stmt_mark) {
-        $stmt_mark->bind_param('i', $student_id);
-        $stmt_mark->execute();
-        $stmt_mark->close();
-    }
-}
 
 $current_ay = get_current_academic_year();
 $filter_academic_year = isset($_GET['academic_year']) ? trim((string)$_GET['academic_year']) : '';
 if ($filter_academic_year === '') $filter_academic_year = $current_ay;
-$filter_semester = isset($_GET['semester']) ? enformasys_normalize_semester((string)$_GET['semester']) : '';
+$filter_semester_raw = isset($_GET['semester']) ? (string)$_GET['semester'] : '';
+$filter_semester = capstone_access_normalize_semester($filter_semester_raw);
 if (!in_array($filter_semester, ['1st','2nd','Summer'], true)) {
-    $filter_semester = function_exists('get_active_semester') ? get_active_semester() : '1st';
+    $activeSemRaw = function_exists('get_active_semester') ? (string)get_active_semester() : '1st';
+    $filter_semester = capstone_access_normalize_semester($activeSemRaw);
+    if (!in_array($filter_semester, ['1st','2nd','Summer'], true)) {
+        $filter_semester = '1st';
+    }
+}
+
+// If submitting a term-scoped access request, preserve requested term across POST
+if (isset($_POST['request_access'])) {
+    $post_ay = trim((string)($_POST['academic_year'] ?? ''));
+    $post_sem = capstone_access_normalize_semester((string)($_POST['semester'] ?? ''));
+    if ($post_ay !== '') {
+        $filter_academic_year = $post_ay;
+    }
+    if (in_array($post_sem, ['1st','2nd','Summer'], true)) {
+        $filter_semester = $post_sem;
+    }
+}
+
+$term_perm = capstone_access_get_grade_view_permission($conn, $student_id, $filter_academic_year, $filter_semester);
+$is_whole_term_unlocked = !empty($term_perm['is_whole_semester']);
+$approved_subject_ids = $term_perm['approved_subject_ids'] ?? [];
+$can_view_grades = !empty($term_perm['can_view_any']);
+$view_enabled = $can_view_grades;
+$approved_terms_map = capstone_access_get_approved_grade_terms($conn, $student_id);
+
+// Mark approved academic requests as read for this term when unlocked
+if ($student_id > 0 && $can_view_grades) {
+    $sem_vars = capstone_access_semester_variants($filter_semester);
+    if (!empty($sem_vars)) {
+        $ph_mark = implode(',', array_fill(0, count($sem_vars), '?'));
+        $types_mark = 'is' . str_repeat('s', count($sem_vars));
+        $stmt_mark = @$conn->prepare("UPDATE seminarian_access_requests SET is_read = 1 WHERE seminarian_id = ? AND assignment_type = 'Academic' AND status = 'Approved' AND is_read = 0 AND TRIM(COALESCE(academic_year, '')) = ? AND semester IN ($ph_mark)");
+        if ($stmt_mark) {
+            $params_mark = array_merge([$student_id, $filter_academic_year], $sem_vars);
+            $stmt_mark->bind_param($types_mark, ...$params_mark);
+            $stmt_mark->execute();
+            $stmt_mark->close();
+        }
+    }
 }
 
 $ay_options = [$current_ay];
@@ -90,7 +118,7 @@ if (empty($term_subjects)) {
 $request_error = null;
 $request_success = null;
 $pending_request = null;
-if (!$can_view_grades) {
+if (!$is_whole_term_unlocked) {
     if (isset($_POST['request_access'])) {
         if (!verify_csrf_token($_POST['csrf_token'] ?? '')) {
             die('CSRF token validation failed.');
@@ -148,16 +176,18 @@ if (!$can_view_grades) {
                 $user_id,
                 $message,
                 $request_type,
-                $chosen_subjects
+                $chosen_subjects,
+                $filter_academic_year,
+                $filter_semester
             );
             if ($result['ok']) {
-                $request_success = 'Grade request submitted successfully. Please wait for your Academic Formator to review and approve.';
+                $request_success = "Grade request for AY {$filter_academic_year} ({$filter_semester} Semester) submitted successfully. Please wait for review and approval.";
             } else {
                 $request_error = (string)($result['error'] ?? 'Failed to submit request.');
             }
         }
     }
-    $pending_request = capstone_access_request_get_pending($conn, $student_id, 'Academic');
+    $pending_request = capstone_access_request_get_pending($conn, $student_id, 'Academic', $filter_academic_year, $filter_semester);
 }
 
 // Fetch all student_grades across terms to compute chronological Term Average & Cumulative Average history
@@ -198,7 +228,7 @@ foreach ($all_term_buckets as $tb) {
 $term_history_rows = array_reverse($term_history_rows);
 
 // Fetch enrolled subjects & grades for the selected term
-$stmt_grades = $conn->prepare("SELECT sub.subject_code, sub.subject_name, sub.units, sg.prelim_grade, sg.midterm_grade, sg.final_grade, sg.final_computed_grade, sg.status, sg.remarks,
+$stmt_grades = $conn->prepare("SELECT sg.subject_id, sub.subject_code, sub.subject_name, sub.units, sg.prelim_grade, sg.midterm_grade, sg.final_grade, sg.final_computed_grade, sg.status, sg.remarks,
         COALESCE(NULLIF(TRIM(sta.teacher_name_override),''), NULLIF(TRIM(up_teacher.full_name),''), NULLIF(TRIM(u_teacher.username),''), 'TBA / Faculty') AS instructor
     FROM student_grades sg
     JOIN subjects sub ON sub.subject_id = sg.subject_id
@@ -260,7 +290,7 @@ require_once __DIR__ . '/../includes/layout_app_start.php';
                 </div>
             </div>
 
-            <?php if (!$can_view_grades): ?>
+            <?php if (!$is_whole_term_unlocked): ?>
                 <!-- Locked State Banner & Request Action -->
                 <div id="grade-request-form" class="bg-white rounded-3xl border border-[#E8C7C5]/60 p-6 sm:p-7 shadow-soft">
                     <div class="flex items-start gap-4">
@@ -269,16 +299,18 @@ require_once __DIR__ . '/../includes/layout_app_start.php';
                         </div>
                         <div class="flex-1 min-w-0">
                             <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
-                                <h3 class="font-heading font-extrabold text-lg text-[#59443F]">Grade Viewing Restricted</h3>
+                                <h3 class="font-heading font-extrabold text-lg text-[#59443F]">
+                                    <?php echo $can_view_grades ? 'Partial Grade Access (' : 'Grade Viewing Restricted — '; ?><?php echo htmlspecialchars($filter_academic_year . ' · ' . $filter_semester . ' Semester'); ?><?php echo $can_view_grades ? ')' : ''; ?>
+                                </h3>
                                 <?php if ($pending_request): ?>
                                     <span class="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-xs font-bold bg-amber-50 text-amber-700 border border-amber-200/80 shadow-xs self-start">
                                         <i class="fa-regular fa-clock text-amber-600"></i>
-                                        <span>Request Pending Approval</span>
+                                        <span>Request Pending Approval (<?php echo htmlspecialchars($filter_semester); ?> Sem)</span>
                                     </span>
                                 <?php endif; ?>
                             </div>
                             <p class="text-xs sm:text-sm text-[#8B7168] mt-1 leading-relaxed">
-                                Enrolled subjects are freely visible below, but your final grades and averages are locked until approved by your Academic Formator.
+                                Grade access is approved per Academic Year and Semester. Enrolled subjects for <strong><?php echo htmlspecialchars($filter_academic_year . ' (' . $filter_semester . ' Semester)'); ?></strong> are visible below, while official grades remain locked until approved for this term.
                             </p>
 
                             <?php if ($request_success): ?>
@@ -353,6 +385,8 @@ require_once __DIR__ . '/../includes/layout_app_start.php';
                                 <!-- Request Form -->
                                 <form method="post" class="mt-5 space-y-4">
                                     <input type="hidden" name="csrf_token" value="<?php echo htmlspecialchars($_SESSION['csrf_token'] ?? ''); ?>">
+                                    <input type="hidden" name="academic_year" value="<?php echo htmlspecialchars($filter_academic_year); ?>">
+                                    <input type="hidden" name="semester" value="<?php echo htmlspecialchars($filter_semester); ?>">
 
                                     <!-- Request Type Radios / Pill Toggle -->
                                     <div>
@@ -442,7 +476,7 @@ require_once __DIR__ . '/../includes/layout_app_start.php';
                                     <div class="pt-1 flex items-center justify-end">
                                         <button type="submit" name="request_access" class="inline-flex items-center gap-2 px-6 py-2.5 rounded-2xl text-xs sm:text-sm font-bold bg-[#59443F] hover:bg-[#8B7168] text-white shadow-soft transition-all duration-200 cursor-pointer">
                                             <i class="fa-solid fa-paper-plane text-[#E8C7C5]"></i>
-                                            <span>Submit Grade Request</span>
+                                            <span>Request Grade Access (<?php echo htmlspecialchars($filter_semester); ?> Semester)</span>
                                         </button>
                                     </div>
                                 </form>
@@ -510,6 +544,7 @@ require_once __DIR__ . '/../includes/layout_app_start.php';
                             <?php } ?>
                             <?php foreach ($grade_rows as $row) {
                                 $eval = $row['_eval'];
+                                $row_unlocked = $is_whole_term_unlocked || !empty($approved_subject_ids[(int)($row['subject_id'] ?? 0)]);
                             ?>
                                 <tr class="hover:bg-[#F8EEEE]/40 transition-colors">
                                     <td class="px-6 py-4">
@@ -526,7 +561,7 @@ require_once __DIR__ . '/../includes/layout_app_start.php';
                                         </span>
                                     </td>
                                     <td class="px-6 py-4 text-center whitespace-nowrap">
-                                        <?php if ($can_view_grades): ?>
+                                        <?php if ($row_unlocked): ?>
                                             <?php if ($eval['grade'] !== null): ?>
                                                 <span class="font-extrabold text-[#59443F] tabular-nums">
                                                     <?php echo htmlspecialchars(number_format((float)$eval['grade'], 2)); ?>
@@ -542,7 +577,7 @@ require_once __DIR__ . '/../includes/layout_app_start.php';
                                         <?php endif; ?>
                                     </td>
                                     <td class="px-6 py-4 text-right whitespace-nowrap">
-                                        <?php if ($can_view_grades): ?>
+                                        <?php if ($row_unlocked): ?>
                                             <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold <?php echo htmlspecialchars($eval['badge_class']); ?>">
                                                 <?php echo htmlspecialchars($eval['label']); ?>
                                             </span>
@@ -563,7 +598,7 @@ require_once __DIR__ . '/../includes/layout_app_start.php';
                                     Term Final Average
                                 </td>
                                 <td class="px-6 py-3.5 text-center font-extrabold tabular-nums">
-                                    <?php if ($can_view_grades): ?>
+                                    <?php if ($is_whole_term_unlocked): ?>
                                         <?php echo $term_simple_average !== null ? htmlspecialchars(number_format((float)$term_simple_average, 2)) : '—'; ?>
                                     <?php else: ?>
                                         <span class="inline-flex items-center gap-1.5 text-xs font-semibold text-[#8B7168]">
@@ -572,7 +607,7 @@ require_once __DIR__ . '/../includes/layout_app_start.php';
                                     <?php endif; ?>
                                 </td>
                                 <td class="px-6 py-3.5 text-right">
-                                    <?php if ($can_view_grades && $term_simple_average !== null):
+                                    <?php if ($is_whole_term_unlocked && $term_simple_average !== null):
                                         $avg_eval = afms_evaluate_single_final_grade($term_simple_average, false);
                                     ?>
                                         <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold <?php echo htmlspecialchars($avg_eval['badge_class']); ?>">
@@ -623,12 +658,15 @@ require_once __DIR__ . '/../includes/layout_app_start.php';
                                     </td>
                                 </tr>
                             <?php } ?>
-                            <?php foreach ($term_history_rows as $r) { ?>
+                            <?php foreach ($term_history_rows as $r) {
+                                $hist_key = trim((string)$r['academic_year']) . '|' . capstone_access_normalize_semester((string)$r['semester']);
+                                $hist_unlocked = !empty($approved_terms_map[$hist_key]['is_whole']);
+                            ?>
                                 <tr class="hover:bg-[#F8EEEE]/40 transition-colors">
                                     <td class="px-6 py-4 font-bold text-[#59443F]"><?php echo htmlspecialchars((string)$r['academic_year']); ?></td>
                                     <td class="px-6 py-4 text-[#8B7168]"><?php echo htmlspecialchars((string)$r['semester']); ?></td>
                                     <td class="px-6 py-4 font-semibold text-[#59443F] tabular-nums">
-                                        <?php if ($can_view_grades): ?>
+                                        <?php if ($hist_unlocked): ?>
                                             <?php echo $r['term_average'] === null ? '-' : htmlspecialchars(number_format((float)$r['term_average'], 2)); ?>
                                         <?php else: ?>
                                             <span class="inline-flex items-center gap-1.5 text-xs text-[#8B7168]">
@@ -637,7 +675,7 @@ require_once __DIR__ . '/../includes/layout_app_start.php';
                                         <?php endif; ?>
                                     </td>
                                     <td class="px-6 py-4 font-bold text-[#59443F] tabular-nums">
-                                        <?php if ($can_view_grades): ?>
+                                        <?php if ($hist_unlocked): ?>
                                             <?php echo $r['cumulative_average'] === null ? '-' : htmlspecialchars(number_format((float)$r['cumulative_average'], 2)); ?>
                                         <?php else: ?>
                                             <span class="inline-flex items-center gap-1.5 text-xs text-[#8B7168]">
@@ -646,11 +684,11 @@ require_once __DIR__ . '/../includes/layout_app_start.php';
                                         <?php endif; ?>
                                     </td>
                                     <td class="px-6 py-4 text-right">
-                                        <?php if ($can_view_grades && !empty($r['performance_category'])): ?>
+                                        <?php if ($hist_unlocked && !empty($r['performance_category'])): ?>
                                             <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold bg-[#E8C7C5]/50 text-[#59443F] border border-[#E8C7C5]">
                                                 <?php echo htmlspecialchars((string)$r['performance_category']); ?>
                                             </span>
-                                        <?php elseif (!$can_view_grades): ?>
+                                        <?php elseif (!$hist_unlocked): ?>
                                             <span class="text-xs text-[#8B7168] font-semibold">Locked</span>
                                         <?php else: ?>
                                             <span class="text-[#8B7168]">-</span>

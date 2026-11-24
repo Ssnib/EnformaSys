@@ -36,10 +36,6 @@ if (isset($_POST['approve_access']) || isset($_POST['reject_access'])) {
                 $conn->begin_transaction();
                 try {
                     if (isset($_POST['approve_access'])) {
-                        $stmt_upd = $conn->prepare("UPDATE seminarians SET academic_view_enabled = 1 WHERE id = ?");
-                        $stmt_upd->bind_param('i', $seminarian_id);
-                        $stmt_upd->execute();
-
                         $stmt_res = $conn->prepare("UPDATE seminarian_access_requests
                             SET status = 'Approved',
                                 assigned_user_id = COALESCE(assigned_user_id, ?),
@@ -49,7 +45,7 @@ if (isset($_POST['approve_access']) || isset($_POST['reject_access'])) {
                             WHERE id = ?");
                         $stmt_res->bind_param('iisi', $formator_id, $formator_id, $note, $rid);
                         $stmt_res->execute();
-                        $access_success = 'Access enabled.';
+                        $access_success = 'Access enabled for requested term.';
                     } else {
                         $stmt_res = $conn->prepare("UPDATE seminarian_access_requests
                             SET status = 'Rejected',
@@ -153,7 +149,9 @@ while ($r = $res_recent->fetch_assoc()) {
 }
 
 $access_requests = [];
-$stmt_ar = $conn->prepare("SELECT r.id, r.seminarian_id, r.message, r.requested_at,
+$hasSarTermCols = function_exists('capstone_access_has_term_columns') && capstone_access_has_term_columns($conn);
+$sarTermCols = $hasSarTermCols ? 'r.academic_year, r.semester, ' : '';
+$stmt_ar = $conn->prepare("SELECT r.id, r.seminarian_id, {$sarTermCols}r.message, r.requested_at,
         u.username, up.full_name
     FROM seminarian_access_requests r
     JOIN seminarians s ON s.id = r.seminarian_id
@@ -387,6 +385,11 @@ require_once __DIR__ . '/../includes/layout_app_start.php';
                                                 <strong class="text-xs text-[#59443F] font-extrabold truncate"><?php echo htmlspecialchars($name); ?></strong>
                                                 <span class="text-[10px] text-[#8B7168] shrink-0"><?php echo htmlspecialchars(date('M d, Y', strtotime((string)$r['requested_at']))); ?></span>
                                             </div>
+                                            <?php if (!empty($r['academic_year']) || !empty($r['semester'])) { ?>
+                                                <div class="text-[10px] font-bold text-amber-800 bg-amber-50 border border-amber-200/80 px-2 py-0.5 rounded-full self-start">
+                                                    AY <?php echo htmlspecialchars((string)($r['academic_year'] ?? '')); ?> &middot; <?php echo htmlspecialchars((string)($r['semester'] ?? '')); ?> Sem
+                                                </div>
+                                            <?php } ?>
                                             <p class="text-xs text-[#8B7168] leading-snug">
                                                 <?php echo htmlspecialchars((string)($r['message'] ?? '')); ?>
                                             </p>
