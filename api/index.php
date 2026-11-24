@@ -44,6 +44,20 @@ $allowedRootRoutes = [
     '/setup.php',
 ];
 
+$explicitAllowedModuleRoutes = [
+    '/modules/ajax.php',
+    '/modules/cashier_soa.php',
+    '/modules/cashier_payments.php',
+    '/modules/cashier_accounts.php',
+    '/modules/cashier_receipt.php',
+    '/modules/cashier_fees.php',
+    '/modules/cashier_reports.php',
+    '/modules/cashier_requests.php',
+    '/modules/cashier_dashboard.php',
+    '/modules/student_soa.php',
+    '/modules/student_view.php',
+];
+
 $target = null;
 
 if (in_array($reqPath, $allowedRootRoutes, true)) {
@@ -51,9 +65,10 @@ if (in_array($reqPath, $allowedRootRoutes, true)) {
     if ($candidate !== false && is_file($candidate)) {
         $target = $candidate;
     }
-} elseif (preg_match('#^/modules/([a-zA-Z0-9_]+\.php)$#', $reqPath, $m)) {
+} elseif (in_array($reqPath, $explicitAllowedModuleRoutes, true) || preg_match('#^/modules/([a-zA-Z0-9_]+\.php)$#', $reqPath, $m)) {
+    $moduleRel = ltrim($reqPath, '/');
     $modulesDir = realpath($projectRoot . DIRECTORY_SEPARATOR . 'modules');
-    $candidate = $modulesDir !== false ? realpath($modulesDir . DIRECTORY_SEPARATOR . $m[1]) : false;
+    $candidate = $modulesDir !== false ? realpath($projectRoot . DIRECTORY_SEPARATOR . str_replace('/', DIRECTORY_SEPARATOR, $moduleRel)) : false;
     if (
         $modulesDir !== false
         && $candidate !== false

@@ -944,10 +944,10 @@ require_once __DIR__ . '/../includes/layout_app_start.php';
                 const newBalElem = document.getElementById('drawerNewBalanceDisplay');
                 if (newBalElem) newBalElem.textContent = '₱' + formatCurrency(bal);
                 drawerTermBadge.textContent = curAy + ' • ' + curSem + ' Sem';
-                drawerFullPageLink.href = 'cashier_payments.php?seminarian_id=' + sid + '&academic_year=' + encodeURIComponent(curAy) + '&semester=' + encodeURIComponent(curSem);
+                drawerFullPageLink.href = <?php echo json_encode(capstone_url('modules/cashier_payments.php')); ?> + '?seminarian_id=' + sid + '&academic_year=' + encodeURIComponent(curAy) + '&semester=' + encodeURIComponent(curSem);
                 const drawerPrintSoaLink = document.getElementById('drawerPrintSoaLink');
                 if (drawerPrintSoaLink) {
-                    drawerPrintSoaLink.href = 'cashier_soa.php?student_id=' + sid + '&academic_year=' + encodeURIComponent(curAy) + '&semester=' + encodeURIComponent(curSem);
+                    drawerPrintSoaLink.href = <?php echo json_encode(capstone_url('modules/cashier_soa.php')); ?> + '?student_id=' + sid + '&academic_year=' + encodeURIComponent(curAy) + '&semester=' + encodeURIComponent(curSem);
                 }
 
                 drawer.classList.add('open');

@@ -568,22 +568,25 @@ window.showToast.info = (msg, duration) => showToast(msg, 'info', duration);
   const VARIANT_STYLES = {
     primary: {
       iconBg: 'bg-[#F8EEEE] text-[#59443F] border-[#E8C7C5]',
+      iconStyle: 'background:#F8EEEE;color:#59443F;border-color:#E8C7C5;',
       iconClass: 'fa-solid fa-circle-check',
-      btnClass: 'bg-[#59443F] hover:bg-[#463430] text-white focus:ring-[#D6A6A6]',
+      btnClass: 'enformasys-confirm-btn enformasys-confirm-btn-primary bg-[#59443F] hover:bg-[#463430] text-white focus:ring-[#D6A6A6]',
       defaultTitle: 'Confirm Changes',
       defaultConfirm: 'Confirm'
     },
     warning: {
       iconBg: 'bg-amber-50 text-amber-600 border-amber-200',
+      iconStyle: 'background:#FFFBEB;color:#D97706;border-color:#FDE68A;',
       iconClass: 'fa-solid fa-triangle-exclamation',
-      btnClass: 'bg-amber-600 hover:bg-amber-700 text-white focus:ring-amber-300',
+      btnClass: 'enformasys-confirm-btn enformasys-confirm-btn-warning bg-amber-600 hover:bg-amber-700 text-white focus:ring-amber-300',
       defaultTitle: 'Please Confirm',
       defaultConfirm: 'Proceed'
     },
     danger: {
       iconBg: 'bg-rose-50 text-rose-600 border-rose-200',
+      iconStyle: 'background:#FEF2F2;color:#DC2626;border-color:#FECACA;',
       iconClass: 'fa-solid fa-triangle-exclamation',
-      btnClass: 'bg-rose-600 hover:bg-rose-700 text-white focus:ring-rose-300',
+      btnClass: 'enformasys-confirm-btn enformasys-confirm-btn-danger bg-rose-600 hover:bg-rose-700 text-white focus:ring-rose-300',
       defaultTitle: 'Confirm Deletion',
       defaultConfirm: 'Delete'
     }
@@ -606,20 +609,20 @@ window.showToast.info = (msg, duration) => showToast(msg, 'info', duration);
 
     modalRoot.innerHTML = `
       <div class="enformasys-confirm-dialog p-5 sm:p-6">
-        <div class="flex items-start gap-3.5">
-          <div id="enformasysConfirmIconWrap" class="w-11 h-11 rounded-2xl border flex items-center justify-center shrink-0 text-base shadow-2xs">
+        <div class="enformasys-confirm-body flex items-start gap-3.5">
+          <div id="enformasysConfirmIconWrap" class="enformasys-confirm-icon w-11 h-11 rounded-2xl border flex items-center justify-center shrink-0 text-base shadow-2xs">
             <i id="enformasysConfirmIcon" class="fa-solid fa-circle-check" aria-hidden="true"></i>
           </div>
           <div class="flex-1 min-w-0">
-            <h3 id="enformasysConfirmTitle" class="font-heading font-extrabold text-base text-[#59443F] leading-snug m-0"></h3>
-            <p id="enformasysConfirmMessage" class="text-xs sm:text-sm text-[#8B7168] font-medium mt-1.5 leading-relaxed whitespace-pre-line m-0"></p>
+            <h3 id="enformasysConfirmTitle" class="enformasys-confirm-title font-heading font-extrabold text-base text-[#59443F] leading-snug m-0"></h3>
+            <p id="enformasysConfirmMessage" class="enformasys-confirm-message text-xs sm:text-sm text-[#8B7168] font-medium mt-1.5 leading-relaxed whitespace-pre-line m-0"></p>
           </div>
         </div>
-        <div class="mt-5 pt-4 border-t border-[#E8C7C5]/40 flex flex-col-reverse sm:flex-row sm:justify-end gap-2.5">
-          <button type="button" id="enformasysConfirmCancelBtn" class="w-full sm:w-auto px-4 py-2 rounded-xl text-xs font-bold text-[#59443F] bg-[#F8EEEE] hover:bg-[#E8C7C5]/70 border border-[#E8C7C5] transition cursor-pointer">
+        <div class="enformasys-confirm-actions mt-5 pt-4 border-t border-[#E8C7C5]/40 flex flex-col-reverse sm:flex-row sm:justify-end gap-2.5">
+          <button type="button" id="enformasysConfirmCancelBtn" class="enformasys-confirm-btn enformasys-confirm-btn-cancel w-full sm:w-auto px-4 py-2 rounded-xl text-xs font-bold text-[#59443F] bg-[#F8EEEE] hover:bg-[#E8C7C5]/70 border border-[#E8C7C5] transition cursor-pointer">
             Cancel
           </button>
-          <button type="button" id="enformasysConfirmOkBtn" class="w-full sm:w-auto px-4 py-2 rounded-xl text-xs font-bold transition shadow-xs focus:outline-none focus:ring-2 cursor-pointer inline-flex items-center justify-center gap-2">
+          <button type="button" id="enformasysConfirmOkBtn" class="enformasys-confirm-btn enformasys-confirm-btn-primary w-full sm:w-auto px-4 py-2 rounded-xl text-xs font-bold transition shadow-xs focus:outline-none focus:ring-2 cursor-pointer inline-flex items-center justify-center gap-2">
             Confirm
           </button>
         </div>
@@ -699,7 +702,8 @@ window.showToast.info = (msg, duration) => showToast(msg, 'info', duration);
     const okBtn = root.querySelector('#enformasysConfirmOkBtn');
 
     lastFocusedEl = document.activeElement;
-    iconWrap.className = `w-11 h-11 rounded-2xl border flex items-center justify-center shrink-0 text-base shadow-2xs ${cfg.iconBg}`;
+    iconWrap.className = `enformasys-confirm-icon w-11 h-11 rounded-2xl border flex items-center justify-center shrink-0 text-base shadow-2xs ${cfg.iconBg}`;
+    iconWrap.setAttribute('style', cfg.iconStyle);
     iconEl.className = opts.iconClass || (variantKey === 'warning' && /sign out|logout/i.test(String(opts.title || opts.message || '')) ? 'fa-solid fa-arrow-right-from-bracket' : cfg.iconClass);
     titleEl.textContent = opts.title || cfg.defaultTitle;
     msgEl.textContent = opts.message || 'Are you sure you want to proceed?';
@@ -775,17 +779,19 @@ window.showToast.info = (msg, duration) => showToast(msg, 'info', duration);
     };
   }
 
-  // Click interception for logout links, data-confirm links, and data-confirm submit buttons
+  // Capture-phase click interception for logout links, data-confirm links, and data-confirm submit buttons
   document.addEventListener('click', async (e) => {
-    const target = e.target;
+    const rawTarget = e.target;
+    const target = rawTarget && rawTarget.nodeType === 3 ? rawTarget.parentElement : rawTarget;
     if (!target || !target.closest) return;
 
-    // 1. Intercept Logout Links globally
-    const logoutLink = target.closest('a[href*="logout.php"]:not([data-no-confirm="1"])');
-    if (logoutLink) {
+    // 1. Intercept Logout Links & Buttons globally (supports href="logout.php", "../logout.php", "/logout.php")
+    const logoutEl = target.closest('a[href*="logout.php"]:not([data-no-confirm="1"]), button[data-href*="logout.php"]:not([data-no-confirm="1"]), [data-logout-trigger="1"]');
+    if (logoutEl) {
       e.preventDefault();
-      const opts = logoutLink.hasAttribute('data-confirm')
-        ? extractConfirmOptions(logoutLink)
+      e.stopPropagation();
+      const opts = logoutEl.hasAttribute('data-confirm')
+        ? extractConfirmOptions(logoutEl)
         : {
             title: 'Sign Out',
             message: 'Sign out of EnformaSys? Any unsaved changes will be lost.',
@@ -795,7 +801,8 @@ window.showToast.info = (msg, duration) => showToast(msg, 'info', duration);
           };
       const confirmed = await enformasysConfirm(opts);
       if (confirmed) {
-        window.location.href = logoutLink.getAttribute('href');
+        const dest = logoutEl.getAttribute('href') || logoutEl.getAttribute('data-href') || '/logout.php';
+        window.location.href = dest;
       }
       return;
     }
@@ -804,6 +811,7 @@ window.showToast.info = (msg, duration) => showToast(msg, 'info', duration);
     const confirmLink = target.closest('a[data-confirm]');
     if (confirmLink) {
       e.preventDefault();
+      e.stopPropagation();
       const opts = extractConfirmOptions(confirmLink);
       const confirmed = await enformasysConfirm(opts);
       if (confirmed) {
@@ -821,6 +829,7 @@ window.showToast.info = (msg, duration) => showToast(msg, 'info', duration);
       if (form.dataset.enformasysConfirmed === '1') return;
 
       e.preventDefault();
+      e.stopPropagation();
       if (typeof form.reportValidity === 'function' && !form.reportValidity()) {
         return;
       }
@@ -830,7 +839,7 @@ window.showToast.info = (msg, duration) => showToast(msg, 'info', duration);
         submitFormWithState(form, confirmBtn, opts.loadingText);
       }
     }
-  });
+  }, true);
 
   // Capture-phase form[data-confirm] interception
   document.addEventListener('submit', async (e) => {

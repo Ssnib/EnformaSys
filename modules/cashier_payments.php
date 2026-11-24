@@ -10,7 +10,7 @@ if (!in_array($current_ay, $ay_options, true)) {
     array_unshift($ay_options, $current_ay);
 }
 
-$preselected_seminarian = (int)($_GET['seminarian_id'] ?? 0);
+$preselected_seminarian = (int)($_GET['seminarian_id'] ?? $_GET['student_id'] ?? 0);
 $preselected_ay = trim((string)($_GET['academic_year'] ?? ''));
 $preselected_sem = trim((string)($_GET['semester'] ?? ''));
 if ($preselected_ay !== '' && in_array($preselected_ay, $ay_options, true)) {
@@ -24,13 +24,22 @@ $res_students = $conn->query(
     . "FROM seminarians s\n"
     . "JOIN users u ON u.id = s.user_id\n"
     . "LEFT JOIN user_profiles up ON up.user_id = u.id\n"
-    . "WHERE s.enrollment_status IN ('Enrolled', 'Pending', 'Partially Paid')\n"
+    . "WHERE (s.enrollment_status IN ('Enrolled', 'Pending', 'Partially Paid')" . ($preselected_seminarian > 0 ? (" OR s.id = " . (int)$preselected_seminarian) : "") . ")\n"
     . "ORDER BY full_name ASC"
 );
+$preselected_student_meta = null;
 if ($res_students) {
     while ($r = $res_students->fetch_assoc()) {
         $students[] = $r;
+        if ($preselected_seminarian > 0 && (int)$r['seminarian_id'] === $preselected_seminarian) {
+            $preselected_student_meta = $r;
+        }
     }
+}
+
+$preselected_assessment = null;
+if ($preselected_seminarian > 0) {
+    $preselected_assessment = lodging_get_student_fee_breakdown($conn, $preselected_seminarian, $current_ay, $current_sem);
 }
 
 $payer_types = [
@@ -354,19 +363,48 @@ require_once __DIR__ . '/../includes/layout_app_start.php';
                         </div>
                     </div>
 
-                    <!-- Dynamic Assessment Details / Fee Breakdown Panel (Auto-loads on student selection) -->
-                    <div id="assessmentBreakdownCard" class="hidden" style="margin-top: 1rem; padding: 1rem 1.25rem; background: #f8fafc; border: 1.5px solid #cbd5e1; border-radius: 12px;">
+                    <?php
+                    $has_pre_assess = is_array($preselected_assessment) && $preselected_seminarian > 0;
+                    $pre_cur_fees = $has_pre_assess ? (float)($preselected_assessment['current_term_due'] ?? 0) : 0.0;
+                    $pre_prev_bal = $has_pre_assess ? (float)($preselected_assessment['previous_balance'] ?? 0) : 0.0;
+                    $pre_total_paid = $has_pre_assess ? (float)($preselected_assessment['total_paid'] ?? 0) : 0.0;
+                    $pre_rem_bal = $has_pre_assess ? (float)($preselected_assessment['remaining_balance'] ?? 0) : 0.0;
+                    $pre_fees_list = $has_pre_assess && is_array($preselected_assessment['fees'] ?? null) ? $preselected_assessment['fees'] : [];
+                    $pre_soa_url = $has_pre_assess
+                        ? (capstone_url('modules/cashier_soa.php') . '?student_id=' . (int)$preselected_seminarian . '&academic_year=' . urlencode($current_ay) . '&semester=' . urlencode($current_sem))
+                        : '#';
+                    $pre_meta_label = 'Select a seminarian above to load assessment summary & statement';
+                    if ($preselected_student_meta) {
+                        $pre_meta_parts = array_filter([
+                            (string)($preselected_student_meta['full_name'] ?? ''),
+                            (string)($preselected_student_meta['student_no'] ?? ''),
+                            (string)($preselected_student_meta['program'] ?? ''),
+                            (string)($preselected_student_meta['year_level'] ?? ''),
+                        ]);
+                        if (!empty($pre_meta_parts)) {
+                            $pre_meta_label = implode(' • ', $pre_meta_parts);
+                        }
+                    }
+                    ?>
+                    <!-- Dynamic Assessment Details / Fee Breakdown Panel (Server-rendered on GET ?student_id= / Auto-updated on select) -->
+                    <div id="assessmentBreakdownCard" style="margin-top: 1rem; padding: 1rem 1.25rem; background: #f8fafc; border: 1.5px solid #cbd5e1; border-radius: 12px;">
                         <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:0.75rem; margin-bottom:0.85rem; padding-bottom:0.65rem; border-bottom:1px solid #e2e8f0;">
                             <div>
                                 <div style="font-weight:900; font-size:0.98rem; color:#1e3a5f; display:flex; align-items:center; gap:0.45rem; flex-wrap:wrap;">
                                     <i class="fas fa-file-invoice-dollar" style="color:#065f46;"></i>
                                     <span>Assessment Details &amp; Fee Breakdown</span>
-                                    <span id="bdStudentTermBadge" style="font-size:0.74rem; font-weight:800; background:#e0f2fe; color:#0369a1; border:1px solid #bae6fd; padding:2px 8px; border-radius:999px;">—</span>
+                                    <span id="bdStudentTermBadge" style="font-size:0.74rem; font-weight:800; background:#e0f2fe; color:#0369a1; border:1px solid #bae6fd; padding:2px 8px; border-radius:999px;">
+                                        <?php echo htmlspecialchars('AY ' . $current_ay . ' • ' . $current_sem . ' Sem'); ?>
+                                    </span>
                                 </div>
-                                <div id="bdStudentSubtitle" style="font-size:0.8rem; color:#64748b; margin-top:0.15rem;">Live term fee summary &amp; payment balance</div>
+                                <div id="bdStudentSubtitle" style="font-size:0.8rem; color:#64748b; margin-top:0.15rem;"><?php echo htmlspecialchars($pre_meta_label); ?></div>
                             </div>
                             <div style="display:flex; align-items:center; gap:0.5rem; flex-wrap:wrap;">
-                                <a id="printSoaBtn" href="#" target="_blank" style="display:inline-flex; align-items:center; gap:0.4rem; padding:0.45rem 0.9rem; font-size:0.8rem; font-weight:800; color:#ffffff; background:#1e3a5f; border-radius:8px; text-decoration:none; box-shadow:0 2px 6px rgba(30,58,95,0.2);">
+                                <a id="printSoaBtn"
+                                   href="<?php echo htmlspecialchars($pre_soa_url); ?>"
+                                   target="_blank"
+                                   aria-disabled="<?php echo $has_pre_assess ? 'false' : 'true'; ?>"
+                                   style="display:inline-flex; align-items:center; gap:0.4rem; padding:0.45rem 0.9rem; font-size:0.8rem; font-weight:800; color:#ffffff; background:#1e3a5f; border-radius:8px; text-decoration:none; box-shadow:0 2px 6px rgba(30,58,95,0.2); <?php echo $has_pre_assess ? '' : 'opacity:0.45; pointer-events:none;'; ?>">
                                     <i class="fas fa-print"></i> <span>Print SOA / Receipt</span>
                                 </a>
                                 <button type="button" id="printBreakdownBtn" onclick="window.print()" style="width:auto; display:inline-flex; align-items:center; gap:0.4rem; padding:0.45rem 0.85rem; font-size:0.8rem; font-weight:700; color:#1e3a5f; background:#ffffff; border:1px solid #cbd5e1; border-radius:8px; cursor:pointer;">
@@ -378,19 +416,19 @@ require_once __DIR__ . '/../includes/layout_app_start.php';
                         <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap:0.65rem; margin-bottom:0.85rem;">
                             <div style="background:#ffffff; border:1px solid #e2e8f0; border-radius:8px; padding:0.65rem 0.8rem;">
                                 <div style="font-size:0.7rem; font-weight:800; text-transform:uppercase; color:#64748b; letter-spacing:0.04em;">Current Semester Fees</div>
-                                <div id="bdCurrentTermFees" style="font-size:1.05rem; font-weight:900; color:#0f172a; margin-top:2px;">₱0.00</div>
+                                <div id="bdCurrentTermFees" style="font-size:1.05rem; font-weight:900; color:#0f172a; margin-top:2px;">₱<?php echo number_format($pre_cur_fees, 2); ?></div>
                             </div>
                             <div style="background:#ffffff; border:1px solid #fecaca; border-radius:8px; padding:0.65rem 0.8rem;">
                                 <div style="font-size:0.7rem; font-weight:800; text-transform:uppercase; color:#991b1b; letter-spacing:0.04em;">Previous Balance</div>
-                                <div id="bdPreviousBalance" style="font-size:1.05rem; font-weight:900; color:#b91c1c; margin-top:2px;">₱0.00</div>
+                                <div id="bdPreviousBalance" style="font-size:1.05rem; font-weight:900; color:#b91c1c; margin-top:2px;">₱<?php echo number_format($pre_prev_bal, 2); ?></div>
                             </div>
                             <div style="background:#ffffff; border:1px solid #a7f3d0; border-radius:8px; padding:0.65rem 0.8rem;">
                                 <div style="font-size:0.7rem; font-weight:800; text-transform:uppercase; color:#047857; letter-spacing:0.04em;">Total Paid</div>
-                                <div id="bdTotalPaid" style="font-size:1.05rem; font-weight:900; color:#059669; margin-top:2px;">₱0.00</div>
+                                <div id="bdTotalPaid" style="font-size:1.05rem; font-weight:900; color:#059669; margin-top:2px;">₱<?php echo number_format($pre_total_paid, 2); ?></div>
                             </div>
                             <div style="background:#ffffff; border:1.5px solid #065f46; border-radius:8px; padding:0.65rem 0.8rem;">
                                 <div style="font-size:0.7rem; font-weight:800; text-transform:uppercase; color:#065f46; letter-spacing:0.04em;">Remaining Balance</div>
-                                <div id="bdRemainingBalance" style="font-size:1.05rem; font-weight:900; color:#065f46; margin-top:2px;">₱0.00</div>
+                                <div id="bdRemainingBalance" style="font-size:1.05rem; font-weight:900; color:#065f46; margin-top:2px;">₱<?php echo number_format($pre_rem_bal, 2); ?></div>
                             </div>
                         </div>
 
@@ -405,9 +443,25 @@ require_once __DIR__ . '/../includes/layout_app_start.php';
                                     </tr>
                                 </thead>
                                 <tbody id="bdItemsTbody">
+                                    <?php if ($has_pre_assess && !empty($pre_fees_list)) {
+                                        foreach ($pre_fees_list as $pf) {
+                                            $p_rem = isset($pf['item_remaining_balance']) ? (float)$pf['item_remaining_balance'] : (float)($pf['amount'] ?? 0);
+                                            $p_orig = isset($pf['original_amount']) ? (float)$pf['original_amount'] : $p_rem;
+                                            $p_paid = max(0.0, $p_orig - $p_rem);
+                                            $p_bg = !empty($pf['is_previous_balance']) ? 'background:#fff1f2;' : '';
+                                            $p_color = $p_rem > 0.005 ? '#b45309' : '#059669';
+                                    ?>
+                                        <tr style="<?php echo $p_bg; ?>">
+                                            <td style="padding:0.45rem 0.75rem; font-weight:700; color:#0f172a;"><?php echo htmlspecialchars((string)($pf['particular'] ?? 'Fee Item')); ?></td>
+                                            <td style="padding:0.45rem 0.75rem; text-align:right; color:#475569;">₱<?php echo number_format($p_orig, 2); ?></td>
+                                            <td style="padding:0.45rem 0.75rem; text-align:right; color:#059669; font-weight:700;">₱<?php echo number_format($p_paid, 2); ?></td>
+                                            <td style="padding:0.45rem 0.75rem; text-align:right; color:<?php echo $p_color; ?>; font-weight:800;">₱<?php echo number_format($p_rem, 2); ?></td>
+                                        </tr>
+                                    <?php } } else { ?>
                                     <tr>
-                                        <td colspan="4" style="padding:0.75rem; text-align:center; color:#64748b;">Select a seminarian to view breakdown.</td>
+                                        <td colspan="4" style="padding:0.75rem; text-align:center; color:#64748b;">Select a seminarian to view assessment details &amp; breakdown.</td>
                                     </tr>
+                                    <?php } ?>
                                 </tbody>
                             </table>
                         </div>
@@ -575,7 +629,7 @@ require_once __DIR__ . '/../includes/layout_app_start.php';
                                 <i class="fas fa-info-circle"></i> Payments automatically allocate to term invoice items and balance.
                             </div>
                             <div style="display:flex; align-items:center; gap:0.65rem; flex-wrap:wrap;">
-                                <a id="summaryPrintSoaBtn" href="#" target="_blank" class="hidden" style="background:rgba(255,255,255,0.16); color:#ffffff; font-weight:800; font-size:0.9rem; padding:0.7rem 1.15rem; border:1px solid rgba(255,255,255,0.35); border-radius:8px; text-decoration:none; display:inline-flex; align-items:center; gap:0.45rem;">
+                                <a id="summaryPrintSoaBtn" href="<?php echo htmlspecialchars($pre_soa_url); ?>" target="_blank" style="background:rgba(255,255,255,0.16); color:#ffffff; font-weight:800; font-size:0.9rem; padding:0.7rem 1.15rem; border:1px solid rgba(255,255,255,0.35); border-radius:8px; text-decoration:none; display:inline-flex; align-items:center; gap:0.45rem; <?php echo $has_pre_assess ? '' : 'opacity:0.45; pointer-events:none;'; ?>">
                                     <i class="fas fa-file-invoice"></i> <span>Print SOA</span>
                                 </a>
                                 <a id="printLastReceiptBtn" href="#" target="_blank" class="hidden" style="background:#a7f3d0; color:#064e3b; font-weight:900; font-size:0.9rem; padding:0.7rem 1.15rem; border:none; border-radius:8px; text-decoration:none; display:inline-flex; align-items:center; gap:0.45rem; box-shadow:0 3px 8px rgba(0,0,0,0.2);">
@@ -1191,6 +1245,9 @@ require_once __DIR__ . '/../includes/layout_app_start.php';
                 recalculateTotals();
             });
 
+            const AJAX_ENDPOINT = <?php echo json_encode(capstone_url('modules/ajax.php')); ?>;
+            const SOA_ENDPOINT = <?php echo json_encode(capstone_url('modules/cashier_soa.php')); ?>;
+
             async function loadStudentFees() {
                 const sid = seminarianSelect.value;
                 const ay = aySelect.value;
@@ -1202,13 +1259,25 @@ require_once __DIR__ . '/../includes/layout_app_start.php';
                 }
                 if (!sid) {
                     checklistContainer.innerHTML = '<div style="color:var(--text-secondary); grid-column:1/-1; padding:1.5rem; text-align:center; background:var(--bg-light, #f8fafc); border-radius:8px; border:1px dashed var(--border-color, #cbd5e1);"><i class="fas fa-user-graduate" style="font-size:1.5rem; margin-bottom:0.5rem; display:block; opacity:0.5;"></i>Select a seminarian above to view the fee checklist and account balance.</div>';
-                    if (assessmentBreakdownCard) {
-                        assessmentBreakdownCard.classList.add('hidden');
-                        assessmentBreakdownCard.style.display = 'none';
+                    if (bdStudentSubtitle) bdStudentSubtitle.textContent = 'Select a seminarian above to load assessment summary & statement';
+                    if (bdStudentTermBadge) bdStudentTermBadge.textContent = 'AY ' + ay + ' • ' + sem + ' Sem';
+                    if (bdCurrentTermFees) bdCurrentTermFees.textContent = '₱0.00';
+                    if (bdPreviousBalance) bdPreviousBalance.textContent = '₱0.00';
+                    if (bdTotalPaid) bdTotalPaid.textContent = '₱0.00';
+                    if (bdRemainingBalance) bdRemainingBalance.textContent = '₱0.00';
+                    if (bdItemsTbody) {
+                        bdItemsTbody.innerHTML = '<tr><td colspan="4" style="padding:0.75rem; text-align:center; color:#64748b;">Select a seminarian to view assessment details &amp; breakdown.</td></tr>';
+                    }
+                    if (printSoaBtn) {
+                        printSoaBtn.href = '#';
+                        printSoaBtn.style.opacity = '0.45';
+                        printSoaBtn.style.pointerEvents = 'none';
+                        printSoaBtn.setAttribute('aria-disabled', 'true');
                     }
                     if (summaryPrintSoaBtn) {
-                        summaryPrintSoaBtn.classList.add('hidden');
-                        summaryPrintSoaBtn.style.display = 'none';
+                        summaryPrintSoaBtn.href = '#';
+                        summaryPrintSoaBtn.style.opacity = '0.45';
+                        summaryPrintSoaBtn.style.pointerEvents = 'none';
                     }
                     if (displayCurrentTermFees) displayCurrentTermFees.textContent = '₱0.00';
                     if (displayPreviousTermBalance) displayPreviousTermBalance.textContent = '₱0.00';
@@ -1224,16 +1293,25 @@ require_once __DIR__ . '/../includes/layout_app_start.php';
                 }
 
                 checklistContainer.innerHTML = '<div style="grid-column:1/-1; padding:1.5rem; text-align:center; color:var(--text-secondary);"><i class="fas fa-spinner fa-spin"></i> Loading fees and account balance...</div>';
-                const soaHref = 'cashier_soa.php?student_id=' + encodeURIComponent(sid) + '&academic_year=' + encodeURIComponent(ay) + '&semester=' + encodeURIComponent(sem);
-                if (printSoaBtn) printSoaBtn.href = soaHref;
+                const soaHref = SOA_ENDPOINT + '?student_id=' + encodeURIComponent(sid) + '&academic_year=' + encodeURIComponent(ay) + '&semester=' + encodeURIComponent(sem);
+                if (printSoaBtn) {
+                    printSoaBtn.href = soaHref;
+                    printSoaBtn.style.opacity = '1';
+                    printSoaBtn.style.pointerEvents = 'auto';
+                    printSoaBtn.setAttribute('aria-disabled', 'false');
+                }
                 if (summaryPrintSoaBtn) {
                     summaryPrintSoaBtn.href = soaHref;
-                    summaryPrintSoaBtn.classList.remove('hidden');
-                    summaryPrintSoaBtn.style.display = 'inline-flex';
+                    summaryPrintSoaBtn.style.opacity = '1';
+                    summaryPrintSoaBtn.style.pointerEvents = 'auto';
+                }
+                if (bdStudentTermBadge) bdStudentTermBadge.textContent = 'AY ' + ay + ' • ' + sem + ' Sem';
+                if (bdItemsTbody) {
+                    bdItemsTbody.innerHTML = '<tr><td colspan="4" style="padding:0.75rem; text-align:center; color:#64748b;"><i class="fas fa-spinner fa-spin"></i> Loading assessment breakdown...</td></tr>';
                 }
 
                 try {
-                    const res = await fetch('ajax.php?action=get_student_fees&seminarian_id=' + encodeURIComponent(sid) + '&academic_year=' + encodeURIComponent(ay) + '&semester=' + encodeURIComponent(sem));
+                    const res = await fetch(AJAX_ENDPOINT + '?action=get_student_fees&seminarian_id=' + encodeURIComponent(sid) + '&academic_year=' + encodeURIComponent(ay) + '&semester=' + encodeURIComponent(sem));
                     const data = await res.json();
                     if (data && data.ok) {
                         currentPreviousBalance = parseFloat(data.remaining_balance !== undefined ? data.remaining_balance : (data.previous_balance || 0));
@@ -1498,13 +1576,24 @@ require_once __DIR__ . '/../includes/layout_app_start.php';
                     userModifiedAmountPaid = false;
                     calculateChangeAndBalance();
                     checklistContainer.innerHTML = '<div style="color:var(--text-secondary); grid-column:1/-1; padding:1.5rem; text-align:center; background:var(--bg-light, #f8fafc); border-radius:8px; border:1px dashed var(--border-color, #cbd5e1);"><i class="fas fa-user-graduate" style="font-size:1.5rem; margin-bottom:0.5rem; display:block; opacity:0.5;"></i>Select a seminarian above to view the fee checklist and account balance.</div>';
-                    if (assessmentBreakdownCard) {
-                        assessmentBreakdownCard.classList.add('hidden');
-                        assessmentBreakdownCard.style.display = 'none';
+                    if (bdStudentSubtitle) bdStudentSubtitle.textContent = 'Select a seminarian above to load assessment summary & statement';
+                    if (bdCurrentTermFees) bdCurrentTermFees.textContent = '₱0.00';
+                    if (bdPreviousBalance) bdPreviousBalance.textContent = '₱0.00';
+                    if (bdTotalPaid) bdTotalPaid.textContent = '₱0.00';
+                    if (bdRemainingBalance) bdRemainingBalance.textContent = '₱0.00';
+                    if (bdItemsTbody) {
+                        bdItemsTbody.innerHTML = '<tr><td colspan="4" style="padding:0.75rem; text-align:center; color:#64748b;">Select a seminarian to view assessment details &amp; breakdown.</td></tr>';
+                    }
+                    if (printSoaBtn) {
+                        printSoaBtn.href = '#';
+                        printSoaBtn.style.opacity = '0.45';
+                        printSoaBtn.style.pointerEvents = 'none';
+                        printSoaBtn.setAttribute('aria-disabled', 'true');
                     }
                     if (summaryPrintSoaBtn) {
-                        summaryPrintSoaBtn.classList.add('hidden');
-                        summaryPrintSoaBtn.style.display = 'none';
+                        summaryPrintSoaBtn.href = '#';
+                        summaryPrintSoaBtn.style.opacity = '0.45';
+                        summaryPrintSoaBtn.style.pointerEvents = 'none';
                     }
                     customContainer.innerHTML = '';
                     orFeedback.innerHTML = '';

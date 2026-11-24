@@ -217,6 +217,8 @@ if ($total_enrolled_units <= 0) {
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=Plus+Jakarta+Sans:wght@500;600;700;800&display=swap" rel="stylesheet">
     <!-- FontAwesome 6 Icons -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <link rel="stylesheet" href="../css/motion.css?v=<?php echo (int)@filemtime(__DIR__ . '/../css/motion.css'); ?>">
+    <link rel="stylesheet" href="../css/floating_theme.css?v=<?php echo (int)@filemtime(__DIR__ . '/../css/floating_theme.css'); ?>">
     <!-- Tailwind CSS CDN -->
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
@@ -444,7 +446,13 @@ if ($total_enrolled_units <= 0) {
                         </a>
 
                         <!-- Sign Out -->
-                        <a href="../logout.php" class="flex items-center gap-3.5 px-4 py-3 rounded-2xl font-semibold text-sm text-[#8B7168] hover:text-rose-600 hover:bg-rose-50/60 transition-all duration-200">
+                        <a href="../logout.php"
+                       data-confirm="Sign out of EnformaSys? Any unsaved changes will be lost."
+                       data-confirm-title="Sign Out"
+                       data-confirm-text="Sign Out"
+                       data-confirm-variant="warning"
+                       data-confirm-loading="Signing out..."
+                       class="flex items-center gap-3.5 px-4 py-3 rounded-2xl font-semibold text-sm text-[#8B7168] hover:text-rose-600 hover:bg-rose-50/60 transition-all duration-200">
                             <i class="fa-solid fa-arrow-right-from-bracket text-base text-[#8B7168]"></i>
                             <span>Logout</span>
                         </a>
@@ -1097,5 +1105,6 @@ if ($total_enrolled_units <= 0) {
         }
     });
     </script>
+    <script defer src="../assets/app_layout.js?v=<?php echo (int)@filemtime(__DIR__ . '/../assets/app_layout.js'); ?>"></script>
 </body>
 </html>

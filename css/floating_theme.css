@@ -505,6 +505,105 @@ h1, h2, h3, h4, h5, h6, .font-heading {
     box-shadow: 0 24px 50px -12px rgba(89, 68, 63, 0.28), 0 8px 20px -4px rgba(89, 68, 63, 0.12);
     overflow: hidden;
     font-family: 'Inter', sans-serif;
+    padding: 1.35rem 1.5rem;
+}
+
+.enformasys-confirm-body {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.9rem;
+}
+
+.enformasys-confirm-icon {
+    width: 2.75rem;
+    height: 2.75rem;
+    border-radius: 1rem;
+    border: 1px solid #E8C7C5;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    font-size: 1rem;
+}
+
+.enformasys-confirm-title {
+    margin: 0;
+    font-size: 1rem;
+    font-weight: 800;
+    color: #59443F;
+    line-height: 1.35;
+}
+
+.enformasys-confirm-message {
+    margin: 0.35rem 0 0 0;
+    font-size: 0.85rem;
+    color: #8B7168;
+    font-weight: 500;
+    line-height: 1.5;
+    white-space: pre-line;
+}
+
+.enformasys-confirm-actions {
+    margin-top: 1.25rem;
+    padding-top: 0.95rem;
+    border-top: 1px solid rgba(232, 199, 197, 0.45);
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+    gap: 0.6rem;
+}
+
+.enformasys-confirm-btn {
+    border-radius: 0.75rem;
+    padding: 0.52rem 1rem;
+    font-size: 0.78rem;
+    font-weight: 700;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.45rem;
+    transition: background-color 150ms ease, transform 150ms ease, opacity 150ms ease;
+}
+
+.enformasys-confirm-btn-cancel {
+    background: #F8EEEE;
+    color: #59443F;
+    border: 1px solid #E8C7C5;
+}
+
+.enformasys-confirm-btn-cancel:hover {
+    background: #E8C7C5;
+}
+
+.enformasys-confirm-btn-primary {
+    background: #59443F;
+    color: #FFFFFF;
+    border: 1px solid #59443F;
+}
+
+.enformasys-confirm-btn-primary:hover {
+    background: #463430;
+}
+
+.enformasys-confirm-btn-warning {
+    background: #D97706;
+    color: #FFFFFF;
+    border: 1px solid #D97706;
+}
+
+.enformasys-confirm-btn-warning:hover {
+    background: #B45309;
+}
+
+.enformasys-confirm-btn-danger {
+    background: #DC2626;
+    color: #FFFFFF;
+    border: 1px solid #DC2626;
+}
+
+.enformasys-confirm-btn-danger:hover {
+    background: #B91C1C;
 }
 
 @media (prefers-reduced-motion: no-preference) {
