@@ -136,13 +136,20 @@ if (isset($_GET['semester']) && trim((string)$_GET['semester']) !== '') {
     }
 }
 
+if (!function_exists('enformasys_invalidate_dashboard_cache')) {
+    function enformasys_invalidate_dashboard_cache(): void {
+        unset($_SESSION['cached_dashboard_summary']);
+    }
+}
+
 if (!function_exists('enformasys_invalidate_ay_cache')) {
     function enformasys_invalidate_ay_cache(): void {
         unset(
             $_SESSION['cached_current_ay'],
             $_SESSION['cached_active_ays'],
             $_SESSION['cached_all_ays'],
-            $_SESSION['cached_ay_ts']
+            $_SESSION['cached_ay_ts'],
+            $_SESSION['cached_dashboard_summary']
         );
     }
 }

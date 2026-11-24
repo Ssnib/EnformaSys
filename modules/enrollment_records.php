@@ -9,8 +9,15 @@ $is_registrar = ($role === 'Registrar');
 $can_edit = $is_registrar;
 $actor_id = (int)($_SESSION['user'] ?? 0);
 
-// Ensure decoupled tables are initialized and synced
-registrar_sync_and_migrate($conn, false);
+// Sync decoupled tables only in local/non-serverless mode
+$__er_skip_sync = function_exists('enformasys_env')
+    && (enformasys_is_production() || enformasys_env('VERCEL', '') !== '' || enformasys_env('VERCEL_ENV', '') !== '');
+if (!$__er_skip_sync) {
+    registrar_sync_and_migrate($conn, false);
+}
+if (strtoupper((string)($_SERVER['REQUEST_METHOD'] ?? 'GET')) === 'POST' && function_exists('enformasys_invalidate_dashboard_cache')) {
+    enformasys_invalidate_dashboard_cache();
+}
 
 $current_ay = get_current_academic_year();
 $ay_options = get_all_academic_years(true);

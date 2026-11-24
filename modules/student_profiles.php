@@ -14,6 +14,9 @@ $__sp_skip_sync = function_exists('enformasys_env')
 if (!$__sp_skip_sync) {
     registrar_sync_and_migrate($conn, false);
 }
+if (strtoupper((string)($_SERVER['REQUEST_METHOD'] ?? 'GET')) === 'POST' && function_exists('enformasys_invalidate_dashboard_cache')) {
+    enformasys_invalidate_dashboard_cache();
+}
 
 $success = null;
 $error = null;

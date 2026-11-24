@@ -11,6 +11,9 @@ if (!enformasys_is_production()) {
 require_roles(['Registrar', 'Dean', 'Rector']);
 require_once __DIR__ . '/../includes/db.php';
 require_once __DIR__ . '/../includes/registrar_decoupling.php';
+if (strtoupper((string)($_SERVER['REQUEST_METHOD'] ?? 'GET')) === 'POST' && function_exists('enformasys_invalidate_dashboard_cache')) {
+    enformasys_invalidate_dashboard_cache();
+}
 $role = (string)($_SESSION['role'] ?? '');
 $is_registrar = $role === 'Registrar';
 $show_archived = isset($_GET['archived']) && $_GET['archived'] === '1' && $is_registrar;

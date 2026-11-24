@@ -47,326 +47,235 @@ $enrolled_subjects = 0;
 // Explicit variable initialization to prevent undefined variable warnings
 $recent_enrollments_display = [];
 $activities = [];
+$student_summaries = [];
+$student_search_options = [];
 
 $ay = trim((string)get_current_academic_year());
 if ($ay !== '') {
     $academic_year_label = $ay;
 }
 
-if (!$is_student) {
-    $t = $conn->query("SELECT COUNT(*) as count FROM seminarians");
-    if ($t) {
-        $total_students = (int)($t->fetch_assoc()['count'] ?? 0);
-    }
+$year_counts = [0, 0, 0, 0, 0];
 
-    $has_subjects_tbl = false;
-    $tbl_check = $conn->query("SELECT COUNT(*) as c FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'subjects'");
-    if ($tbl_check && (int)($tbl_check->fetch_assoc()['c'] ?? 0) > 0) {
-        $has_subjects_tbl = true;
-    }
-    if ($has_subjects_tbl) {
-        $has_archived_col = false;
-        $col_check = $conn->query("SELECT COUNT(*) as c FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'subjects' AND COLUMN_NAME = 'archived_at'");
-        if ($col_check && (int)($col_check->fetch_assoc()['c'] ?? 0) > 0) {
-            $has_archived_col = true;
-        }
-        $s = $conn->query($has_archived_col ? "SELECT COUNT(*) as count FROM subjects WHERE archived_at IS NULL" : "SELECT COUNT(*) as count FROM subjects");
-        if ($s) {
-            $total_subjects = (int)($s->fetch_assoc()['count'] ?? 0);
-        }
+if ($is_admin || $is_formator) {
+    $dashCacheKey = $role . '|' . $academic_year_label;
+    $cachedDash = $_SESSION['cached_dashboard_summary'][$dashCacheKey] ?? null;
+    if (is_array($cachedDash) && isset($cachedDash['ts']) && (time() - (int)$cachedDash['ts']) < 60) {
+        $total_students = (int)($cachedDash['total_students'] ?? 0);
+        $irregular_students_count = (int)($cachedDash['irregular_students_count'] ?? 0);
+        $total_subjects = (int)($cachedDash['total_subjects'] ?? 0);
+        $pending_enrollments = (int)($cachedDash['pending_enrollments'] ?? 0);
+        $year_counts = $cachedDash['year_counts'] ?? [0, 0, 0, 0, 0];
+        $pending_applicants_list = $cachedDash['pending_applicants_list'] ?? [];
+        $student_search_options = $cachedDash['student_search_options'] ?? [];
+        $student_summaries = $cachedDash['student_summaries'] ?? [];
+        $activities = $cachedDash['activities'] ?? [];
+        $recent_enrollments_display = $cachedDash['recent_enrollments_display'] ?? [];
     } else {
-        $s = $conn->query("SELECT COUNT(DISTINCT subject) as count FROM grades WHERE archived_at IS NULL");
-        if ($s) {
-            $total_subjects = (int)($s->fetch_assoc()['count'] ?? 0);
-        }
-    }
-}
-
-if ($is_admin || $is_formator) {
-    $total_students = (int)($conn->query("SELECT COUNT(*) as count FROM seminarians")->fetch_assoc()['count'] ?? 0);
-    $pending_enrollments = (int)($conn->query("SELECT COUNT(*) as count FROM applicants WHERE archived_at IS NULL AND (status = 'Pending' OR status IS NULL)")->fetch_assoc()['count'] ?? 0);
-
-    $ir_res = $conn->query("SELECT COUNT(*) as c FROM seminarians WHERE academic_status = 'Irregular'");
-    if ($ir_res) {
-        $irregular_students_count = (int)($ir_res->fetch_assoc()['c'] ?? 0);
-    }
-
-    $has_app_program = false;
-    $has_app_created_at = false;
-    $chk_app_cols = $conn->query("SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'applicants' AND COLUMN_NAME IN ('program', 'created_at')");
-    if ($chk_app_cols) {
-        while ($c_row = $chk_app_cols->fetch_assoc()) {
-            if ($c_row['COLUMN_NAME'] === 'program') $has_app_program = true;
-            if ($c_row['COLUMN_NAME'] === 'created_at') $has_app_created_at = true;
-        }
-    }
-
-    $prog_select = $has_app_program ? "a.program" : "NULL as program";
-    $created_select = $has_app_created_at ? "a.created_at" : "NULL as created_at";
-    $order_clause = $has_app_created_at ? "ORDER BY a.created_at DESC, a.id DESC" : "ORDER BY a.id DESC";
-
-    $stmt_app = $conn->query("
-        SELECT a.id, a.user_id, a.academic_year,
-               {$prog_select},
-               {$created_select},
-               COALESCE(up.full_name, a.full_name, u.username) as display_name,
-               u.username
-        FROM applicants a
-        LEFT JOIN users u ON a.user_id = u.id
-        LEFT JOIN user_profiles up ON up.user_id = u.id
-        WHERE a.archived_at IS NULL AND (a.status = 'Pending' OR a.status IS NULL)
-        {$order_clause}
-        LIMIT 5
-    ");
-    if ($stmt_app) {
-        while ($row = $stmt_app->fetch_assoc()) {
-            $pending_applicants_list[] = $row;
-        }
-    }
-
-    $ay_res = $conn->query("SELECT school_year FROM grades WHERE archived_at IS NULL AND school_year IS NOT NULL AND school_year <> '' ORDER BY school_year DESC LIMIT 1");
-    if ($ay_res && $ay_row = $ay_res->fetch_assoc()) {
-        $academic_year_label = (string)($ay_row['school_year'] ?? 'Not set');
-    }
-    if ($academic_year_label === 'Not set') {
-        $academic_year_label = $ay !== '' ? $ay : 'Not set';
-    }
-}
-
-if ($is_cashier) {
-    $ay_res = $conn->query("SELECT school_year FROM grades WHERE archived_at IS NULL AND school_year IS NOT NULL AND school_year <> '' ORDER BY school_year DESC LIMIT 1");
-    if ($ay_res && $ay_row = $ay_res->fetch_assoc()) {
-        $academic_year_label = (string)($ay_row['school_year'] ?? 'Not set');
-    }
-    if ($academic_year_label === 'Not set') {
-        $academic_year_label = $ay !== '' ? $ay : 'Not set';
-    }
-}
-
-if ($is_student) {
-    $user_id = (int)$_SESSION['user'];
-    $seminarian_id = null;
-    $enrollment_status = 'Pending';
-    $stmt_sem = $conn->prepare('SELECT id, enrollment_status FROM seminarians WHERE user_id = ? LIMIT 1');
-    $stmt_sem->bind_param('i', $user_id);
-    $stmt_sem->execute();
-    $sem_res = $stmt_sem->get_result();
-    if ($sem_res && $sem_row = $sem_res->fetch_assoc()) {
-        $seminarian_id = (int)$sem_row['id'];
-        $raw_es = trim((string)($sem_row['enrollment_status'] ?? ''));
-        $enrollment_status = $raw_es !== '' ? $raw_es : 'Pending';
-    }
-
-    $payment_status_label = 'No Billing';
-    $payment_balance = 0.0;
-
-    if ($seminarian_id) {
-        $stmt_units = $conn->prepare('SELECT COALESCE(SUM(units), 0) as count FROM grades WHERE seminarian_id = ? AND archived_at IS NULL');
-        $stmt_units->bind_param('i', $seminarian_id);
-        $stmt_units->execute();
-        $total_units = (int)($stmt_units->get_result()->fetch_assoc()['count'] ?? 0);
-
-        $stmt_subjects = $conn->prepare('SELECT COUNT(DISTINCT subject) as count FROM grades WHERE seminarian_id = ? AND archived_at IS NULL');
-        $stmt_subjects->bind_param('i', $seminarian_id);
-        $stmt_subjects->execute();
-        $enrolled_subjects = (int)($stmt_subjects->get_result()->fetch_assoc()['count'] ?? 0);
-
-        $tables_ok = true;
-        foreach (['lodging_invoices', 'lodging_invoice_items', 'lodging_payment_allocations'] as $tbl) {
-            $q = $conn->query("SELECT COUNT(*) as c FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = '" . $conn->real_escape_string($tbl) . "'");
-            $tables_ok = $tables_ok && $q && (int)($q->fetch_assoc()['c'] ?? 0) > 0;
-        }
-
-        if ($tables_ok) {
-            $stmt_billed = $conn->prepare("SELECT COALESCE(SUM(it.amount),0) as total
-                FROM lodging_invoices i
-                JOIN lodging_invoice_items it ON it.invoice_id = i.id
-                WHERE i.seminarian_id = ?
-                  AND i.archived_at IS NULL
-                  AND i.status IN ('issued', 'partially_paid', 'paid')");
-            $stmt_billed->bind_param('i', $seminarian_id);
-            $stmt_billed->execute();
-            $total_billed = (float)($stmt_billed->get_result()->fetch_assoc()['total'] ?? 0);
-
-            $stmt_paid = $conn->prepare("SELECT COALESCE(SUM(pa.amount),0) as total
-                FROM lodging_payment_allocations pa
-                JOIN lodging_invoices i ON pa.invoice_id = i.id
-                WHERE i.seminarian_id = ?
-                  AND i.archived_at IS NULL");
-            $stmt_paid->bind_param('i', $seminarian_id);
-            $stmt_paid->execute();
-            $total_paid = (float)($stmt_paid->get_result()->fetch_assoc()['total'] ?? 0);
-
-            $payment_balance = $total_billed - $total_paid;
-            if ($total_billed <= 0) {
-                $payment_status_label = 'No Billing';
-                $payment_balance = 0.0;
-            } elseif ($payment_balance <= 0.00001) {
-                $payment_status_label = 'Paid';
-                $payment_balance = 0.0;
-            } else {
-                $payment_status_label = 'Outstanding';
-            }
-        }
-    }
-}
-
-$student_summaries = [];
-$student_search_options = [];
-if ($is_admin || $is_formator) {
-    $has_user_profiles = false;
-    $tbl_check = $conn->query("SELECT COUNT(*) as c FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'user_profiles'");
-    if ($tbl_check && (int)($tbl_check->fetch_assoc()['c'] ?? 0) > 0) {
-        $has_user_profiles = true;
-    }
-
-    $student_opt_query = $has_user_profiles ? "
-        SELECT 
-            u.username,
-            COALESCE(up.full_name, u.username) as display_name
-        FROM seminarians s
-        JOIN users u ON s.user_id = u.id
-        LEFT JOIN user_profiles up ON up.user_id = u.id
-        ORDER BY display_name
-    " : "
-        SELECT 
-            u.username,
-            u.username as display_name
-        FROM seminarians s
-        JOIN users u ON s.user_id = u.id
-        ORDER BY display_name
-    ";
-    $student_opt_res = $conn->query($student_opt_query);
-    if ($student_opt_res) {
-        while ($row = $student_opt_res->fetch_assoc()) {
-            $student_search_options[] = [
-                'username' => $row['username'],
-                'display_name' => $row['display_name']
+        // 1. Batched student & year-level counts (single pass over seminarians)
+        $sem_agg_res = @$conn->query("
+            SELECT
+                COUNT(*) AS total_students,
+                COALESCE(SUM(CASE WHEN academic_status = 'Irregular' THEN 1 ELSE 0 END), 0) AS irregular_count,
+                COALESCE(SUM(CASE WHEN LOWER(COALESCE(year_level, '')) LIKE '%propaedeutic%' OR LOWER(COALESCE(year_level, '')) LIKE '%prep%' THEN 1 ELSE 0 END), 0) AS yl_prep,
+                COALESCE(SUM(CASE WHEN LOWER(COALESCE(year_level, '')) LIKE '%first%' OR LOWER(COALESCE(year_level, '')) LIKE '%1st%' THEN 1 ELSE 0 END), 0) AS yl_1st,
+                COALESCE(SUM(CASE WHEN LOWER(COALESCE(year_level, '')) LIKE '%second%' OR LOWER(COALESCE(year_level, '')) LIKE '%2nd%' THEN 1 ELSE 0 END), 0) AS yl_2nd,
+                COALESCE(SUM(CASE WHEN LOWER(COALESCE(year_level, '')) LIKE '%third%' OR LOWER(COALESCE(year_level, '')) LIKE '%3rd%' THEN 1 ELSE 0 END), 0) AS yl_3rd,
+                COALESCE(SUM(CASE WHEN LOWER(COALESCE(year_level, '')) LIKE '%fourth%' OR LOWER(COALESCE(year_level, '')) LIKE '%4th%' THEN 1 ELSE 0 END), 0) AS yl_4th
+            FROM seminarians
+            WHERE is_graduate = 0 OR is_graduate IS NULL
+        ");
+        if ($sem_agg_res && ($agg = $sem_agg_res->fetch_assoc())) {
+            $total_students = (int)($agg['total_students'] ?? 0);
+            $irregular_students_count = (int)($agg['irregular_count'] ?? 0);
+            $year_counts = [
+                (int)($agg['yl_prep'] ?? 0),
+                (int)($agg['yl_1st'] ?? 0),
+                (int)($agg['yl_2nd'] ?? 0),
+                (int)($agg['yl_3rd'] ?? 0),
+                (int)($agg['yl_4th'] ?? 0),
             ];
         }
-    }
 
-    $summary_query = $has_user_profiles ? "
-        SELECT 
-            u.username,
-            COALESCE(up.full_name, u.username) as display_name,
-            e.type, 
-            AVG(e.score) as avg_score 
-        FROM evaluations e 
-        JOIN seminarians s ON e.seminarian_id = s.id 
-        JOIN users u ON s.user_id = u.id
-        LEFT JOIN user_profiles up ON up.user_id = u.id
-        GROUP BY u.username, display_name, e.type
-    " : "
-        SELECT 
-            u.username,
-            u.username as display_name,
-            e.type, 
-            AVG(e.score) as avg_score 
-        FROM evaluations e 
-        JOIN seminarians s ON e.seminarian_id = s.id 
-        JOIN users u ON s.user_id = u.id 
-        GROUP BY u.username, e.type
-    ";
-    $summary_res = $conn->query($summary_query);
-    while ($row = $summary_res->fetch_assoc()) {
-        if (!isset($student_summaries[$row['username']])) {
-            $student_summaries[$row['username']] = ['display_name' => $row['display_name']];
+        // 2. Batched scalar lookup counts (pending applicants + active subjects) without INFORMATION_SCHEMA probes
+        $meta_res = @$conn->query("
+            SELECT
+                (SELECT COUNT(*) FROM applicants WHERE archived_at IS NULL AND (status = 'Pending' OR status IS NULL)) AS pending_enrollments,
+                (SELECT COUNT(*) FROM subjects WHERE archived_at IS NULL) AS total_subjects
+        ");
+        if ($meta_res && ($m = $meta_res->fetch_assoc())) {
+            $pending_enrollments = (int)($m['pending_enrollments'] ?? 0);
+            $total_subjects = (int)($m['total_subjects'] ?? 0);
         }
-        $student_summaries[$row['username']][$row['type']] = $row['avg_score'];
-    }
 
-    // Also fetch Academic averages for each student
-    $acad_query = "
-        SELECT u.username, AVG(g.grade) as avg_grade
-        FROM grades g
-        JOIN seminarians s ON g.seminarian_id = s.id
-        JOIN users u ON s.user_id = u.id
-        WHERE g.archived_at IS NULL
-        GROUP BY u.username
-    ";
-    $acad_res = $conn->query($acad_query);
-    if ($acad_res) {
-        while ($row = $acad_res->fetch_assoc()) {
-            if (isset($student_summaries[$row['username']])) {
-                $student_summaries[$row['username']]['Academic'] = $row['avg_grade'];
+        // 3. Top 5 pending applicants
+        $stmt_app = @$conn->query("
+            SELECT a.id, a.user_id, a.academic_year, a.program, a.created_at,
+                   COALESCE(up.full_name, a.full_name, u.username) AS display_name,
+                   u.username
+            FROM applicants a
+            LEFT JOIN users u ON a.user_id = u.id
+            LEFT JOIN user_profiles up ON up.user_id = u.id
+            WHERE a.archived_at IS NULL AND (a.status = 'Pending' OR a.status IS NULL)
+            ORDER BY a.created_at DESC, a.id DESC
+            LIMIT 5
+        ");
+        if ($stmt_app) {
+            while ($row = $stmt_app->fetch_assoc()) {
+                $pending_applicants_list[] = $row;
             }
         }
-    }
-}
 
-// Fetch Recent Activities & Recent Enrollments
-if ($is_admin || $is_formator) {
-    $activities_query = "
-        SELECT a.*, u.username 
-        FROM activities a 
-        JOIN users u ON a.user_id = u.id 
-        ORDER BY a.timestamp DESC 
-        LIMIT 5
-    ";
-    $activities_res = $conn->query($activities_query);
-    if ($activities_res) {
-        while ($row = $activities_res->fetch_assoc()) {
-            $activities[] = $row;
+        // 4. Student search options & evaluation summaries
+        $student_opt_res = @$conn->query("
+            SELECT u.username, COALESCE(up.full_name, u.username) AS display_name
+            FROM seminarians s
+            JOIN users u ON s.user_id = u.id
+            LEFT JOIN user_profiles up ON up.user_id = u.id
+            ORDER BY display_name
+            LIMIT 250
+        ");
+        if ($student_opt_res) {
+            while ($row = $student_opt_res->fetch_assoc()) {
+                $student_search_options[] = [
+                    'username' => $row['username'],
+                    'display_name' => $row['display_name'],
+                ];
+            }
         }
-    }
 
-    // Fetch 5 Most Recently Enrolled Seminarians for Actionable Table
-    $recent_enrolled_res = $conn->query("
-        SELECT s.id as seminarian_id,
-               u.username,
-               COALESCE(up.full_name, a.full_name, u.username) as display_name,
-               COALESCE(NULLIF(s.year_level, ''), 'Propaedeutic') as year_level,
-               COALESCE(s.admission_date, a.created_at) as date_enrolled
-        FROM seminarians s
-        JOIN users u ON s.user_id = u.id
-        LEFT JOIN user_profiles up ON up.user_id = u.id
-        LEFT JOIN applicants a ON a.user_id = u.id
-        ORDER BY s.id DESC
-        LIMIT 5
+        $summary_res = @$conn->query("
+            SELECT u.username, COALESCE(up.full_name, u.username) AS display_name, e.type, AVG(e.score) AS avg_score
+            FROM evaluations e
+            JOIN seminarians s ON e.seminarian_id = s.id
+            JOIN users u ON s.user_id = u.id
+            LEFT JOIN user_profiles up ON up.user_id = u.id
+            GROUP BY u.username, display_name, e.type
+        ");
+        if ($summary_res) {
+            while ($row = $summary_res->fetch_assoc()) {
+                if (!isset($student_summaries[$row['username']])) {
+                    $student_summaries[$row['username']] = ['display_name' => $row['display_name']];
+                }
+                $student_summaries[$row['username']][$row['type']] = $row['avg_score'];
+            }
+        }
+
+        if (!empty($student_summaries)) {
+            $acad_res = @$conn->query("
+                SELECT u.username, AVG(g.grade) AS avg_grade
+                FROM grades g
+                JOIN seminarians s ON g.seminarian_id = s.id
+                JOIN users u ON s.user_id = u.id
+                WHERE g.archived_at IS NULL
+                GROUP BY u.username
+            ");
+            if ($acad_res) {
+                while ($row = $acad_res->fetch_assoc()) {
+                    if (isset($student_summaries[$row['username']])) {
+                        $student_summaries[$row['username']]['Academic'] = $row['avg_grade'];
+                    }
+                }
+            }
+        }
+
+        // 5. Recent Activities (LEFT JOIN users so system/security events also render cleanly)
+        $activities_res = @$conn->query("
+            SELECT a.*, COALESCE(u.username, 'System') AS username
+            FROM activities a
+            LEFT JOIN users u ON a.user_id = u.id
+            ORDER BY a.timestamp DESC, a.id DESC
+            LIMIT 5
+        ");
+        if ($activities_res) {
+            while ($row = $activities_res->fetch_assoc()) {
+                $activities[] = $row;
+            }
+        }
+
+        // 6. Latest 5 Enrolled Seminarians
+        $recent_enrolled_res = @$conn->query("
+            SELECT s.id AS seminarian_id,
+                   u.username,
+                   COALESCE(up.full_name, a.full_name, u.username) AS display_name,
+                   COALESCE(NULLIF(s.year_level, ''), 'Propaedeutic') AS year_level,
+                   COALESCE(s.admission_date, a.created_at) AS date_enrolled
+            FROM seminarians s
+            JOIN users u ON s.user_id = u.id
+            LEFT JOIN user_profiles up ON up.user_id = u.id
+            LEFT JOIN applicants a ON a.user_id = u.id
+            ORDER BY s.id DESC
+            LIMIT 5
+        ");
+        if ($recent_enrolled_res) {
+            while ($row = $recent_enrolled_res->fetch_assoc()) {
+                $name = trim((string)$row['display_name']);
+                $parts = preg_split('/\s+/', $name);
+                $initials = count($parts) >= 2
+                    ? strtoupper(substr($parts[0], 0, 1) . substr(end($parts), 0, 1))
+                    : strtoupper(substr($name, 0, 2));
+
+                $yl = (string)$row['year_level'];
+                $badge_class = 'bg-slate-100 text-slate-700 border border-slate-200';
+                if (stripos($yl, 'propaedeutic') !== false) {
+                    $badge_class = 'bg-emerald-50 text-emerald-700 border border-emerald-200/80';
+                } elseif (stripos($yl, 'first') !== false || stripos($yl, '1st') !== false) {
+                    $badge_class = 'bg-blue-50 text-blue-700 border border-blue-200/80';
+                } elseif (stripos($yl, 'second') !== false || stripos($yl, '2nd') !== false) {
+                    $badge_class = 'bg-indigo-50 text-indigo-700 border border-indigo-200/80';
+                } elseif (stripos($yl, 'third') !== false || stripos($yl, '3rd') !== false) {
+                    $badge_class = 'bg-purple-50 text-purple-700 border border-purple-200/80';
+                } elseif (stripos($yl, 'fourth') !== false || stripos($yl, '4th') !== false) {
+                    $badge_class = 'bg-amber-50 text-amber-800 border border-amber-200/80';
+                }
+
+                $date_str = !empty($row['date_enrolled']) ? date('M j, Y', strtotime((string)$row['date_enrolled'])) : '—';
+                $recent_enrollments_display[] = [
+                    'seminarian_id' => (int)$row['seminarian_id'],
+                    'name'          => $name,
+                    'username'      => (string)$row['username'],
+                    'year_level'    => $yl,
+                    'date_enrolled' => $date_str,
+                    'initials'      => $initials,
+                    'badge_class'   => $badge_class,
+                ];
+            }
+        }
+
+        $_SESSION['cached_dashboard_summary'][$dashCacheKey] = [
+            'ts' => time(),
+            'total_students' => $total_students,
+            'irregular_students_count' => $irregular_students_count,
+            'total_subjects' => $total_subjects,
+            'pending_enrollments' => $pending_enrollments,
+            'year_counts' => $year_counts,
+            'pending_applicants_list' => $pending_applicants_list,
+            'student_search_options' => $student_search_options,
+            'student_summaries' => $student_summaries,
+            'activities' => $activities,
+            'recent_enrollments_display' => $recent_enrollments_display,
+        ];
+    }
+} elseif (!$is_student) {
+    $meta_res = @$conn->query("
+        SELECT
+            (SELECT COUNT(*) FROM seminarians WHERE is_graduate = 0 OR is_graduate IS NULL) AS total_students,
+            (SELECT COUNT(*) FROM subjects WHERE archived_at IS NULL) AS total_subjects
     ");
-    if ($recent_enrolled_res) {
-        while ($row = $recent_enrolled_res->fetch_assoc()) {
-            $name = trim((string)$row['display_name']);
-            $parts = preg_split('/\s+/', $name);
-            $initials = '';
-            if (count($parts) >= 2) {
-                $initials = strtoupper(substr($parts[0], 0, 1) . substr(end($parts), 0, 1));
-            } else {
-                $initials = strtoupper(substr($name, 0, 2));
-            }
-
-            $yl = (string)$row['year_level'];
-            $badge_class = 'bg-slate-100 text-slate-700 border border-slate-200';
-            if (stripos($yl, 'propaedeutic') !== false) {
-                $badge_class = 'bg-emerald-50 text-emerald-700 border border-emerald-200/80';
-            } elseif (stripos($yl, 'first') !== false || stripos($yl, '1st') !== false) {
-                $badge_class = 'bg-blue-50 text-blue-700 border border-blue-200/80';
-            } elseif (stripos($yl, 'second') !== false || stripos($yl, '2nd') !== false) {
-                $badge_class = 'bg-indigo-50 text-indigo-700 border border-indigo-200/80';
-            } elseif (stripos($yl, 'third') !== false || stripos($yl, '3rd') !== false) {
-                $badge_class = 'bg-purple-50 text-purple-700 border border-purple-200/80';
-            } elseif (stripos($yl, 'fourth') !== false || stripos($yl, '4th') !== false) {
-                $badge_class = 'bg-amber-50 text-amber-800 border border-amber-200/80';
-            }
-
-            $date_str = '—';
-            if (!empty($row['date_enrolled'])) {
-                $date_str = date('M j, Y', strtotime($row['date_enrolled']));
-            }
-
-            $recent_enrollments_display[] = [
-                'seminarian_id' => (int)$row['seminarian_id'],
-                'name'          => $name,
-                'username'      => (string)$row['username'],
-                'year_level'    => $yl,
-                'date_enrolled' => $date_str,
-                'initials'      => $initials,
-                'badge_class'   => $badge_class
-            ];
-        }
+    if ($meta_res && ($m = $meta_res->fetch_assoc())) {
+        $total_students = (int)($m['total_students'] ?? 0);
+        $total_subjects = (int)($m['total_subjects'] ?? 0);
     }
 }
+
+$prep_count = (int)($year_counts[0] ?? 0);
+$philo12_count = (int)($year_counts[1] ?? 0) + (int)($year_counts[2] ?? 0);
+$philo34_count = (int)($year_counts[3] ?? 0) + (int)($year_counts[4] ?? 0);
+$total_year_pop = array_sum($year_counts);
+$prep_pct = $total_year_pop > 0 ? (int)round(($prep_count / $total_year_pop) * 100) : 0;
+$philo12_pct = $total_year_pop > 0 ? (int)round(($philo12_count / $total_year_pop) * 100) : 0;
+$philo34_pct = $total_year_pop > 0 ? (int)round(($philo34_count / $total_year_pop) * 100) : 0;
+$active_status_pct = $total_students > 0 ? 100 : 0;
 ?>
 <?php
 $pageTitle = 'Dashboard';
@@ -458,71 +367,79 @@ require_once __DIR__ . '/includes/layout_app_start.php';
                             <!-- Total Population Indicator -->
                             <div class="flex items-center gap-1.5 self-start sm:self-center">
                                 <span class="inline-flex items-center gap-1.5 text-xs font-bold px-3 py-1 rounded-xl bg-[#F8EEEE] text-[#59443F] border border-[#E8C7C5]/60 shadow-xs">
-                                    <span class="w-2 h-2 rounded-full bg-[#D6A6A6]"></span> Total: <span id="totalEnrollmentCount">44</span> Enrolled
+                                    <span class="w-2 h-2 rounded-full bg-emerald-500"></span> Total: <span id="totalEnrollmentCount"><?php echo (int)$total_year_pop; ?></span> Enrolled
                                 </span>
                             </div>
                         </div>
 
                         <!-- Card Body: Micro Stat Pills & Bar Chart Canvas -->
-                        <div class="p-5 sm:p-6">
-                            <!-- Stage Population Distribution Cards -->
-                            <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-5">
-                                <div class="p-3.5 rounded-2xl bg-[#F8EEEE] border border-[#E8C7C5]/30">
-                                    <div class="flex items-center justify-between">
-                                        <span class="text-[11px] font-semibold text-[#8B7168] tracking-wider uppercase">Propaedeutic</span>
-                                        <span class="w-2 h-2 rounded-full bg-[#D6A6A6]"></span>
+                        <div class="p-4 sm:p-6">
+                            <!-- Stage Population Distribution Cards (Clean 2x2 Grid on Mobile < 768px, 4-Column Row >= 768px) -->
+                            <div class="grid grid-cols-2 md:grid-cols-4 gap-3 mb-5">
+                                <div class="p-3 sm:p-3.5 rounded-2xl bg-[#F8EEEE] border border-[#E8C7C5]/30">
+                                    <div class="flex items-center justify-between gap-1.5">
+                                        <span class="text-[10px] sm:text-[11px] font-semibold text-[#8B7168] tracking-wider uppercase truncate">Propaedeutic</span>
+                                        <span class="w-2.5 h-2.5 rounded-full bg-[#10b981] shrink-0"></span>
                                     </div>
                                     <div class="mt-1 flex items-baseline gap-1.5">
-                                        <span class="text-xl font-black text-[#59443F]">8</span>
-                                        <span class="text-xs font-semibold text-[#8B7168]">18%</span>
+                                        <span class="text-xl font-black text-[#59443F]"><?php echo (int)$prep_count; ?></span>
+                                        <span class="text-xs font-semibold text-[#8B7168]"><?php echo (int)$prep_pct; ?>%</span>
                                     </div>
                                 </div>
-                                <div class="p-3.5 rounded-2xl bg-[#F8EEEE] border border-[#E8C7C5]/30">
-                                    <div class="flex items-center justify-between">
-                                        <span class="text-[11px] font-semibold text-[#8B7168] tracking-wider uppercase">1st &amp; 2nd Year</span>
-                                        <span class="w-2 h-2 rounded-full bg-[#E8C7C5]"></span>
+                                <div class="p-3 sm:p-3.5 rounded-2xl bg-[#F8EEEE] border border-[#E8C7C5]/30">
+                                    <div class="flex items-center justify-between gap-1.5">
+                                        <span class="text-[10px] sm:text-[11px] font-semibold text-[#8B7168] tracking-wider uppercase truncate">1st &amp; 2nd Year</span>
+                                        <span class="inline-flex items-center gap-1 shrink-0">
+                                            <span class="w-2 h-2 rounded-full bg-[#3b82f6]"></span>
+                                            <span class="w-2 h-2 rounded-full bg-[#6366f1]"></span>
+                                        </span>
                                     </div>
                                     <div class="mt-1 flex items-baseline gap-1.5">
-                                        <span class="text-xl font-black text-[#59443F]">24</span>
-                                        <span class="text-xs font-semibold text-[#8B7168]">55%</span>
+                                        <span class="text-xl font-black text-[#59443F]"><?php echo (int)$philo12_count; ?></span>
+                                        <span class="text-xs font-semibold text-[#8B7168]"><?php echo (int)$philo12_pct; ?>%</span>
                                     </div>
                                 </div>
-                                <div class="p-3.5 rounded-2xl bg-[#F8EEEE] border border-[#E8C7C5]/30">
-                                    <div class="flex items-center justify-between">
-                                        <span class="text-[11px] font-semibold text-[#8B7168] tracking-wider uppercase">3rd &amp; 4th Year</span>
-                                        <span class="w-2 h-2 rounded-full bg-[#59443F]"></span>
+                                <div class="p-3 sm:p-3.5 rounded-2xl bg-[#F8EEEE] border border-[#E8C7C5]/30">
+                                    <div class="flex items-center justify-between gap-1.5">
+                                        <span class="text-[10px] sm:text-[11px] font-semibold text-[#8B7168] tracking-wider uppercase truncate">3rd &amp; 4th Year</span>
+                                        <span class="inline-flex items-center gap-1 shrink-0">
+                                            <span class="w-2 h-2 rounded-full bg-[#8b5cf6]"></span>
+                                            <span class="w-2 h-2 rounded-full bg-[#0f172a]"></span>
+                                        </span>
                                     </div>
                                     <div class="mt-1 flex items-baseline gap-1.5">
-                                        <span class="text-xl font-black text-[#59443F]">12</span>
-                                        <span class="text-xs font-semibold text-[#8B7168]">27%</span>
+                                        <span class="text-xl font-black text-[#59443F]"><?php echo (int)$philo34_count; ?></span>
+                                        <span class="text-xs font-semibold text-[#8B7168]"><?php echo (int)$philo34_pct; ?>%</span>
                                     </div>
                                 </div>
-                                <div class="p-3.5 rounded-2xl bg-[#F8EEEE] border border-[#E8C7C5]/30">
-                                    <div class="flex items-center justify-between">
-                                        <span class="text-[11px] font-semibold text-[#8B7168] tracking-wider uppercase">Active Status</span>
-                                        <span class="w-2 h-2 rounded-full bg-emerald-500"></span>
+                                <div class="p-3 sm:p-3.5 rounded-2xl bg-[#F8EEEE] border border-[#E8C7C5]/30">
+                                    <div class="flex items-center justify-between gap-1.5">
+                                        <span class="text-[10px] sm:text-[11px] font-semibold text-[#8B7168] tracking-wider uppercase truncate">Active Status</span>
+                                        <span class="w-2.5 h-2.5 rounded-full bg-[#10b981] shrink-0"></span>
                                     </div>
                                     <div class="mt-1 flex items-baseline gap-1.5">
-                                        <span class="text-xl font-black text-[#59443F]">100%</span>
-                                        <span class="text-xs font-semibold text-emerald-700">Enrolled</span>
+                                        <span class="text-xl font-black text-[#59443F]"><?php echo (int)$active_status_pct; ?>%</span>
+                                        <span class="text-xs font-semibold text-emerald-700"><?php echo $total_students > 0 ? 'Enrolled' : 'Ready'; ?></span>
                                     </div>
                                 </div>
                             </div>
 
-                            <!-- Canvas Container -->
-                            <div class="relative w-full" style="height: 270px;">
+                            <!-- Responsive Fixed-Height Canvas Container -->
+                            <div class="relative w-full h-[230px] sm:h-[270px]">
                                 <canvas id="enrollmentYearChart"></canvas>
                             </div>
                         </div>
 
-                        <!-- Card Footer Legend -->
-                        <div class="px-6 py-3.5 bg-[#F8EEEE]/40 border-t border-[#E8C7C5]/30 flex flex-wrap items-center justify-between gap-2 text-xs">
-                            <div class="flex items-center gap-4 text-[#8B7168] text-xs font-medium">
-                                <span class="inline-flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-md bg-[#D6A6A6]"></span> Propaedeutic</span>
-                                <span class="inline-flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-md bg-[#E8C7C5]"></span> Philosophy 1-2</span>
-                                <span class="inline-flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-md bg-[#59443F]"></span> Philosophy 3-4</span>
+                        <!-- Card Footer Legend (Synced 1:1 with Bar Colors) -->
+                        <div class="px-5 sm:px-6 py-3.5 bg-[#F8EEEE]/40 border-t border-[#E8C7C5]/30 flex flex-wrap items-center justify-between gap-x-4 gap-y-2 text-xs">
+                            <div class="flex flex-wrap items-center gap-x-3.5 gap-y-1.5 text-[#59443F] text-[11px] sm:text-xs font-semibold">
+                                <span class="inline-flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-full bg-[#10b981] shrink-0"></span> Propaedeutic</span>
+                                <span class="inline-flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-full bg-[#3b82f6] shrink-0"></span> 1st Year</span>
+                                <span class="inline-flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-full bg-[#6366f1] shrink-0"></span> 2nd Year</span>
+                                <span class="inline-flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-full bg-[#8b5cf6] shrink-0"></span> 3rd Year</span>
+                                <span class="inline-flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-full bg-[#0f172a] shrink-0"></span> 4th Year</span>
                             </div>
-                            <a href="modules/registrar_analytics.php" class="text-xs font-bold text-[#59443F] hover:text-[#8B7168] transition inline-flex items-center gap-1">
+                            <a href="modules/registrar_analytics.php" class="text-xs font-bold text-[#59443F] hover:text-[#8B7168] transition inline-flex items-center gap-1 shrink-0">
                                 Full Analytics <i class="fa-solid fa-arrow-right text-[10px] text-[#D6A6A6]"></i>
                             </a>
                         </div>
@@ -849,7 +766,7 @@ require_once __DIR__ . '/includes/layout_app_start.php';
 
 <?php if (!$is_student && !$is_shrine && !$is_cashier): ?>
 <!-- Chart.js CDN for Enrollment Analytics Chart -->
-<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+<script defer src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
 <script>
 // ── Enrollment by Year Level Bar Chart Initialization ───────────
 function initEnrollmentYearChart() {
@@ -861,19 +778,25 @@ function initEnrollmentYearChart() {
         return;
     }
 
-    // Dummy Dataset for Registrar Visualization across formation stages
-    // (Easily replaced with real PHP dynamic data: <?php echo json_encode($year_counts ?? []); ?>)
-    const dummyYearLabels = [
-        'Propaedeutic', 
-        '1st Year Philo', 
-        '2nd Year Philo', 
-        '3rd Year Philo', 
+    const fullYearLabels = [
+        'Propaedeutic',
+        '1st Year Philo',
+        '2nd Year Philo',
+        '3rd Year Philo',
         '4th Year Philo'
     ];
-    
-    const dummyPopulationData = [8, 14, 10, 7, 5];
+    const compactYearLabels = [
+        'Prep',
+        '1st Yr',
+        '2nd Yr',
+        '3rd Yr',
+        '4th Yr'
+    ];
 
-    // Seminary-tailored modern color palette
+    const populationData = <?php echo json_encode(array_values($year_counts)); ?>;
+    const totalPopulation = populationData.reduce((a, b) => a + b, 0);
+
+    // Seminary-tailored modern color palette (matched 1:1 to footer legend & cards)
     const barColors = [
         '#10b981', // Emerald for Propaedeutic
         '#3b82f6', // Royal Blue for 1st Year
@@ -890,9 +813,9 @@ function initEnrollmentYearChart() {
         '#1e293b'
     ];
 
+    const isCompactPhone = window.innerWidth < 576;
     const ctx = canvas.getContext('2d');
-    
-    // Destroy previous chart instance if exists
+
     if (window._enrollmentChartInstance) {
         window._enrollmentChartInstance.destroy();
     }
@@ -900,16 +823,16 @@ function initEnrollmentYearChart() {
     window._enrollmentChartInstance = new Chart(ctx, {
         type: 'bar',
         data: {
-            labels: dummyYearLabels,
+            labels: isCompactPhone ? compactYearLabels : fullYearLabels,
             datasets: [{
                 label: 'Enrolled Seminarians',
-                data: dummyPopulationData,
+                data: populationData,
                 backgroundColor: barColors,
                 hoverBackgroundColor: hoverColors,
                 borderRadius: 8,
                 borderSkipped: false,
-                barThickness: 34,
-                maxBarThickness: 44
+                barPercentage: isCompactPhone ? 0.65 : 0.72,
+                maxBarThickness: isCompactPhone ? 28 : 44
             }]
         },
         options: {
@@ -927,11 +850,14 @@ function initEnrollmentYearChart() {
                     cornerRadius: 8,
                     displayColors: false,
                     callbacks: {
+                        title: function(items) {
+                            const idx = items && items[0] ? items[0].dataIndex : 0;
+                            return fullYearLabels[idx] || '';
+                        },
                         label: function(context) {
-                            const val = context.parsed.y;
-                            const total = dummyPopulationData.reduce((a, b) => a + b, 0);
-                            const pct = Math.round((val / total) * 100);
-                            return ` ${val} Seminarians (${pct}% of total population)`;
+                            const val = Number(context.parsed.y || 0);
+                            const pct = totalPopulation > 0 ? Math.round((val / totalPopulation) * 100) : 0;
+                            return ` ${val} Seminarian${val === 1 ? '' : 's'} (${pct}% of total)`;
                         }
                     }
                 }
@@ -944,38 +870,62 @@ function initEnrollmentYearChart() {
                     },
                     ticks: {
                         color: '#64748b',
+                        maxRotation: 0,
+                        autoSkip: false,
                         font: {
                             family: "'Inter', sans-serif",
-                            size: 11,
+                            size: isCompactPhone ? 10 : 11,
                             weight: '600'
                         }
                     }
                 },
                 y: {
                     beginAtZero: true,
+                    suggestedMax: totalPopulation <= 4 ? 4 : undefined,
                     grid: {
                         color: '#f1f5f9',
                         drawBorder: false
                     },
                     ticks: {
                         color: '#94a3b8',
+                        precision: 0,
                         font: {
                             family: "'Inter', sans-serif",
                             size: 11
-                        },
-                        stepSize: 2
+                        }
                     }
                 }
             },
             animation: {
-                duration: 900,
+                duration: 600,
                 easing: 'easeOutQuart'
             }
         }
     });
+
+    if (!window._enrollmentChartResizeBound) {
+        window._enrollmentChartResizeBound = true;
+        let lastCompact = isCompactPhone;
+        let resizeTimer = null;
+        window.addEventListener('resize', () => {
+            clearTimeout(resizeTimer);
+            resizeTimer = setTimeout(() => {
+                const nowCompact = window.innerWidth < 576;
+                if (nowCompact !== lastCompact && window._enrollmentChartInstance) {
+                    lastCompact = nowCompact;
+                    const chart = window._enrollmentChartInstance;
+                    chart.data.labels = nowCompact ? compactYearLabels : fullYearLabels;
+                    chart.data.datasets[0].maxBarThickness = nowCompact ? 28 : 44;
+                    chart.data.datasets[0].barPercentage = nowCompact ? 0.65 : 0.72;
+                    chart.options.scales.x.ticks.font.size = nowCompact ? 10 : 11;
+                    chart.update('none');
+                }
+            }, 150);
+        }, { passive: true });
+    }
 }
 </script>
-<script src="assets/academic_calendar.js?v=<?php echo file_exists(__DIR__ . '/assets/academic_calendar.js') ? filemtime(__DIR__ . '/assets/academic_calendar.js') : '1'; ?>"></script>
+<script defer src="assets/academic_calendar.js?v=<?php echo file_exists(__DIR__ . '/assets/academic_calendar.js') ? filemtime(__DIR__ . '/assets/academic_calendar.js') : '1'; ?>"></script>
 <script>
 document.addEventListener('DOMContentLoaded', () => {
     // Initialize Enrollment by Year Level Chart

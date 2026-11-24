@@ -660,17 +660,17 @@ if ($is_student) {
     </style>
 </head>
 <body class="bg-gray-50 text-[#59443F] font-['Inter',sans-serif] antialiased min-h-screen print:bg-white print:shadow-none">
-    <div id="sidebarBackdrop" class="print:hidden fixed inset-0 z-30 hidden bg-slate-900/40 backdrop-blur-xs lg:hidden transition-opacity"></div>
+    <div id="sidebarBackdrop" class="print:hidden fixed inset-0 z-[1040] hidden bg-slate-900/45 backdrop-blur-xs lg:hidden transition-opacity" aria-hidden="true"></div>
 
-    <aside id="sidebar" class="print:hidden -translate-x-full fixed z-40 flex flex-col transition-all duration-300 inset-y-0 left-0 w-72 bg-white text-[#59443F] shadow-lg border-r border-gray-200/80 lg:translate-x-0 lg:fixed lg:top-0 lg:bottom-0 lg:left-0 lg:m-4 lg:h-[calc(100vh-2rem)] lg:w-64 lg:rounded-2xl lg:border lg:border-gray-200/80 lg:bg-white lg:shadow-sm overflow-hidden">
-        <div class="flex items-center gap-3 px-4 py-3.5 border-b border-gray-100">
+    <aside id="sidebar" class="print:hidden -translate-x-full fixed z-[1050] lg:z-40 flex flex-col transition-all duration-300 inset-y-0 left-0 h-[100dvh] w-72 bg-white text-[#59443F] shadow-xl border-r border-gray-200/80 lg:translate-x-0 lg:fixed lg:top-0 lg:bottom-0 lg:left-0 lg:m-4 lg:h-[calc(100vh-2rem)] lg:w-64 lg:rounded-2xl lg:border lg:border-gray-200/80 lg:bg-white lg:shadow-sm overflow-hidden">
+        <div class="flex items-center gap-3 px-4 py-3.5 border-b border-gray-100 shrink-0 bg-white">
             <img src="<?php echo htmlspecialchars(capstone_url('assets/LOGO%20(2).jpg')); ?>" alt="Logo" class="h-10 w-10 rounded-xl object-cover shadow border border-[#E8C7C5]/60">
-            <div class="sidebar-text">
+            <div class="sidebar-text min-w-0">
                 <div class="max-w-[10.5rem] truncate text-sm font-bold leading-5 text-[#59443F] font-heading"><?php echo htmlspecialchars($appName); ?></div>
                 <div class="max-w-[10.5rem] truncate text-xs font-semibold text-[#8B7168]"><?php echo htmlspecialchars($roleSubtitle); ?></div>
             </div>
-            <button id="closeSidebar" type="button" class="ml-auto inline-flex h-9 w-9 items-center justify-center rounded-lg text-[#8B7168] hover:bg-[#F8EEEE] hover:text-[#59443F] lg:hidden" aria-label="Close sidebar">
-                <i class="fa-solid fa-xmark"></i>
+            <button id="closeSidebar" type="button" class="ml-auto inline-flex h-10 w-10 items-center justify-center rounded-xl text-[#8B7168] hover:bg-[#F8EEEE] hover:text-[#59443F] lg:hidden cursor-pointer shrink-0" aria-label="Close sidebar">
+                <i class="fa-solid fa-xmark text-base"></i>
             </button>
         </div>
 

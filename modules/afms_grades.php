@@ -3,6 +3,9 @@ require_once __DIR__ . '/../includes/session_fix.php';
 require_roles(['AcademicFormator', 'Registrar', 'Dean']);
 require_once __DIR__ . '/../includes/db.php';
 require_once __DIR__ . '/../includes/academic_module.php';
+if (strtoupper((string)($_SERVER['REQUEST_METHOD'] ?? 'GET')) === 'POST' && function_exists('enformasys_invalidate_dashboard_cache')) {
+    enformasys_invalidate_dashboard_cache();
+}
 
 $role = (string)($_SESSION['role'] ?? '');
 $can_edit = $role === 'AcademicFormator';
