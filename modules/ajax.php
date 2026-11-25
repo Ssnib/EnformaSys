@@ -1066,7 +1066,14 @@ try {
         require_once __DIR__ . '/../includes/eval_ui_helpers.php';
         $role = (string)($_SESSION['role'] ?? '');
         $sid = (int)($_POST['seminarian_id'] ?? 0);
-        $val = (int)($_POST['new_value'] ?? 0);
+        $decision = strtolower(trim((string)($_POST['decision'] ?? '')));
+        if ($decision === 'accept') {
+            $val = 1;
+        } elseif ($decision === 'decline') {
+            $val = 0;
+        } else {
+            $val = (int)($_POST['new_value'] ?? 0);
+        }
         $ay = trim((string)($_POST['academic_year'] ?? ''));
         $sem = trim((string)($_POST['semester'] ?? ''));
         $result = eval_handle_report_access_update($conn, $role, $sid, $val, $ay, $sem);

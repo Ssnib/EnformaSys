@@ -743,6 +743,266 @@ function capstone_access_request_create(
     if (!$ok) {
         return ['ok' => false, 'error' => 'Failed to submit request: ' . $stmt->error];
     }
+    if (function_exists('enformasys_invalidate_dashboard_cache')) {
+        enformasys_invalidate_dashboard_cache();
+    }
     return ['ok' => true, 'academic_year' => $reqAy, 'semester' => $reqSem];
+}
+
+/**
+ * Counts pending evaluation/report viewing requests for a specific pillar
+ * (`Academic`, `Spiritual`, `Human`, or `Pastoral`) and active Academic Year & Semester.
+ */
+function capstone_access_count_pending_eval_requests(
+    mysqli $conn,
+    string $formator_type,
+    string $academic_year = '',
+    string $semester = ''
+): int {
+    $pillar = trim($formator_type);
+    if (!in_array($pillar, ['Academic', 'Human', 'Pastoral', 'Spiritual'], true)) {
+        return 0;
+    }
+
+    $cleanAy = trim($academic_year);
+    $semVars = capstone_access_semester_variants($semester);
+    $hasTerm = capstone_access_has_term_columns($conn);
+
+    if ($hasTerm && $cleanAy !== '' && !empty($semVars)) {
+        $ph = implode(',', array_fill(0, count($semVars), '?'));
+        $types = 'ss' . str_repeat('s', count($semVars));
+        $stmt = @$conn->prepare(
+            "SELECT COUNT(*) AS c
+             FROM seminarian_access_requests
+             WHERE assignment_type = ?
+               AND LOWER(status) = 'pending'
+               AND TRIM(COALESCE(academic_year, '')) = ?
+               AND semester IN ($ph)"
+        );
+        if (!$stmt) {
+            return 0;
+        }
+        $params = array_merge([$pillar, $cleanAy], $semVars);
+        $stmt->bind_param($types, ...$params);
+        $cnt = 0;
+        if ($stmt->execute()) {
+            $row = $stmt->get_result()->fetch_assoc();
+            $cnt = (int)($row['c'] ?? 0);
+        }
+        $stmt->close();
+        return max(0, $cnt);
+    }
+
+    $stmt = @$conn->prepare(
+        "SELECT COUNT(*) AS c
+         FROM seminarian_access_requests
+         WHERE assignment_type = ?
+           AND LOWER(status) = 'pending'"
+    );
+    if (!$stmt) {
+        return 0;
+    }
+    $stmt->bind_param('s', $pillar);
+    $cnt = 0;
+    if ($stmt->execute()) {
+        $row = $stmt->get_result()->fetch_assoc();
+        $cnt = (int)($row['c'] ?? 0);
+    }
+    $stmt->close();
+    return max(0, $cnt);
+}
+
+/**
+ * Builds a term-scoped per-seminarian evaluation viewing status map combining
+ * `seminarian_access_requests` and explicit overrides in `seminarian_eval_access`.
+ *
+ * @return array<int,array{status_key:string,enabled:bool,has_pending:bool,request_id:int,requested_at:?string,message:?string}>
+ */
+function capstone_access_get_term_eval_request_state_map(
+    mysqli $conn,
+    string $formator_type,
+    string $academic_year,
+    string $semester
+): array {
+    $state = [];
+    if (!in_array($formator_type, ['Academic', 'Human', 'Pastoral', 'Spiritual'], true)) {
+        return $state;
+    }
+
+    $cleanAy = trim($academic_year);
+    $semVars = capstone_access_semester_variants($semester);
+    if ($cleanAy === '' || empty($semVars)) {
+        return $state;
+    }
+
+    $reqBySid = [];
+    if (capstone_access_has_term_columns($conn)) {
+        $ph = implode(',', array_fill(0, count($semVars), '?'));
+        $types = 'ss' . str_repeat('s', count($semVars));
+        $stmtSar = @$conn->prepare(
+            "SELECT id, seminarian_id, status, requested_at, resolved_at, message
+             FROM seminarian_access_requests
+             WHERE assignment_type = ?
+               AND TRIM(COALESCE(academic_year, '')) = ?
+               AND semester IN ($ph)
+               AND COALESCE(request_scope, 'whole') = 'whole'
+             ORDER BY requested_at DESC, id DESC"
+        );
+        if ($stmtSar) {
+            $params = array_merge([$formator_type, $cleanAy], $semVars);
+            $stmtSar->bind_param($types, ...$params);
+            if ($stmtSar->execute()) {
+                $res = $stmtSar->get_result();
+                while ($res && ($r = $res->fetch_assoc())) {
+                    $sid = (int)($r['seminarian_id'] ?? 0);
+                    if ($sid <= 0 || isset($reqBySid[$sid])) {
+                        continue;
+                    }
+                    $reqBySid[$sid] = $r;
+                }
+            }
+            $stmtSar->close();
+        }
+    }
+
+    $explicitBySid = [];
+    if (capstone_access_ensure_eval_access_table($conn)) {
+        $ph = implode(',', array_fill(0, count($semVars), '?'));
+        $types = 'ss' . str_repeat('s', count($semVars));
+        $stmtSea = @$conn->prepare(
+            "SELECT seminarian_id, is_enabled, updated_at
+             FROM seminarian_eval_access
+             WHERE formator_type = ?
+               AND TRIM(academic_year) = ?
+               AND semester IN ($ph)"
+        );
+        if ($stmtSea) {
+            $params = array_merge([$formator_type, $cleanAy], $semVars);
+            $stmtSea->bind_param($types, ...$params);
+            if ($stmtSea->execute()) {
+                $res = $stmtSea->get_result();
+                while ($res && ($r = $res->fetch_assoc())) {
+                    $sid = (int)($r['seminarian_id'] ?? 0);
+                    if ($sid > 0) {
+                        $explicitBySid[$sid] = $r;
+                    }
+                }
+            }
+            $stmtSea->close();
+        }
+    }
+
+    $allSids = array_unique(array_merge(array_keys($reqBySid), array_keys($explicitBySid)));
+    foreach ($allSids as $sid) {
+        $req = $reqBySid[$sid] ?? null;
+        $exp = $explicitBySid[$sid] ?? null;
+
+        $reqStatus = $req ? strtolower(trim((string)($req['status'] ?? ''))) : '';
+        $hasExplicit = ($exp !== null);
+        $explicitEnabled = $hasExplicit ? ((int)($exp['is_enabled'] ?? 0) === 1) : false;
+
+        $statusKey = 'none';
+        $enabled = false;
+        $hasPending = false;
+
+        if ($reqStatus === 'pending') {
+            $reqTs = !empty($req['requested_at']) ? strtotime((string)$req['requested_at']) : 0;
+            $expTs = ($exp && !empty($exp['updated_at'])) ? strtotime((string)$exp['updated_at']) : 0;
+            if (!$hasExplicit || $reqTs >= $expTs) {
+                $statusKey = 'pending';
+                $hasPending = true;
+                $enabled = $explicitEnabled;
+            } else {
+                $statusKey = $explicitEnabled ? 'approved' : 'declined';
+                $enabled = $explicitEnabled;
+            }
+        } elseif ($hasExplicit) {
+            $statusKey = $explicitEnabled ? 'approved' : 'declined';
+            $enabled = $explicitEnabled;
+        } elseif ($reqStatus === 'approved') {
+            $statusKey = 'approved';
+            $enabled = true;
+        } elseif ($reqStatus === 'rejected') {
+            $statusKey = 'declined';
+            $enabled = false;
+        }
+
+        $state[$sid] = [
+            'status_key' => $statusKey,
+            'enabled' => $enabled,
+            'has_pending' => $hasPending,
+            'request_id' => $req ? (int)($req['id'] ?? 0) : 0,
+            'requested_at' => $req ? ($req['requested_at'] ?? null) : null,
+            'message' => $req ? ($req['message'] ?? null) : null,
+        ];
+    }
+
+    return $state;
+}
+
+/**
+ * Accepts (approves) or declines (rejects/revokes) evaluation report viewing access
+ * strictly for (seminarian_id, formator_type, academic_year, semester) across both
+ * `seminarian_eval_access` and matching `seminarian_access_requests` records.
+ */
+function capstone_access_resolve_eval_request_decision(
+    mysqli $conn,
+    int $seminarian_id,
+    string $formator_type,
+    string $academic_year,
+    string $semester,
+    bool $accept,
+    ?int $actor_user_id = null
+): bool {
+    if ($seminarian_id <= 0 || !in_array($formator_type, ['Academic', 'Human', 'Pastoral', 'Spiritual'], true)) {
+        return false;
+    }
+
+    $cleanAy = trim($academic_year);
+    $normSem = capstone_access_normalize_semester($semester);
+    $semVars = capstone_access_semester_variants($normSem);
+    if ($cleanAy === '' || !in_array($normSem, ['1st', '2nd', 'Summer'], true) || empty($semVars)) {
+        return false;
+    }
+
+    $saved = capstone_access_set_term_eval_access(
+        $conn,
+        $seminarian_id,
+        $formator_type,
+        $cleanAy,
+        $normSem,
+        $accept,
+        $actor_user_id
+    );
+    if (!$saved) {
+        return false;
+    }
+
+    if (capstone_access_has_term_columns($conn)) {
+        $actor = ($actor_user_id !== null && $actor_user_id > 0) ? $actor_user_id : null;
+        $newStatus = $accept ? 'Approved' : 'Rejected';
+        $targetStatuses = $accept ? "'Pending'" : "'Pending', 'Approved'";
+        $ph = implode(',', array_fill(0, count($semVars), '?'));
+        $stmt = @$conn->prepare("UPDATE seminarian_access_requests
+                SET status = ?, is_read = 0, resolved_by = ?, resolved_at = NOW()
+                WHERE seminarian_id = ?
+                  AND assignment_type = ?
+                  AND TRIM(COALESCE(academic_year, '')) = ?
+                  AND semester IN ($ph)
+                  AND COALESCE(request_scope, 'whole') = 'whole'
+                  AND status IN ({$targetStatuses})");
+        if ($stmt) {
+            $typesBind = 'siiss' . str_repeat('s', count($semVars));
+            $params = array_merge([$newStatus, $actor, $seminarian_id, $formator_type, $cleanAy], $semVars);
+            $stmt->bind_param($typesBind, ...$params);
+            @$stmt->execute();
+            $stmt->close();
+        }
+    }
+
+    if (function_exists('enformasys_invalidate_dashboard_cache')) {
+        enformasys_invalidate_dashboard_cache();
+    }
+    return true;
 }
 

@@ -361,7 +361,31 @@ if (!isset($nav) || !is_array($nav) || empty($nav)) {
             'icon' => 'fa-solid fa-arrow-right-from-bracket',
             'href' => capstone_url('logout.php'),
         ];
-    } elseif ($is_academic_formator) {
+    } elseif ($is_academic_formator || $is_human_formator || $is_spiritual_director || $is_pastoral_formator) {
+        $sidebar_eval_pillar = $is_academic_formator
+            ? 'Academic'
+            : ($is_human_formator ? 'Human' : ($is_spiritual_director ? 'Spiritual' : 'Pastoral'));
+        $pending_eval_access_badge = 0;
+        if (!isset($conn) || !($conn instanceof mysqli)) {
+            @require_once __DIR__ . '/db.php';
+        }
+        if (isset($conn) && $conn instanceof mysqli) {
+            if (!function_exists('capstone_access_count_pending_eval_requests')) {
+                @require_once __DIR__ . '/access_requests.php';
+            }
+            if (function_exists('capstone_access_count_pending_eval_requests')) {
+                $badge_ay = function_exists('get_active_academic_year') ? (string)get_active_academic_year() : (function_exists('get_current_academic_year') ? (string)get_current_academic_year() : '');
+                $badge_sem_raw = function_exists('get_active_semester') ? (string)get_active_semester() : '1st';
+                $badge_sem = function_exists('enformasys_normalize_semester') ? (enformasys_normalize_semester($badge_sem_raw) ?: '1st') : '1st';
+                $badge_cache_key = "eval_access_pending_{$sidebar_eval_pillar}_{$badge_ay}_{$badge_sem}";
+                $pending_eval_access_badge = function_exists('enformasys_cached_badge_count')
+                    ? enformasys_cached_badge_count($badge_cache_key, static function () use ($conn, $sidebar_eval_pillar, $badge_ay, $badge_sem): int {
+                        return capstone_access_count_pending_eval_requests($conn, $sidebar_eval_pillar, $badge_ay, $badge_sem);
+                    })
+                    : capstone_access_count_pending_eval_requests($conn, $sidebar_eval_pillar, $badge_ay, $badge_sem);
+            }
+        }
+    if ($is_academic_formator) {
         $nav[] = [
             'key' => 'afms_dashboard',
             'label' => 'Academic Dashboard',
@@ -435,6 +459,14 @@ if (!isset($nav) || !is_array($nav) || empty($nav)) {
                     'href' => capstone_url('modules/afe_evaluations.php'),
                 ],
                 [
+                    'key' => 'afe_seminarians',
+                    'label' => 'Eval Access',
+                    'icon' => 'fa-solid fa-eye',
+                    'href' => capstone_url('modules/afe_seminarians.php'),
+                    'badge' => $pending_eval_access_badge,
+                    'badge_class' => 'bg-rose-500 text-white',
+                ],
+                [
                     'key' => 'afe_questions',
                     'label' => 'Eval Questions',
                     'icon' => 'fa-solid fa-list',
@@ -472,6 +504,8 @@ if (!isset($nav) || !is_array($nav) || empty($nav)) {
             'label' => 'Eval Access',
             'icon' => 'fa-solid fa-eye',
             'href' => capstone_url('modules/hfe_seminarians.php'),
+            'badge' => $pending_eval_access_badge,
+            'badge_class' => 'bg-rose-500 text-white',
         ];
         $nav[] = [
             'key' => 'hfe_questions',
@@ -509,6 +543,8 @@ if (!isset($nav) || !is_array($nav) || empty($nav)) {
             'label' => 'Eval Access',
             'icon' => 'fa-solid fa-eye',
             'href' => capstone_url('modules/sfe_seminarians.php'),
+            'badge' => $pending_eval_access_badge,
+            'badge_class' => 'bg-rose-500 text-white',
         ];
         $nav[] = [
             'key' => 'sfe_questions',
@@ -546,6 +582,8 @@ if (!isset($nav) || !is_array($nav) || empty($nav)) {
             'label' => 'Eval Access',
             'icon' => 'fa-solid fa-eye',
             'href' => capstone_url('modules/pfe_seminarians.php'),
+            'badge' => $pending_eval_access_badge,
+            'badge_class' => 'bg-rose-500 text-white',
         ];
         $nav[] = [
             'key' => 'logout',
@@ -553,6 +591,7 @@ if (!isset($nav) || !is_array($nav) || empty($nav)) {
             'icon' => 'fa-solid fa-arrow-right-from-bracket',
             'href' => capstone_url('logout.php'),
         ];
+        }
     } else {
         // Fallback navigation
         $nav[] = [

@@ -42,15 +42,30 @@ if (!$is_shrine) {
 }
 
 $pending_eval_badge = 0;
+$pending_eval_access_badge = 0;
 if ($is_academic_formator || $is_human_formator || $is_spiritual_director || $is_pastoral_formator) {
     if (!isset($conn) || !($conn instanceof mysqli)) {
         require_once __DIR__ . '/db.php';
     }
     require_once __DIR__ . '/eval_ui_helpers.php';
+    require_once __DIR__ . '/access_requests.php';
     $eval_role_key = $is_academic_formator
         ? 'AcademicFormator'
         : ($is_human_formator ? 'HumanFormator' : ($is_spiritual_director ? 'SpiritualDirector' : 'PastoralFormator'));
     $pending_eval_badge = eval_count_pending_for_role($conn, $eval_role_key, (int)($_SESSION['user'] ?? 0));
+
+    $eval_access_pillar = $is_academic_formator
+        ? 'Academic'
+        : ($is_human_formator ? 'Human' : ($is_spiritual_director ? 'Spiritual' : 'Pastoral'));
+    $badge_ay = function_exists('get_active_academic_year') ? (string)get_active_academic_year() : (function_exists('get_current_academic_year') ? (string)get_current_academic_year() : '');
+    $badge_sem_raw = function_exists('get_active_semester') ? (string)get_active_semester() : '1st';
+    $badge_sem = function_exists('enformasys_normalize_semester') ? (enformasys_normalize_semester($badge_sem_raw) ?: '1st') : '1st';
+    $badge_cache_key = "eval_access_pending_{$eval_access_pillar}_{$badge_ay}_{$badge_sem}";
+    $pending_eval_access_badge = function_exists('enformasys_cached_badge_count')
+        ? enformasys_cached_badge_count($badge_cache_key, static function () use ($conn, $eval_access_pillar, $badge_ay, $badge_sem): int {
+            return capstone_access_count_pending_eval_requests($conn, $eval_access_pillar, $badge_ay, $badge_sem);
+        })
+        : capstone_access_count_pending_eval_requests($conn, $eval_access_pillar, $badge_ay, $badge_sem);
 }
 
 if ($can_manage) {
@@ -451,6 +466,8 @@ if ($can_manage) {
                     'label' => 'Eval Access',
                     'icon' => 'fa-solid fa-eye',
                     'href' => capstone_url('modules/afe_seminarians.php'),
+                    'badge' => $pending_eval_access_badge,
+                    'badge_class' => 'bg-rose-500 text-white',
                 ],
                 [
                     'key' => 'afe_questions',
@@ -487,6 +504,8 @@ if ($can_manage) {
         'label' => 'Eval Access',
         'icon' => 'fa-solid fa-eye',
         'href' => capstone_url('modules/hfe_seminarians.php'),
+        'badge' => $pending_eval_access_badge,
+        'badge_class' => 'bg-rose-500 text-white',
     ];
     $nav[] = [
         'key' => 'hfe_questions',
@@ -521,6 +540,8 @@ if ($can_manage) {
             'label' => 'Eval Access',
             'icon' => 'fa-solid fa-eye',
             'href' => capstone_url('modules/sfe_seminarians.php'),
+            'badge' => $pending_eval_access_badge,
+            'badge_class' => 'bg-rose-500 text-white',
         ];
         $nav[] = [
             'key' => 'sfe_questions',
@@ -555,6 +576,8 @@ if ($can_manage) {
         'label' => 'Eval Access',
         'icon' => 'fa-solid fa-eye',
         'href' => capstone_url('modules/pfe_seminarians.php'),
+        'badge' => $pending_eval_access_badge,
+        'badge_class' => 'bg-rose-500 text-white',
     ];
 }
 

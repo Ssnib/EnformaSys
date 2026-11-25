@@ -222,8 +222,7 @@ if (!function_exists('enformasys_invalidate_ay_cache')) {
 if (!function_exists('enformasys_detect_db_active_semester')) {
     /**
      * Resolves the active semester ('1st', '2nd', or 'Summer') from the database.
-     * Prioritizes explicit academic_years semester metadata if present, then unlocked
-     * active enrollments / enrolled subjects for the active AY, falling back to '1st'.
+     * Uses explicit academic_years semester metadata if configured; otherwise defaults cleanly to '1st'.
      */
     function enformasys_detect_db_active_semester(mysqli $conn, string $active_ay, ?array $active_ay_row = null): string {
         if ($active_ay_row !== null) {
@@ -233,58 +232,6 @@ if (!function_exists('enformasys_detect_db_active_semester')) {
                     if ($norm !== '') {
                         return $norm;
                     }
-                }
-            }
-        }
-
-        if ($active_ay !== '') {
-            $stmt_enr = @$conn->prepare(
-                "SELECT semester, COUNT(*) AS cnt
-                 FROM enrollments
-                 WHERE academic_year = ?
-                   AND is_locked = 0
-                   AND enrollment_status IN ('Enrolled', 'Partially Paid', 'Pending')
-                 GROUP BY semester
-                 ORDER BY cnt DESC, FIELD(semester, '1st', '2nd', 'Summer') ASC
-                 LIMIT 1"
-            );
-            if ($stmt_enr) {
-                $stmt_enr->bind_param('s', $active_ay);
-                if ($stmt_enr->execute()) {
-                    $erow = $stmt_enr->get_result()->fetch_assoc();
-                    $stmt_enr->close();
-                    if ($erow && !empty($erow['semester'])) {
-                        $norm = enformasys_normalize_semester((string)$erow['semester']);
-                        if ($norm !== '') {
-                            return $norm;
-                        }
-                    }
-                } else {
-                    $stmt_enr->close();
-                }
-            }
-
-            $stmt_ses = @$conn->prepare(
-                "SELECT semester, COUNT(*) AS cnt
-                 FROM student_enrolled_subjects
-                 WHERE academic_year = ?
-                 GROUP BY semester
-                 ORDER BY cnt DESC, FIELD(semester, '1st', '2nd', 'Summer') ASC
-                 LIMIT 1"
-            );
-            if ($stmt_ses) {
-                $stmt_ses->bind_param('s', $active_ay);
-                if ($stmt_ses->execute()) {
-                    $srow = $stmt_ses->get_result()->fetch_assoc();
-                    $stmt_ses->close();
-                    if ($srow && !empty($srow['semester'])) {
-                        $norm = enformasys_normalize_semester((string)$srow['semester']);
-                        if ($norm !== '') {
-                            return $norm;
-                        }
-                    }
-                } else {
-                    $stmt_ses->close();
                 }
             }
         }

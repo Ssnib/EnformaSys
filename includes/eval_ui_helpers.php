@@ -2981,7 +2981,7 @@ function eval_fetch_report_access_students(
     }
 
     $col = $cfg['view_col'];
-    $accessMap = capstone_access_get_term_eval_access_map($conn, (string)$cfg['assignment_type'], $termAy, $termSem);
+    $stateMap = capstone_access_get_term_eval_request_state_map($conn, (string)$cfg['assignment_type'], $termAy, $termSem);
     $year_level_filter = eval_normalize_year_level_option($year_level_filter);
     $yl_aliases = eval_year_level_sql_aliases($year_level_filter);
 
@@ -2991,6 +2991,20 @@ function eval_fetch_report_access_students(
         JOIN users u ON u.id = s.user_id
         LEFT JOIN user_profiles up ON up.user_id = u.id
         WHERE u.role = 'Student'";
+    $populateRow = static function (array $row) use ($col, $stateMap, $termAy, $termSem): array {
+        $sid = (int)($row['id'] ?? 0);
+        $st = $stateMap[$sid] ?? null;
+        $statusKey = $st ? (string)$st['status_key'] : 'none';
+        $enabled = $st ? !empty($st['enabled']) : false;
+        $row[$col] = $enabled ? 1 : 0;
+        $row['eval_status_key'] = $statusKey;
+        $row['has_pending_request'] = $statusKey === 'pending' ? 1 : 0;
+        $row['requested_at'] = $st ? ($st['requested_at'] ?? null) : null;
+        $row['request_message'] = $st ? ($st['message'] ?? null) : null;
+        $row['access_academic_year'] = $termAy;
+        $row['access_semester'] = $termSem;
+        return $row;
+    };
     if (!empty($yl_aliases)) {
         $yl_ph = implode(',', array_fill(0, count($yl_aliases), '?'));
         $sql .= " AND s.year_level IN ({$yl_ph}) ORDER BY COALESCE(up.full_name, u.username) ASC";
@@ -3001,11 +3015,7 @@ function eval_fetch_report_access_students(
             $res = $stmt->get_result();
             if ($res) {
                 while ($row = $res->fetch_assoc()) {
-                    $sid = (int)($row['id'] ?? 0);
-                    $row[$col] = !empty($accessMap[$sid]) ? 1 : 0;
-                    $row['access_academic_year'] = $termAy;
-                    $row['access_semester'] = $termSem;
-                    $students[] = $row;
+                    $students[] = $populateRow($row);
                 }
             }
             $stmt->close();
@@ -3015,14 +3025,20 @@ function eval_fetch_report_access_students(
         $res = $conn->query($sql);
         if ($res) {
             while ($row = $res->fetch_assoc()) {
-                $sid = (int)($row['id'] ?? 0);
-                $row[$col] = !empty($accessMap[$sid]) ? 1 : 0;
-                $row['access_academic_year'] = $termAy;
-                $row['access_semester'] = $termSem;
-                $students[] = $row;
+                $students[] = $populateRow($row);
             }
         }
     }
+    usort($students, static function (array $a, array $b): int {
+        $aPend = (($a['eval_status_key'] ?? '') === 'pending') ? 0 : 1;
+        $bPend = (($b['eval_status_key'] ?? '') === 'pending') ? 0 : 1;
+        if ($aPend !== $bPend) {
+            return $aPend <=> $bPend;
+        }
+        $aName = strtolower(trim((string)($a['full_name'] ?: $a['username'])));
+        $bName = strtolower(trim((string)($b['full_name'] ?: $b['username'])));
+        return $aName <=> $bName;
+    });
     return $students;
 }
 
@@ -3056,12 +3072,37 @@ function eval_render_report_access_rows(
             $name = $full_name !== '' ? $full_name : $username;
             $initials = eval_initials($name);
             $enabled = (int)($s[$view_col] ?? 0) === 1;
+            $statusKey = (string)($s['eval_status_key'] ?? ($enabled ? 'approved' : 'none'));
             $rowAy = $academic_year !== '' ? $academic_year : (string)($s['access_academic_year'] ?? '');
             $rowSem = $semester !== '' ? $semester : (string)($s['access_semester'] ?? '');
+            $reqAtRaw = trim((string)($s['requested_at'] ?? ''));
+            $reqAtFmt = ($reqAtRaw !== '' && strtotime($reqAtRaw)) ? date('M j, Y g:i A', strtotime($reqAtRaw)) : '';
+            $isApproved = ($statusKey === 'approved');
+            $isDeclined = ($statusKey === 'declined');
+            $isPending = ($statusKey === 'pending');
+
+            if ($isPending) {
+                $badgeCls = 'inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-amber-100 text-amber-800 border border-amber-200';
+                $dotCls = 'w-1.5 h-1.5 rounded-full bg-amber-500';
+                $badgeTxt = 'Pending';
+            } elseif ($isApproved) {
+                $badgeCls = 'inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-green-100 text-green-700 border border-green-200/80';
+                $dotCls = 'w-1.5 h-1.5 rounded-full bg-green-500';
+                $badgeTxt = 'Approved';
+            } elseif ($isDeclined) {
+                $badgeCls = 'inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-rose-100 text-rose-700 border border-rose-200/80';
+                $dotCls = 'w-1.5 h-1.5 rounded-full bg-rose-500';
+                $badgeTxt = 'Declined';
+            } else {
+                $badgeCls = 'inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-gray-100 text-gray-500 border border-gray-200/80';
+                $dotCls = 'w-1.5 h-1.5 rounded-full bg-gray-400';
+                $badgeTxt = 'No Request';
+            }
         ?>
             <tr class="s-row transition-colors duration-150 hover:bg-pink-50/50"
                 data-seminarian-id="<?php echo $sid; ?>"
                 data-enabled="<?php echo $enabled ? '1' : '0'; ?>"
+                data-status="<?php echo htmlspecialchars($statusKey, ENT_QUOTES, 'UTF-8'); ?>"
                 data-student-name="<?php echo htmlspecialchars($name, ENT_QUOTES, 'UTF-8'); ?>">
                 <td class="px-6 py-4">
                     <div class="flex items-center gap-3.5">
@@ -3083,52 +3124,67 @@ function eval_render_report_access_rows(
                 </td>
                 <td class="px-6 py-4 whitespace-nowrap">
                     <div class="flex flex-wrap items-center gap-2">
-                        <?php if ($enabled) { ?>
-                            <span data-status-badge
-                                  class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-green-100 text-green-700 border border-green-200/80">
-                                <span data-status-dot class="w-1.5 h-1.5 rounded-full bg-green-500"></span>
-                                <span data-status-text>Enabled</span>
-                            </span>
-                        <?php } else { ?>
-                            <span data-status-badge
-                                  class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-gray-100 text-gray-500 border border-gray-200/80">
-                                <span data-status-dot class="w-1.5 h-1.5 rounded-full bg-gray-400"></span>
-                                <span data-status-text>Disabled</span>
-                            </span>
-                        <?php } ?>
+                        <span data-status-badge class="<?php echo $badgeCls; ?>">
+                            <span data-status-dot class="<?php echo $dotCls; ?>"></span>
+                            <span data-status-text><?php echo $badgeTxt; ?></span>
+                        </span>
                         <?php if ($rowAy !== '' && $rowSem !== '') { ?>
                             <span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-bold bg-[#F8EEEE] text-[#59443F] border border-[#E6CECD]">
                                 <?php echo htmlspecialchars($rowAy . ' · ' . $rowSem . ' Sem', ENT_QUOTES, 'UTF-8'); ?>
                             </span>
                         <?php } ?>
                     </div>
+                    <?php if ($isPending && $reqAtFmt !== '') { ?>
+                        <div data-request-meta class="text-[11px] font-medium text-amber-700 mt-1">
+                            Requested <?php echo htmlspecialchars($reqAtFmt, ENT_QUOTES, 'UTF-8'); ?>
+                        </div>
+                    <?php } ?>
                 </td>
                 <td class="px-6 py-4 whitespace-nowrap text-right">
-                    <form method="post"
-                          class="js-report-access-form inline-flex items-center justify-end gap-2.5 m-0 p-0 bg-transparent border-0 shadow-none"
-                          style="display: inline-flex; flex-direction: row; gap: 0.625rem; margin: 0; padding: 0; background: transparent; border: none; box-shadow: none;">
-                        <input type="hidden" name="action" value="toggle_report_access">
-                        <input type="hidden" name="csrf_token" value="<?php echo htmlspecialchars($csrf, ENT_QUOTES, 'UTF-8'); ?>">
-                        <input type="hidden" name="seminarian_id" value="<?php echo $sid; ?>">
-                        <input type="hidden" name="academic_year" value="<?php echo htmlspecialchars($rowAy, ENT_QUOTES, 'UTF-8'); ?>">
-                        <input type="hidden" name="semester" value="<?php echo htmlspecialchars($rowSem, ENT_QUOTES, 'UTF-8'); ?>">
-                        <input type="hidden" name="new_value" value="<?php echo $enabled ? 0 : 1; ?>">
-                        <button type="submit"
-                                name="toggle_view"
-                                value="1"
-                                role="switch"
-                                aria-checked="<?php echo $enabled ? 'true' : 'false'; ?>"
-                                aria-label="<?php echo htmlspecialchars(($enabled ? 'Disable' : 'Enable') . ' report access for ' . $name, ENT_QUOTES, 'UTF-8'); ?>"
-                                title="<?php echo $enabled ? 'Click to disable report access' : 'Click to enable report access'; ?>"
-                                class="group relative inline-flex h-6 w-11 shrink-0 cursor-pointer items-center rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B7168] focus-visible:ring-offset-2 <?php echo $enabled ? 'bg-[#8B7168] hover:bg-[#59443F]' : 'bg-gray-300 hover:bg-gray-400'; ?>">
-                            <span class="sr-only" data-toggle-sr>
-                                <?php echo $enabled ? 'Disable' : 'Enable'; ?> report access for <?php echo htmlspecialchars($name, ENT_QUOTES, 'UTF-8'); ?>
-                            </span>
-                            <span data-toggle-thumb
-                                  aria-hidden="true"
-                                  class="pointer-events-none inline-block h-5 w-5 rounded-full bg-white shadow-sm ring-0 transition-transform duration-200 ease-in-out <?php echo $enabled ? 'translate-x-5' : 'translate-x-0'; ?>"></span>
-                        </button>
-                    </form>
+                    <div class="inline-flex items-center justify-end gap-2">
+                        <form method="post"
+                              class="js-report-access-form inline-flex m-0 p-0 bg-transparent border-0 shadow-none"
+                              style="display: inline-flex; margin: 0; padding: 0; background: transparent; border: none; box-shadow: none;">
+                            <input type="hidden" name="action" value="toggle_report_access">
+                            <input type="hidden" name="decision" value="accept">
+                            <input type="hidden" name="csrf_token" value="<?php echo htmlspecialchars($csrf, ENT_QUOTES, 'UTF-8'); ?>">
+                            <input type="hidden" name="seminarian_id" value="<?php echo $sid; ?>">
+                            <input type="hidden" name="academic_year" value="<?php echo htmlspecialchars($rowAy, ENT_QUOTES, 'UTF-8'); ?>">
+                            <input type="hidden" name="semester" value="<?php echo htmlspecialchars($rowSem, ENT_QUOTES, 'UTF-8'); ?>">
+                            <input type="hidden" name="new_value" value="1">
+                            <button type="submit"
+                                    name="toggle_view"
+                                    value="1"
+                                    data-eval-action="accept"
+                                    <?php echo $isApproved ? 'disabled aria-disabled="true"' : ''; ?>
+                                    aria-label="<?php echo htmlspecialchars('Accept evaluation viewing access for ' . $name, ENT_QUOTES, 'UTF-8'); ?>"
+                                    class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition-all shadow-2xs <?php echo $isApproved ? 'bg-emerald-100 text-emerald-700 border border-emerald-200 opacity-70 cursor-default' : 'bg-emerald-600 hover:bg-emerald-700 text-white cursor-pointer'; ?>">
+                                <i class="fas fa-check text-[11px]" aria-hidden="true"></i>
+                                <span><?php echo $isApproved ? 'Accepted' : 'Accept'; ?></span>
+                            </button>
+                        </form>
+                        <form method="post"
+                              class="js-report-access-form inline-flex m-0 p-0 bg-transparent border-0 shadow-none"
+                              style="display: inline-flex; margin: 0; padding: 0; background: transparent; border: none; box-shadow: none;">
+                            <input type="hidden" name="action" value="toggle_report_access">
+                            <input type="hidden" name="decision" value="decline">
+                            <input type="hidden" name="csrf_token" value="<?php echo htmlspecialchars($csrf, ENT_QUOTES, 'UTF-8'); ?>">
+                            <input type="hidden" name="seminarian_id" value="<?php echo $sid; ?>">
+                            <input type="hidden" name="academic_year" value="<?php echo htmlspecialchars($rowAy, ENT_QUOTES, 'UTF-8'); ?>">
+                            <input type="hidden" name="semester" value="<?php echo htmlspecialchars($rowSem, ENT_QUOTES, 'UTF-8'); ?>">
+                            <input type="hidden" name="new_value" value="0">
+                            <button type="submit"
+                                    name="toggle_view"
+                                    value="1"
+                                    data-eval-action="decline"
+                                    <?php echo $isDeclined ? 'disabled aria-disabled="true"' : ''; ?>
+                                    aria-label="<?php echo htmlspecialchars('Decline evaluation viewing access for ' . $name, ENT_QUOTES, 'UTF-8'); ?>"
+                                    class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition-all border <?php echo $isDeclined ? 'bg-rose-50 text-rose-400 border-rose-200 opacity-70 cursor-default' : 'bg-rose-50 hover:bg-rose-600 text-rose-700 hover:text-white border-rose-200 cursor-pointer'; ?>">
+                                <i class="fas fa-xmark text-[11px]" aria-hidden="true"></i>
+                                <span><?php echo $isDeclined ? 'Declined' : 'Decline'; ?></span>
+                            </button>
+                        </form>
+                    </div>
                 </td>
             </tr>
         <?php }
@@ -3138,8 +3194,8 @@ function eval_render_report_access_rows(
 
 /**
  * Dynamically updates term-scoped report view permission in `seminarian_eval_access`
- * according to the authenticated Formator's session role (`$_SESSION['role']`)
- * and target (academic_year, semester).
+ * and resolves matching pending/approved `seminarian_access_requests` records
+ * according to the authenticated Formator's session role and target (academic_year, semester).
  */
 function eval_handle_report_access_update(
     mysqli $conn,
@@ -3199,7 +3255,7 @@ function eval_handle_report_access_update(
         ];
     }
 
-    $executed = capstone_access_set_term_eval_access(
+    $executed = capstone_access_resolve_eval_request_decision(
         $conn,
         $seminarian_id,
         $formatorType,
@@ -3216,11 +3272,12 @@ function eval_handle_report_access_update(
         ];
     }
 
+    $pendingCount = capstone_access_count_pending_eval_requests($conn, $formatorType, $termAy, $termSem);
     $display_name = trim((string)($sem_row['display_name'] ?? ''));
-    $state_word = $enabled === 1 ? 'enabled' : 'disabled';
+    $action_word = $enabled === 1 ? 'accepted' : 'declined';
     $message = $display_name !== ''
-        ? "Report access {$state_word} for {$display_name} (AY {$termAy} · {$termSem} Sem)."
-        : "Report access {$state_word} (AY {$termAy} · {$termSem} Sem).";
+        ? "Evaluation report access {$action_word} for {$display_name} (AY {$termAy} · {$termSem} Sem)."
+        : "Evaluation report access {$action_word} (AY {$termAy} · {$termSem} Sem).";
 
     return [
         'ok' => true,
@@ -3229,9 +3286,12 @@ function eval_handle_report_access_update(
         'academic_year' => $termAy,
         'semester' => $termSem,
         'enabled' => $enabled === 1,
+        'eval_status' => $enabled === 1 ? 'approved' : 'declined',
         'new_value' => $enabled,
         'next_value' => $enabled === 1 ? 0 : 1,
-        'status_label' => $enabled === 1 ? 'Enabled' : 'Disabled',
+        'status_label' => $enabled === 1 ? 'Approved' : 'Declined',
+        'pending_count' => $pendingCount,
+        'nav_key' => (string)$cfg['active_nav'],
         'column' => $col,
         'pillar' => $cfg['pillar'],
         'message' => $message,
@@ -3294,7 +3354,14 @@ function eval_handle_report_access_request(mysqli $conn, string $role): array
         }
 
         $sid = (int)($_POST['seminarian_id'] ?? 0);
-        $val = (int)($_POST['new_value'] ?? 0);
+        $decision = strtolower(trim((string)($_POST['decision'] ?? '')));
+        if ($decision === 'accept') {
+            $val = 1;
+        } elseif ($decision === 'decline') {
+            $val = 0;
+        } else {
+            $val = (int)($_POST['new_value'] ?? 0);
+        }
         $postAy = trim((string)($_POST['academic_year'] ?? $filter_ay));
         $postSem = capstone_access_normalize_semester((string)($_POST['semester'] ?? $filter_sem));
         if ($postAy !== '') $filter_ay = $postAy;
@@ -3322,13 +3389,19 @@ function eval_handle_report_access_request(mysqli $conn, string $role): array
     if (isset($_GET['ajax']) && (string)$_GET['ajax'] === '1') {
         $view_col = $cfg['view_col'];
         $total_count = count($students);
-        $enabled_count = 0;
+        $pending_count = 0;
+        $approved_count = 0;
+        $declined_count = 0;
         foreach ($students as $st) {
-            if ((int)($st[$view_col] ?? 0) === 1) {
-                $enabled_count++;
+            $sk = (string)($st['eval_status_key'] ?? '');
+            if ($sk === 'pending') {
+                $pending_count++;
+            } elseif ($sk === 'approved' || (int)($st[$view_col] ?? 0) === 1) {
+                $approved_count++;
+            } elseif ($sk === 'declined') {
+                $declined_count++;
             }
         }
-        $disabled_count = max(0, $total_count - $enabled_count);
         $csrf = (string)($_SESSION['csrf_token'] ?? '');
         $rows_html = eval_render_report_access_rows($students, $view_col, $csrf, $year_level_filter, $filter_ay, $filter_sem);
 
@@ -3341,8 +3414,11 @@ function eval_handle_report_access_request(mysqli $conn, string $role): array
             'year_level' => $year_level_filter,
             'year_level_label' => $year_level_filter !== '' ? $year_level_filter : 'All Year Levels',
             'total_count' => $total_count,
-            'enabled_count' => $enabled_count,
-            'disabled_count' => $disabled_count,
+            'pending_count' => $pending_count,
+            'approved_count' => $approved_count,
+            'declined_count' => $declined_count,
+            'enabled_count' => $approved_count,
+            'disabled_count' => max(0, $total_count - $approved_count),
             'seminarians' => $students,
             'rows_html' => $rows_html,
         ]);
@@ -3376,13 +3452,19 @@ function eval_render_report_access_page(
     ?string $ajax_url = null
 ): void {
     $total_count = count($students);
-    $enabled_count = 0;
+    $pending_count = 0;
+    $approved_count = 0;
+    $declined_count = 0;
     foreach ($students as $st) {
-        if ((int)($st[$view_col] ?? 0) === 1) {
-            $enabled_count++;
+        $sk = (string)($st['eval_status_key'] ?? '');
+        if ($sk === 'pending') {
+            $pending_count++;
+        } elseif ($sk === 'approved' || (int)($st[$view_col] ?? 0) === 1) {
+            $approved_count++;
+        } elseif ($sk === 'declined') {
+            $declined_count++;
         }
     }
-    $disabled_count = max(0, $total_count - $enabled_count);
     $csrf = (string)($_SESSION['csrf_token'] ?? '');
     if ($ajax_url === null) {
         $ajax_url = function_exists('capstone_url') ? capstone_url('modules/ajax.php') : 'ajax.php';
@@ -3448,13 +3530,17 @@ function eval_render_report_access_page(
                                 <i class="fas fa-calendar-days text-[11px] text-amber-600" aria-hidden="true"></i>
                                 <span data-access-term-label>AY <?php echo htmlspecialchars($access_ay, ENT_QUOTES, 'UTF-8'); ?> &middot; <?php echo htmlspecialchars($access_sem, ENT_QUOTES, 'UTF-8'); ?> Sem</span>
                             </span>
-                            <span id="reportAccessEnabledPill" class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-bold bg-green-100 text-green-700">
-                                <span class="w-1.5 h-1.5 rounded-full bg-green-500"></span>
-                                <span data-count-enabled><?php echo $enabled_count; ?></span> Enabled
+                            <span id="reportAccessPendingPill" class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-bold bg-amber-100 text-amber-800">
+                                <span class="w-1.5 h-1.5 rounded-full bg-amber-500"></span>
+                                <span data-count-pending><?php echo $pending_count; ?></span> Pending
                             </span>
-                            <span id="reportAccessDisabledPill" class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-bold bg-gray-100 text-gray-500">
-                                <span class="w-1.5 h-1.5 rounded-full bg-gray-400"></span>
-                                <span data-count-disabled><?php echo $disabled_count; ?></span> Disabled
+                            <span id="reportAccessApprovedPill" class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-bold bg-green-100 text-green-700">
+                                <span class="w-1.5 h-1.5 rounded-full bg-green-500"></span>
+                                <span data-count-approved><?php echo $approved_count; ?></span> Approved
+                            </span>
+                            <span id="reportAccessDeclinedPill" class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-bold bg-rose-100 text-rose-700">
+                                <span class="w-1.5 h-1.5 rounded-full bg-rose-500"></span>
+                                <span data-count-declined><?php echo $declined_count; ?></span> Declined
                             </span>
                         </div>
                     </div>
@@ -3539,8 +3625,9 @@ function eval_render_report_access_page(
         if (!root) return;
 
         const banner = document.getElementById('reportAccessStatusBanner');
-        const enabledCounterEl = root.querySelector('[data-count-enabled]');
-        const disabledCounterEl = root.querySelector('[data-count-disabled]');
+        const pendingCounterEl = root.querySelector('[data-count-pending]');
+        const approvedCounterEl = root.querySelector('[data-count-approved]');
+        const declinedCounterEl = root.querySelector('[data-count-declined]');
         const totalCounterEl = root.querySelector('[data-count-total]');
         const termLabelEl = root.querySelector('[data-access-term-label]');
         const tbody = document.getElementById('reportAccessTbody');
@@ -3592,11 +3679,14 @@ function eval_render_report_access_page(
                 if (totalCounterEl && typeof data.total_count === 'number') {
                     totalCounterEl.textContent = String(data.total_count);
                 }
-                if (enabledCounterEl && typeof data.enabled_count === 'number') {
-                    enabledCounterEl.textContent = String(data.enabled_count);
+                if (pendingCounterEl && typeof data.pending_count === 'number') {
+                    pendingCounterEl.textContent = String(data.pending_count);
                 }
-                if (disabledCounterEl && typeof data.disabled_count === 'number') {
-                    disabledCounterEl.textContent = String(data.disabled_count);
+                if (approvedCounterEl && typeof data.approved_count === 'number') {
+                    approvedCounterEl.textContent = String(data.approved_count);
+                }
+                if (declinedCounterEl && typeof data.declined_count === 'number') {
+                    declinedCounterEl.textContent = String(data.declined_count);
                 }
                 if (resetBtn) {
                     resetBtn.classList.toggle('hidden', !data.year_level);
@@ -3669,56 +3759,83 @@ function eval_render_report_access_page(
 
         function syncCounts() {
             const rows = root.querySelectorAll('.s-row');
-            let enabled = 0;
+            let pending = 0;
+            let approved = 0;
+            let declined = 0;
             rows.forEach(function (r) {
-                if (r.getAttribute('data-enabled') === '1') enabled++;
+                const st = r.getAttribute('data-status') || '';
+                if (st === 'pending') pending++;
+                else if (st === 'approved' || r.getAttribute('data-enabled') === '1') approved++;
+                else if (st === 'declined') declined++;
             });
-            if (enabledCounterEl) enabledCounterEl.textContent = String(enabled);
-            if (disabledCounterEl) disabledCounterEl.textContent = String(Math.max(0, rows.length - enabled));
+            if (pendingCounterEl) pendingCounterEl.textContent = String(pending);
+            if (approvedCounterEl) approvedCounterEl.textContent = String(approved);
+            if (declinedCounterEl) declinedCounterEl.textContent = String(declined);
         }
 
-        function applyRowState(row, form, isEnabled) {
-            const name = row.getAttribute('data-student-name') || 'seminarian';
-            row.setAttribute('data-enabled', isEnabled ? '1' : '0');
-
-            const nextInput = form.querySelector('input[name="new_value"]');
-            if (nextInput) nextInput.value = isEnabled ? '0' : '1';
-
-            const btn = form.querySelector('button[role="switch"]');
-            if (btn) {
-                btn.setAttribute('aria-checked', isEnabled ? 'true' : 'false');
-                btn.setAttribute('aria-label', (isEnabled ? 'Disable' : 'Enable') + ' report access for ' + name);
-                btn.setAttribute('title', isEnabled ? 'Click to disable report access' : 'Click to enable report access');
-                btn.classList.toggle('bg-[#8B7168]', isEnabled);
-                btn.classList.toggle('hover:bg-[#59443F]', isEnabled);
-                btn.classList.toggle('bg-gray-300', !isEnabled);
-                btn.classList.toggle('hover:bg-gray-400', !isEnabled);
-
-                const sr = btn.querySelector('[data-toggle-sr]');
-                if (sr) sr.textContent = (isEnabled ? 'Disable' : 'Enable') + ' report access for ' + name;
-
-                const thumb = btn.querySelector('[data-toggle-thumb]');
-                if (thumb) {
-                    thumb.classList.toggle('translate-x-5', isEnabled);
-                    thumb.classList.toggle('translate-x-0', !isEnabled);
+        function updateSidebarEvalAccessBadge(navKey, pendingCount) {
+            if (!navKey || typeof pendingCount !== 'number') return;
+            const link = document.querySelector('a[data-nav-key="' + navKey + '"]');
+            if (!link) return;
+            let badgeEl = link.querySelector('[data-badge-for="' + navKey + '"]');
+            if (pendingCount > 0) {
+                if (!badgeEl) {
+                    badgeEl = document.createElement('span');
+                    badgeEl.setAttribute('data-badge-for', navKey);
+                    badgeEl.className = 'sidebar-text ml-auto inline-flex items-center justify-center min-w-[1.25rem] h-5 px-1.5 text-[10px] font-extrabold rounded-full bg-rose-500 text-white shadow-xs';
+                    link.appendChild(badgeEl);
                 }
+                badgeEl.textContent = String(pendingCount);
+            } else if (badgeEl) {
+                badgeEl.remove();
             }
+        }
+
+        function applyRowState(row, statusKey) {
+            const isApproved = statusKey === 'approved';
+            const isDeclined = statusKey === 'declined';
+            row.setAttribute('data-enabled', isApproved ? '1' : '0');
+            row.setAttribute('data-status', statusKey);
+
+            const acceptBtn = row.querySelector('button[data-eval-action="accept"]');
+            const declineBtn = row.querySelector('button[data-eval-action="decline"]');
+            if (acceptBtn) {
+                acceptBtn.disabled = isApproved;
+                acceptBtn.setAttribute('aria-disabled', isApproved ? 'true' : 'false');
+                acceptBtn.className = isApproved
+                    ? 'inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition-all shadow-2xs bg-emerald-100 text-emerald-700 border border-emerald-200 opacity-70 cursor-default'
+                    : 'inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition-all shadow-2xs bg-emerald-600 hover:bg-emerald-700 text-white cursor-pointer';
+                const label = acceptBtn.querySelector('span');
+                if (label) label.textContent = isApproved ? 'Accepted' : 'Accept';
+            }
+            if (declineBtn) {
+                declineBtn.disabled = isDeclined;
+                declineBtn.setAttribute('aria-disabled', isDeclined ? 'true' : 'false');
+                declineBtn.className = isDeclined
+                    ? 'inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition-all border bg-rose-50 text-rose-400 border-rose-200 opacity-70 cursor-default'
+                    : 'inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition-all border bg-rose-50 hover:bg-rose-600 text-rose-700 hover:text-white border-rose-200 cursor-pointer';
+                const label = declineBtn.querySelector('span');
+                if (label) label.textContent = isDeclined ? 'Declined' : 'Decline';
+            }
+
+            const meta = row.querySelector('[data-request-meta]');
+            if (meta) meta.remove();
 
             const badge = row.querySelector('[data-status-badge]');
             const dot = row.querySelector('[data-status-dot]');
             const text = row.querySelector('[data-status-text]');
             if (badge) {
-                badge.className = isEnabled
+                badge.className = isApproved
                     ? 'inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-green-100 text-green-700 border border-green-200/80'
-                    : 'inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-gray-100 text-gray-500 border border-gray-200/80';
+                    : 'inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-rose-100 text-rose-700 border border-rose-200/80';
             }
             if (dot) {
-                dot.className = isEnabled
+                dot.className = isApproved
                     ? 'w-1.5 h-1.5 rounded-full bg-green-500'
-                    : 'w-1.5 h-1.5 rounded-full bg-gray-400';
+                    : 'w-1.5 h-1.5 rounded-full bg-rose-500';
             }
             if (text) {
-                text.textContent = isEnabled ? 'Enabled' : 'Disabled';
+                text.textContent = isApproved ? 'Approved' : 'Declined';
             }
 
             syncCounts();
@@ -3731,17 +3848,41 @@ function eval_render_report_access_page(
 
             if (form.dataset.pending === '1') return;
             const row = form.closest('.s-row');
-            const switchBtn = form.querySelector('button[role="switch"]');
+            const actionBtn = form.querySelector('button[data-eval-action]');
+            const decision = (form.querySelector('input[name="decision"]')?.value || '').toLowerCase();
+            const studentName = row ? (row.getAttribute('data-student-name') || 'this seminarian') : 'this seminarian';
+            const rowAy = form.querySelector('input[name="academic_year"]')?.value || '';
+            const rowSem = form.querySelector('input[name="semester"]')?.value || '';
+
+            if (decision === 'decline') {
+                const msg = 'Decline and revoke evaluation report viewing access for ' + studentName +
+                    (rowAy && rowSem ? ' (AY ' + rowAy + ' · ' + rowSem + ' Sem)' : '') + '?';
+                let confirmed = true;
+                if (typeof window.enformasysConfirm === 'function') {
+                    confirmed = await window.enformasysConfirm({
+                        title: 'Decline Evaluation Access',
+                        message: msg,
+                        confirmText: 'Decline',
+                        cancelText: 'Cancel',
+                        variant: 'danger'
+                    });
+                } else {
+                    confirmed = window.confirm(msg);
+                }
+                if (!confirmed) return;
+            }
+
             const ajaxUrl = root.getAttribute('data-ajax-url') || window.location.href;
             const formData = new FormData(form);
             formData.set('ajax', '1');
             const csrfToken = String(formData.get('csrf_token') || '');
 
             form.dataset.pending = '1';
-            if (switchBtn) {
-                switchBtn.disabled = true;
-                switchBtn.classList.add('opacity-70', 'cursor-wait');
-            }
+            const rowBtns = row ? row.querySelectorAll('button[data-eval-action]') : [];
+            rowBtns.forEach(function (b) {
+                b.disabled = true;
+                b.classList.add('opacity-70', 'cursor-wait');
+            });
 
             try {
                 const res = await fetch(ajaxUrl, {
@@ -3759,17 +3900,36 @@ function eval_render_report_access_page(
                     throw new Error((data && data.error) ? data.error : 'Unable to update report access.');
                 }
 
+                const newStatus = String(data.eval_status || (data.enabled ? 'approved' : 'declined'));
                 if (row) {
-                    applyRowState(row, form, Boolean(data.enabled));
+                    applyRowState(row, newStatus);
                 }
-                showStatus(String(data.message || 'Report access updated.'), false);
+                if (typeof data.pending_count === 'number' && data.nav_key) {
+                    updateSidebarEvalAccessBadge(String(data.nav_key), data.pending_count);
+                }
+                const okMsg = String(data.message || 'Report access updated.');
+                showStatus(okMsg, false);
+                if (typeof window.showToast === 'function') {
+                    window.showToast(okMsg, 'success', 3500);
+                }
             } catch (err) {
-                showStatus(err && err.message ? err.message : 'Unable to update report access. Please try again.', true);
+                const errMsg = err && err.message ? err.message : 'Unable to update report access. Please try again.';
+                showStatus(errMsg, true);
+                if (typeof window.showToast === 'function') {
+                    window.showToast(errMsg, 'error', 4000);
+                }
             } finally {
                 delete form.dataset.pending;
-                if (switchBtn) {
-                    switchBtn.disabled = false;
-                    switchBtn.classList.remove('opacity-70', 'cursor-wait');
+                if (row) {
+                    const curStatus = row.getAttribute('data-status') || '';
+                    rowBtns.forEach(function (b) {
+                        b.classList.remove('opacity-70', 'cursor-wait');
+                        const act = b.getAttribute('data-eval-action');
+                        b.disabled = (act === 'accept' && curStatus === 'approved') || (act === 'decline' && curStatus === 'declined');
+                    });
+                } else if (actionBtn) {
+                    actionBtn.disabled = false;
+                    actionBtn.classList.remove('opacity-70', 'cursor-wait');
                 }
             }
         });

@@ -75,6 +75,10 @@ if (isset($_POST['login'])) {
                 $_SESSION['role'] = (string)$user['role'];
                 $_SESSION['last_activity'] = time();
                 $_SESSION['csrf_token'] = bin2hex(random_bytes(32));
+                unset($_SESSION['active_academic_year'], $_SESSION['active_semester']);
+                if (function_exists('enformasys_invalidate_ay_cache')) {
+                    enformasys_invalidate_ay_cache();
+                }
                 if (function_exists('enformasys_warm_session_cache')) {
                     enformasys_warm_session_cache($conn, $uid, $username, (string)$user['role']);
                 }
