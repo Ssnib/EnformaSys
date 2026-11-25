@@ -721,7 +721,7 @@ if ($is_student) {
             </button>
         </div>
 
-        <nav class="flex-1 overflow-y-auto px-3 py-3 space-y-1.5" aria-label="Sidebar Navigation">
+        <nav class="flex-1 min-h-0 overflow-y-auto px-3 pt-3 pb-12 space-y-1.5" aria-label="Sidebar Navigation">
             <?php foreach ($nav as $item) { ?>
                 <?php if (isset($item['type']) && $item['type'] === 'header') { ?>
                     <div class="pt-3 pb-1 px-3.5 text-[10px] font-extrabold uppercase tracking-widest text-[#8B7168]/75 sidebar-text">
@@ -864,7 +864,7 @@ if ($is_student) {
         }
         ?>
         <!-- Compact Floating Bottom User Status & Quick Logout -->
-        <div class="mt-auto border-t border-[#E8C7C5]/40 p-3">
+        <div class="mt-auto shrink-0 bg-white relative z-10 border-t border-[#E8C7C5]/40 p-3">
             <div class="p-2 sm:p-2.5 rounded-2xl bg-[#F8EEEE]/70 border border-[#E8C7C5]/50 flex items-center justify-between gap-2.5 transition-all hover:bg-[#F8EEEE]">
                 <div class="flex items-center gap-2.5 min-w-0">
                     <div class="w-10 h-10 rounded-full bg-[#E8C7C5] text-[#59443F] border border-[#D6A6A6]/60 flex items-center justify-center font-extrabold text-xs shrink-0 shadow-2xs overflow-hidden">
@@ -904,4 +904,4 @@ if ($is_student) {
     <div id="appShell" class="min-h-screen transition-[padding] duration-200 pt-0 lg:pt-4 lg:pl-[18rem] lg:pr-4 lg:pb-6 print:w-full print:m-0 print:p-0 print:bg-white print:shadow-none">
         <?php if (empty($suppressHeader)) { require __DIR__ . '/header.php'; } ?>
 
-        <main class="px-4 lg:px-0 py-4 lg:py-0 print:w-full print:m-0 print:p-0 print:bg-white print:shadow-none">
+        <main class="px-4 lg:px-0 pt-5 pb-6 lg:pt-5 lg:pb-6 print:w-full print:m-0 print:p-0 print:bg-white print:shadow-none">

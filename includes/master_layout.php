@@ -127,7 +127,7 @@ if ($role === 'Student') {
         <!-- DYNAMIC PLACEHOLDER: MAIN PAGE CONTENT                                -->
         <!-- Loads the page dashboard, form, or report data inside unified wrapper -->
         <!-- ===================================================================== -->
-        <main class="px-4 lg:px-0 py-4 lg:py-0">
+        <main class="px-4 lg:px-0 pt-5 pb-6 lg:pt-5 lg:pb-6">
             <?php
             if (isset($pageContent)) {
                 if (is_callable($pageContent)) {

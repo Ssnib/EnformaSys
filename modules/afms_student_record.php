@@ -510,11 +510,11 @@ require_once __DIR__ . '/../includes/layout_app_start.php';
                         <div style="color: var(--text-secondary); font-weight: 800;"><?php echo htmlspecialchars((string)($profile['year_level'] ?? '')); ?> · <?php echo htmlspecialchars((string)($profile['formation_stage'] ?? '')); ?></div>
                     </div>
                 </div>
-                <form method="get" style="display: flex; gap: 0.75rem; align-items: center; margin: 0; box-shadow: none; background: transparent; padding: 0; border: none;">
+                <form method="get" class="bg-white rounded-2xl border border-[#E8C7C5]/70 shadow-xs px-4 py-3 flex flex-wrap sm:flex-nowrap items-end gap-3" style="display: flex; flex-direction: row; flex-wrap: wrap; gap: 0.75rem; align-items: flex-end; margin: 0;">
                     <input type="hidden" name="student_id" value="<?php echo (int)$student_id; ?>">
-                    <div class="field" style="margin: 0;">
-                        <label style="font-size: 0.75rem;">Academic Year</label>
-                        <select name="academic_year">
+                    <div class="flex flex-col gap-1 min-w-[140px]" style="margin: 0;">
+                        <label for="recAcademicYear" class="text-[11px] font-bold uppercase tracking-wider text-[#8B7168] m-0">Academic Year</label>
+                        <select id="recAcademicYear" name="academic_year" class="h-10 px-3 rounded-xl border border-[#E2C9C8] bg-[#FDF9F9] text-xs font-bold text-[#59443F] focus:outline-none focus:border-[#5c3a31] cursor-pointer" style="height: 40px; min-width: 135px; margin: 0; width: auto;">
                             <?php foreach ($ay_options as $ay) { ?>
                                 <option value="<?php echo htmlspecialchars($ay); ?>" <?php echo $ay === $filter_academic_year ? 'selected' : ''; ?>>
                                     <?php echo htmlspecialchars($ay); ?>
@@ -522,15 +522,18 @@ require_once __DIR__ . '/../includes/layout_app_start.php';
                             <?php } ?>
                         </select>
                     </div>
-                    <div class="field" style="margin: 0;">
-                        <label style="font-size: 0.75rem;">Semester</label>
-                        <select name="semester">
+                    <div class="flex flex-col gap-1 min-w-[110px]" style="margin: 0;">
+                        <label for="recSemester" class="text-[11px] font-bold uppercase tracking-wider text-[#8B7168] m-0">Semester</label>
+                        <select id="recSemester" name="semester" class="h-10 px-3 rounded-xl border border-[#E2C9C8] bg-[#FDF9F9] text-xs font-bold text-[#59443F] focus:outline-none focus:border-[#5c3a31] cursor-pointer" style="height: 40px; min-width: 110px; margin: 0; width: auto;">
                             <?php foreach (['1st','2nd','Summer'] as $s) { ?>
                                 <option value="<?php echo $s; ?>" <?php echo $s === $filter_semester ? 'selected' : ''; ?>><?php echo $s; ?></option>
                             <?php } ?>
                         </select>
                     </div>
-                    <button type="submit" style="width: auto; padding: 0.55rem 0.9rem; margin-top: 1.1rem;"><i class="fas fa-filter"></i> View</button>
+                    <button type="submit" class="btn-seminary-primary h-10 px-4 text-xs font-bold rounded-xl" style="width: auto; height: 40px; padding: 0 1.05rem; margin: 0;">
+                        <i class="fas fa-filter text-[11px]"></i>
+                        <span>View</span>
+                    </button>
                 </form>
             </div>
 

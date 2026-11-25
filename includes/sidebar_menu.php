@@ -610,7 +610,7 @@ if (!isset($nav) || !is_array($nav) || empty($nav)) {
 }
 ?>
 
-<nav class="flex-1 overflow-y-auto px-3 py-3 space-y-1.5" aria-label="Sidebar Navigation">
+<nav class="flex-1 min-h-0 overflow-y-auto px-3 pt-3 pb-12 space-y-1.5" aria-label="Sidebar Navigation">
     <?php foreach ($nav as $item): ?>
         <?php if (isset($item['type']) && $item['type'] === 'header'): ?>
             <div class="pt-3 pb-1 px-3.5 text-[10px] font-extrabold uppercase tracking-widest text-[#8B7168]/75 sidebar-text">
@@ -753,7 +753,7 @@ if (!empty($is_student) && isset($_SESSION['user'])) {
 }
 ?>
 <!-- Compact Floating Bottom User Status & Quick Logout -->
-<div class="mt-auto border-t border-[#E8C7C5]/40 p-3">
+<div class="mt-auto shrink-0 bg-white relative z-10 border-t border-[#E8C7C5]/40 p-3">
     <div class="p-2 sm:p-2.5 rounded-2xl bg-[#F8EEEE]/70 border border-[#E8C7C5]/50 flex items-center justify-between gap-2.5 transition-all hover:bg-[#F8EEEE]">
         <div class="flex items-center gap-2.5 min-w-0">
             <div class="w-10 h-10 rounded-full bg-[#E8C7C5] text-[#59443F] border border-[#D6A6A6]/60 flex items-center justify-center font-extrabold text-xs shrink-0 shadow-2xs overflow-hidden">

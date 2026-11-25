@@ -70,7 +70,7 @@ require_once __DIR__ . '/../includes/layout_app_start.php';
                             <div class="w-full sm:w-44 shrink-0">
                                 <label for="yearLevelFilter" class="block text-xs font-semibold uppercase tracking-wider text-gray-500 mb-1.5">Year Level</label>
                                 <select name="year_level" id="yearLevelFilter" aria-label="Year Level"
-                                        class="w-full h-10 bg-gray-50 border !border-gray-200 text-sm text-gray-800 !rounded-lg px-3 py-2 focus:bg-white focus:outline-none focus:ring-2 focus:ring-gray-900 transition cursor-pointer">
+                                        class="w-full h-10 bg-gray-50 border !border-gray-200 text-sm text-gray-800 !rounded-xl px-3 py-2 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#5c3a31] transition cursor-pointer">
                                     <option value="">All Year Levels</option>
                                     <?php foreach ($year_level_options as $yl_opt): ?>
                                         <option value="<?php echo htmlspecialchars($yl_opt, ENT_QUOTES, 'UTF-8'); ?>" <?php echo $yl_opt === $filter_year_level ? 'selected' : ''; ?>>
@@ -83,7 +83,7 @@ require_once __DIR__ . '/../includes/layout_app_start.php';
                             <div class="w-full flex-1 min-w-0">
                                 <label for="indStudent" class="block text-xs font-semibold uppercase tracking-wider text-gray-500 mb-1.5">Student</label>
                                 <select id="indStudent" aria-label="Student"
-                                        class="w-full h-10 bg-gray-50 border !border-gray-200 text-sm text-gray-800 !rounded-lg px-3 py-2 focus:bg-white focus:outline-none focus:ring-2 focus:ring-gray-900 transition cursor-pointer">
+                                        class="w-full h-10 bg-gray-50 border !border-gray-200 text-sm text-gray-800 !rounded-xl px-3 py-2 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#5c3a31] transition cursor-pointer">
                                     <?php echo $options_html; ?>
                                 </select>
                             </div>
@@ -91,7 +91,7 @@ require_once __DIR__ . '/../includes/layout_app_start.php';
 
                         <div class="flex justify-end pt-1">
                             <button type="button" id="openIndividualReport" style="width: auto;"
-                                    class="bg-gray-900 hover:bg-gray-800 text-white text-sm font-medium rounded-lg px-5 py-2 flex items-center gap-2 transition-colors border-0 cursor-pointer">
+                                    class="btn-seminary-primary bg-[#5c3a31] hover:bg-[#4a2c24] text-white text-sm font-semibold rounded-xl px-5 py-2.5 flex items-center gap-2 shadow-sm hover:shadow-md hover:-translate-y-0.5 transition-all border-0 cursor-pointer">
                                 <i class="fas fa-print text-xs"></i>
                                 <span>Generate</span>
                             </button>
@@ -111,7 +111,7 @@ require_once __DIR__ . '/../includes/layout_app_start.php';
 
                     <div class="mt-auto flex justify-end pt-1">
                         <button type="button" id="openIrregularReport" style="width: auto;"
-                                class="bg-gray-900 hover:bg-gray-800 text-white text-sm font-medium rounded-lg px-5 py-2 flex items-center gap-2 transition-colors border-0 cursor-pointer">
+                                class="btn-seminary-primary bg-[#5c3a31] hover:bg-[#4a2c24] text-white text-sm font-semibold rounded-xl px-5 py-2.5 flex items-center gap-2 shadow-sm hover:shadow-md hover:-translate-y-0.5 transition-all border-0 cursor-pointer">
                             <i class="fas fa-print text-xs"></i>
                             <span>Generate</span>
                         </button>
@@ -130,7 +130,7 @@ require_once __DIR__ . '/../includes/layout_app_start.php';
 
                     <div class="mt-auto flex justify-end pt-1">
                         <button type="button" id="openPerformanceReport" style="width: auto;"
-                                class="bg-gray-900 hover:bg-gray-800 text-white text-sm font-medium rounded-lg px-5 py-2 flex items-center gap-2 transition-colors border-0 cursor-pointer">
+                                class="btn-seminary-primary bg-[#5c3a31] hover:bg-[#4a2c24] text-white text-sm font-semibold rounded-xl px-5 py-2.5 flex items-center gap-2 shadow-sm hover:shadow-md hover:-translate-y-0.5 transition-all border-0 cursor-pointer">
                             <i class="fas fa-print text-xs"></i>
                             <span>Generate</span>
                         </button>
@@ -152,7 +152,7 @@ require_once __DIR__ . '/../includes/layout_app_start.php';
                             <div class="w-full sm:flex-1 min-w-0">
                                 <label for="standingYearLevel" class="block text-xs font-semibold uppercase tracking-wider text-gray-500 mb-1.5">Year Level</label>
                                 <select id="standingYearLevel" aria-label="Year Level"
-                                        class="w-full h-10 bg-gray-50 border !border-gray-200 text-sm text-gray-800 !rounded-lg px-3 py-2 focus:bg-white focus:outline-none focus:ring-2 focus:ring-gray-900 transition cursor-pointer">
+                                        class="w-full h-10 bg-gray-50 border !border-gray-200 text-sm text-gray-800 !rounded-xl px-3 py-2 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#5c3a31] transition cursor-pointer">
                                     <option value="">All Year Levels</option>
                                     <?php foreach ($year_level_options as $yl_opt): ?>
                                         <option value="<?php echo htmlspecialchars($yl_opt, ENT_QUOTES, 'UTF-8'); ?>">
@@ -165,7 +165,7 @@ require_once __DIR__ . '/../includes/layout_app_start.php';
                             <div class="w-full sm:flex-1 min-w-0">
                                 <label for="standingGradeFilter" class="block text-xs font-semibold uppercase tracking-wider text-gray-500 mb-1.5">Grade Standing</label>
                                 <select id="standingGradeFilter" aria-label="Grade Standing"
-                                        class="w-full h-10 bg-gray-50 border !border-gray-200 text-sm text-gray-800 !rounded-lg px-3 py-2 focus:bg-white focus:outline-none focus:ring-2 focus:ring-gray-900 transition cursor-pointer">
+                                        class="w-full h-10 bg-gray-50 border !border-gray-200 text-sm text-gray-800 !rounded-xl px-3 py-2 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#5c3a31] transition cursor-pointer">
                                     <option value="all">All Standings</option>
                                     <option value="passed">Passed (&ge; 88)</option>
                                     <option value="below_standard">Passed - Below Standard (75&ndash;87)</option>
@@ -176,7 +176,7 @@ require_once __DIR__ . '/../includes/layout_app_start.php';
 
                         <div class="flex justify-end pt-1">
                             <button type="button" id="openStandingReport" style="width: auto;"
-                                    class="bg-gray-900 hover:bg-gray-800 text-white text-sm font-medium rounded-lg px-5 py-2 flex items-center gap-2 transition-colors border-0 cursor-pointer">
+                                    class="btn-seminary-primary bg-[#5c3a31] hover:bg-[#4a2c24] text-white text-sm font-semibold rounded-xl px-5 py-2.5 flex items-center gap-2 shadow-sm hover:shadow-md hover:-translate-y-0.5 transition-all border-0 cursor-pointer">
                                 <i class="fas fa-print text-xs"></i>
                                 <span>Generate</span>
                             </button>
