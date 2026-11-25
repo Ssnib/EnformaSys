@@ -707,6 +707,17 @@ if ($is_student) {
     </style>
 </head>
 <body class="bg-gray-50 text-[#59443F] font-['Inter',sans-serif] antialiased min-h-screen print:bg-white print:shadow-none">
+    <!-- Global Non-Blocking Progress Bar & Branded Preloader -->
+    <div id="enformasys-top-progress" class="print:hidden" aria-hidden="true"></div>
+    <div id="enformasys-preloader" class="print:hidden" role="status" aria-live="polite" aria-hidden="true">
+        <div class="enformasys-preloader-ring">
+            <div class="enformasys-preloader-spinner" aria-hidden="true"></div>
+            <img src="<?php echo htmlspecialchars(capstone_url('assets/LOGO%20(2).jpg')); ?>" alt="EnformaSys Crest" class="enformasys-preloader-crest" onerror="this.style.display='none';this.nextElementSibling.style.display='inline-flex';">
+            <span class="enformasys-preloader-fallback" style="display:none;" aria-hidden="true"><i class="fa-solid fa-church"></i></span>
+        </div>
+        <p id="enformasysPreloaderText" class="enformasys-preloader-text">Loading...</p>
+    </div>
+
     <div id="sidebarBackdrop" class="print:hidden fixed inset-0 z-[1040] hidden bg-slate-900/45 backdrop-blur-xs lg:hidden transition-opacity" aria-hidden="true"></div>
 
     <aside id="sidebar" class="print:hidden -translate-x-full fixed z-[1050] lg:z-40 flex flex-col transition-all duration-300 inset-y-0 left-0 h-[100dvh] w-72 bg-white text-[#59443F] shadow-xl border-r border-gray-200/80 lg:translate-x-0 lg:fixed lg:top-0 lg:bottom-0 lg:left-0 lg:m-4 lg:h-[calc(100vh-2rem)] lg:w-64 lg:rounded-2xl lg:border lg:border-gray-200/80 lg:bg-white lg:shadow-sm overflow-hidden">

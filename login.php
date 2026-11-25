@@ -138,6 +138,16 @@ if (isset($_POST['login'])) {
     </style>
 </head>
 <body class="login-page font-ui bg-[#FAF6F4] min-h-screen text-[#4A3731] antialiased flex items-center justify-center p-5 sm:p-8 lg:p-12 relative overflow-x-hidden selection:bg-[#EBD3CC] selection:text-[#4A3731]">
+    <!-- Global Non-Blocking Progress Bar & Branded Preloader -->
+    <div id="enformasys-top-progress" aria-hidden="true"></div>
+    <div id="enformasys-preloader" role="status" aria-live="polite" aria-hidden="true">
+        <div class="enformasys-preloader-ring">
+            <div class="enformasys-preloader-spinner" aria-hidden="true"></div>
+            <img src="assets/LOGO%20(2).jpg" alt="EnformaSys Crest" class="enformasys-preloader-crest" onerror="this.style.display='none';this.nextElementSibling.style.display='inline-flex';">
+            <span class="enformasys-preloader-fallback" style="display:none;" aria-hidden="true"><i class="fa-solid fa-church"></i></span>
+        </div>
+        <p id="enformasysPreloaderText" class="enformasys-preloader-text">Loading...</p>
+    </div>
 
     <!-- Subtle Warm Atmospheric Backdrop -->
     <div class="fixed inset-0 bg-gradient-to-br from-[#FCF9F7] via-[#F7EFEA] to-[#EFE0D9]/70 pointer-events-none z-0" aria-hidden="true"></div>
@@ -336,6 +346,91 @@ if (isset($_POST['login'])) {
                         });
                     }
                 } catch (err) {}
+            }
+
+            // Global Slim Progress Bar, Preloader Overlay & Login Button Spinner
+            var bar = document.getElementById('enformasys-top-progress');
+            var overlay = document.getElementById('enformasys-preloader');
+            var textEl = document.getElementById('enformasysPreloaderText');
+            var trickle = null;
+            var pct = 0;
+
+            function startBar() {
+                if (!bar) return;
+                if (trickle) clearInterval(trickle);
+                pct = 25;
+                bar.style.width = pct + '%';
+                bar.classList.add('is-active');
+                trickle = setInterval(function () {
+                    if (pct < 88) {
+                        pct = Math.min(88, pct + 8);
+                        bar.style.width = pct + '%';
+                    }
+                }, 200);
+            }
+
+            function hideLoader() {
+                if (trickle) { clearInterval(trickle); trickle = null; }
+                if (overlay) {
+                    overlay.classList.remove('is-active');
+                    overlay.setAttribute('aria-hidden', 'true');
+                }
+                if (bar) {
+                    bar.classList.remove('is-active');
+                    bar.style.width = '0%';
+                }
+                if (loginForm) {
+                    var btn = loginForm.querySelector('button[type="submit"]');
+                    if (btn && btn.dataset.origHtml) {
+                        btn.innerHTML = btn.dataset.origHtml;
+                        btn.disabled = false;
+                        btn.classList.remove('opacity-80', 'cursor-wait');
+                    }
+                }
+            }
+
+            document.addEventListener('DOMContentLoaded', hideLoader);
+            window.addEventListener('pageshow', hideLoader);
+
+            document.addEventListener('click', function (e) {
+                if (e.defaultPrevented || e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
+                var a = e.target && e.target.closest ? e.target.closest('a[href]') : null;
+                if (!a || a.target === '_blank' || a.hasAttribute('download')) return;
+                var href = (a.getAttribute('href') || '').trim();
+                if (!href || href.charAt(0) === '#' || /^(javascript|mailto|tel):/i.test(href)) return;
+                startBar();
+                if (textEl) textEl.textContent = 'Loading...';
+                if (overlay) {
+                    overlay.classList.add('is-active');
+                    overlay.setAttribute('aria-hidden', 'false');
+                }
+            });
+
+            if (loginForm) {
+                loginForm.addEventListener('submit', function (e) {
+                    if (e.defaultPrevented) return;
+                    var btn = loginForm.querySelector('button[type="submit"]');
+                    if (btn && !btn.dataset.origHtml) {
+                        if (btn.name && !loginForm.querySelector('input[data-login-submitter="1"]')) {
+                            var h = document.createElement('input');
+                            h.type = 'hidden';
+                            h.name = btn.name;
+                            h.value = btn.value || '1';
+                            h.setAttribute('data-login-submitter', '1');
+                            loginForm.appendChild(h);
+                        }
+                        btn.dataset.origHtml = btn.innerHTML;
+                        btn.innerHTML = '<i class="fa-solid fa-circle-notch fa-spin text-xs" aria-hidden="true"></i><span>Signing in...</span>';
+                        btn.disabled = true;
+                        btn.classList.add('opacity-80', 'cursor-wait');
+                    }
+                    startBar();
+                    if (textEl) textEl.textContent = 'Processing...';
+                    if (overlay) {
+                        overlay.classList.add('is-active');
+                        overlay.setAttribute('aria-hidden', 'false');
+                    }
+                });
             }
         })();
     </script>
