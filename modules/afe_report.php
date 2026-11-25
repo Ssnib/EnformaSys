@@ -212,43 +212,15 @@ require_once __DIR__ . '/../includes/layout_app_start.php';
                 ?>
             </div>
 
-            <div class="data-card rounded-3xl shadow-lg border border-[#E8D5D5] overflow-hidden mb-6 print:bg-white print:shadow-none print:break-inside-avoid" style="margin-top: 0;">
-                <div class="data-card-header print:bg-white">
-                    <h3><i class="fas fa-list"></i> TBI Responses</h3>
-                </div>
-                <div style="overflow-x: auto;">
-                    <table>
-                        <thead>
-                            <tr>
-                                <th style="width: 180px;">Category</th>
-                                <th>Question</th>
-                                <th style="width: 120px;">Score</th>
-                                <th style="width: 160px;">Interpretation</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            <?php foreach ($questions as $q) { ?>
-                                <tr class="print:break-inside-avoid">
-                                    <td style="font-weight: 900; color: #0f172a;"><?php echo htmlspecialchars((string)$q['category']); ?></td>
-                                    <td><?php echo htmlspecialchars((string)$q['question_text']); ?></td>
-                                    <td><span class="badge badge-primary"><?php echo (int)$q['rating']; ?></span></td>
-                                    <td style="color: #475569; font-weight: 800;"><?php echo htmlspecialchars(afe_likert_label((int)$q['rating'])); ?></td>
-                                </tr>
-                            <?php } ?>
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-
             <div class="print:break-inside-avoid print:bg-white print:shadow-none">
                 <?php
                 $afe_interp = getFormationInterpretation($eval['average_score'] ?? null);
                 eval_render_report_results_section([
                     'average_rating' => $eval['average_score'] ?? null,
                     'total_score' => $eval['total_score'] ?? null,
-                    'total_score_label' => 'Total TBI Score',
+                    'total_score_label' => 'Total Score',
                     'question_count' => count($questions),
-                    'interpretation_label' => 'Overall Rating',
+                    'interpretation_label' => 'Interpretation',
                     'interpretation_value' => (string)($afe_interp['label'] ?? ($eval['rating_label'] ?? '')),
                     'secondary_label' => 'Recommendation',
                     'secondary_value' => (string)($eval['recommendation'] ?? ''),
@@ -269,9 +241,45 @@ require_once __DIR__ . '/../includes/layout_app_start.php';
             ]);
             ?>
 
-            <div class="card print:bg-white print:shadow-none print:break-inside-avoid" style="margin-top: 1rem;">
-                <h3 style="margin-bottom: 0.75rem;"><i class="fas fa-message"></i> Assigned Evaluator Remarks</h3>
-                <div style="white-space: pre-wrap; color: #334155; font-weight: 700;"><?php echo htmlspecialchars((string)($eval['remarks'] ?? '')); ?></div>
+            <div class="data-card print:bg-white print:shadow-none print:break-inside-avoid" style="margin-top: 1rem;">
+                <div class="data-card-header print:bg-white">
+                    <h3><i class="fas fa-list"></i> Questionnaire Responses</h3>
+                </div>
+                <div style="overflow-x: auto;">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th style="width: 35%;">Category</th>
+                                <th>Question</th>
+                                <th style="width: 160px;">Rating</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <?php if (count($questions) === 0) { ?>
+                                <tr><td colspan="3" style="color: var(--text-secondary);">No responses found.</td></tr>
+                            <?php } ?>
+                            <?php foreach ($questions as $q) { ?>
+                                <tr class="print:break-inside-avoid">
+                                    <td style="color: var(--text-secondary); font-weight: 800;"><?php echo htmlspecialchars((string)$q['category']); ?></td>
+                                    <td><?php echo htmlspecialchars((string)$q['question_text']); ?></td>
+                                    <td>
+                                        <span class="badge badge-primary"><?php echo (int)$q['rating']; ?>/5</span>
+                                        <span style="margin-left: 0.35rem; color: #64748b; font-weight: 800;"><?php echo htmlspecialchars(afe_likert_label((int)$q['rating'])); ?></span>
+                                    </td>
+                                </tr>
+                            <?php } ?>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <div class="data-card print:bg-white print:shadow-none print:break-inside-avoid" style="margin-top: 1rem;">
+                <div class="data-card-header print:bg-white">
+                    <h3><i class="fas fa-pen-to-square"></i> Assigned Evaluator Remarks</h3>
+                </div>
+                <div class="card print:bg-white print:shadow-none print:break-inside-avoid" style="margin: 0;">
+                    <div style="white-space: pre-wrap; color: #334155; font-weight: 700;"><?php echo htmlspecialchars(trim((string)($eval['remarks'] ?? '')) !== '' ? (string)$eval['remarks'] : '-'); ?></div>
+                </div>
             </div>
         </div>
         <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>

@@ -605,10 +605,6 @@ require_once __DIR__ . '/../includes/layout_app_start.php';
                     </h3>
                     <div style="display: flex; align-items: center; gap: 0.6rem; flex-wrap: wrap;">
                         <?php if ($can_edit) { ?>
-                            <button type="button" id="openAssignTeacherBtn" class="action-btn-secondary" style="margin: 0; white-space: nowrap; cursor: pointer; display: inline-flex; align-items: center; gap: 0.5rem; padding: 0.55rem 1.15rem; border-radius: 0.875rem; font-weight: 700; background: #FFFFFF; color: #59443F; border: 1px solid #E8C7C5; box-shadow: 0 2px 6px -1px rgba(89, 68, 63, 0.08); transition: all 0.15s ease;">
-                                <i class="fas fa-chalkboard-user" style="color: #8B7168;"></i> + Assign/Edit Teacher
-                            </button>
-
                             <?php if ($any_locked): ?>
                                 <?php if ($has_term_edit_pending || !empty($pending_edit_requests)): ?>
                                     <span class="badge" style="background:#fffbeb; color:#b45309; border:1px solid #fde68a; padding:0.55rem 1rem; border-radius:0.875rem; font-weight:700; display:inline-flex; align-items:center; gap:0.4rem; font-size:0.85rem;">
@@ -633,7 +629,6 @@ require_once __DIR__ . '/../includes/layout_app_start.php';
                             <tr style="background: rgba(248, 238, 238, 0.65); border-bottom: 1px solid rgba(232, 199, 197, 0.45); color: #8B7168; font-size: 0.78rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.05em;">
                                 <th style="padding: 0.85rem 1.25rem;">Subject</th>
                                 <th style="padding: 0.85rem 0.75rem;">Units</th>
-                                <th style="padding: 0.85rem 1rem; min-width: 130px;">Teacher</th>
                                 <th style="padding: 0.85rem 0.75rem; text-align: center;">Final Grade</th>
                                 <th style="padding: 0.85rem 1rem;">Remarks</th>
                                 <th style="padding: 0.85rem 0.75rem; text-align: center;">Status</th>
@@ -644,7 +639,7 @@ require_once __DIR__ . '/../includes/layout_app_start.php';
                         <tbody>
                             <?php if (count($display_rows) === 0) { ?>
                                 <tr>
-                                    <td colspan="8" style="color: #8B7168; text-align: center; padding: 3rem 1rem;">
+                                    <td colspan="7" style="color: #8B7168; text-align: center; padding: 3rem 1rem;">
                                         <i class="fas fa-folder-open" style="font-size: 2.25rem; display: block; margin-bottom: 0.6rem; color: #D6A6A6; opacity: 0.7;"></i>
                                         <span style="font-weight: 600;">No enrolled subjects or grade records found for this term.</span>
                                     </td>
@@ -664,25 +659,6 @@ require_once __DIR__ . '/../includes/layout_app_start.php';
                                         <div class="text-xs text-[#8B7168]" style="color: #8B7168; font-size: 0.825rem; font-weight: 500; margin-top: 2px;"><?php echo htmlspecialchars((string)$row['subject_name']); ?></div>
                                     </td>
                                     <td style="padding: 0.9rem 0.75rem;"><span class="badge badge-primary"><?php echo (float)($row['units'] ?? 0) == (int)($row['units'] ?? 0) ? (int)($row['units'] ?? 0) : number_format((float)($row['units'] ?? 0), 1); ?></span></td>
-                                    <td style="padding: 0.9rem 1rem;">
-                                        <?php if (!empty($row['teacher_name'])): ?>
-                                            <div style="font-weight: 600; color: #59443F; font-size: 0.85rem; display: flex; align-items: center; gap: 0.35rem;">
-                                                <i class="fas fa-chalkboard-user" style="color: #8B7168; font-size: 0.8rem;"></i>
-                                                <span><?php echo htmlspecialchars($row['teacher_name']); ?></span>
-                                            </div>
-                                        <?php else: ?>
-                                            <?php if ($can_edit): ?>
-                                                <button type="button" class="btn-quick-assign-teacher" 
-                                                        data-subject-id="<?php echo (int)$row['subject_id']; ?>" 
-                                                        data-subject-name="<?php echo htmlspecialchars($row['subject_code'] . ' - ' . $row['subject_name']); ?>"
-                                                        style="font-size: 0.72rem; color: #8B7168; background: #F8EEEE; border: 1px dashed #E8C7C5; padding: 2px 7px; border-radius: 6px; cursor: pointer; font-weight: 600; display: inline-flex; align-items: center; gap: 0.25rem;">
-                                                    <i class="fas fa-plus"></i> Assign
-                                                </button>
-                                            <?php else: ?>
-                                                <span style="color: #D6A6A6; font-size: 0.85rem;">—</span>
-                                            <?php endif; ?>
-                                        <?php endif; ?>
-                                    </td>
                                     <td style="padding: 0.9rem 0.75rem; text-align: center; color: #0f172a; font-weight: 800; font-variant-numeric: tabular-nums;">
                                         <?php echo $eval_row['grade'] !== null ? htmlspecialchars(number_format((float)$eval_row['grade'], 2)) : '<span style="color:#D6A6A6;">—</span>'; ?>
                                     </td>

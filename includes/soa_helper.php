@@ -906,7 +906,7 @@ if (!function_exists('soa_render_styles')) {
     }
     .soa-summary-grid {
         display: grid !important;
-        grid-template-columns: repeat(5, minmax(0, 1fr)) !important;
+        grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
         gap: 0.5rem !important;
         padding: 0.75rem !important;
         margin: 1rem 0 !important;
@@ -914,7 +914,7 @@ if (!function_exists('soa_render_styles')) {
         page-break-inside: avoid !important;
     }
     .soa-summary-grid.has-advance {
-        grid-template-columns: repeat(6, minmax(0, 1fr)) !important;
+        grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
     }
     .soa-summary-item .lbl {
         font-size: 9px !important;
@@ -1026,14 +1026,8 @@ if (!function_exists('soa_render_document')) {
                                 <span class="soa-val"><?php echo htmlspecialchars($semester_label); ?></span>
                             </div>
                             <div class="soa-row">
-                                <span class="soa-label">Date Generated:</span>
+                                <span class="soa-label">Date:</span>
                                 <span class="soa-val"><?php echo htmlspecialchars(date('F d, Y')); ?></span>
-                            </div>
-                            <div class="soa-row">
-                                <span class="soa-label">Fee Schedule Source:</span>
-                                <span class="soa-val" style="color:#0f766e;">
-                                    <?php echo !empty($active_schedule_name) ? htmlspecialchars($active_schedule_name) : 'Dynamic Fee Schedule'; ?>
-                                </span>
                             </div>
                             <div class="soa-row" style="border-top:1px dashed #cbd5e1; padding-top:0.4rem; margin-top:0.3rem;">
                                 <span class="soa-label">Current Semester Fees:</span>
@@ -1250,20 +1244,6 @@ if (!function_exists('soa_render_document')) {
 
                     <!-- ACCOUNT SUMMARY LEDGER (Dynamic Totals & Balance) -->
                     <div class="soa-summary-grid<?php echo $advance_credit > 0 ? ' has-advance' : ''; ?>">
-                        <div class="soa-summary-item">
-                            <div class="lbl">Current Semester Fees</div>
-                            <div class="val">P <?php echo htmlspecialchars(number_format($current_semester_fees, 2)); ?></div>
-                        </div>
-                        <div class="soa-summary-item" style="<?php echo $previous_balance > 0 ? 'background:#fff1f2; border-radius:8px; padding:0.5rem;' : ''; ?>">
-                            <div class="lbl" style="<?php echo $previous_balance > 0 ? 'color:#991b1b;' : ''; ?>">Previous Balance</div>
-                            <div class="val" style="<?php echo $previous_balance > 0 ? 'color:#b91c1c;' : ''; ?>">
-                                P <?php echo htmlspecialchars(number_format($previous_balance, 2)); ?>
-                            </div>
-                        </div>
-                        <div class="soa-summary-item">
-                            <div class="lbl">Grand Total Assessment</div>
-                            <div class="val" style="color:#1e3a5f;">P <?php echo htmlspecialchars(number_format($grand_total_assessment, 2)); ?></div>
-                        </div>
                         <div class="soa-summary-item">
                             <div class="lbl">Total Payments Credited</div>
                             <div class="val" style="color:#059669;">P <?php echo htmlspecialchars(number_format($total_payments, 2)); ?></div>

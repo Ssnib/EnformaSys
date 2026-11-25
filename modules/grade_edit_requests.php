@@ -186,17 +186,6 @@ require_once __DIR__ . '/../includes/layout_app_start.php';
                 Review and approve/reject locked grade unlocking requests submitted by Academic Formators.
             </p>
         </div>
-
-        <div class="flex items-center gap-2">
-            <a href="<?php echo htmlspecialchars(capstone_url('modules/afms_grades.php')); ?>" class="inline-flex items-center gap-2 px-4 py-2 text-xs font-bold rounded-xl bg-white hover:bg-[#F8EEEE] text-[#59443F] border border-[#D6A6A6]/60 shadow-2xs transition-all">
-                <i class="fa-solid fa-clipboard-list text-xs"></i>
-                Grade Management
-            </a>
-            <a href="<?php echo htmlspecialchars(capstone_url('modules/curriculum_master.php')); ?>" class="inline-flex items-center gap-2 px-4 py-2 text-xs font-bold rounded-xl bg-white hover:bg-[#F8EEEE] text-[#59443F] border border-[#D6A6A6]/60 shadow-2xs transition-all">
-                <i class="fa-solid fa-book-open text-xs"></i>
-                Curriculum Master
-            </a>
-        </div>
     </div>
 
     <!-- Flash Alerts -->
