@@ -622,6 +622,10 @@ if ($is_student) {
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="color-scheme" content="light">
+    <script>
+    (function(){try{if(localStorage.getItem('enformasys_theme')==='dark'){document.documentElement.setAttribute('data-theme','dark');var m=document.querySelector('meta[name="color-scheme"]');if(m)m.setAttribute('content','dark');}}catch(e){}})();
+    </script>
     <meta name="csrf-token" content="<?php echo htmlspecialchars((string)($_SESSION['csrf_token'] ?? '')); ?>">
     <title><?php echo htmlspecialchars($pageTitle === $appName ? $appName : ($pageTitle . ' - ' . $appName)); ?></title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -678,8 +682,8 @@ if ($is_student) {
             --color-brown: #5c3a31;
         }
         body {
-            background-color: #f8f5f2 !important;
-            color: #3f2822 !important;
+            background-color: var(--bg-canvas) !important;
+            color: var(--text-primary) !important;
             font-family: 'Inter', -apple-system, BlinkMacSystemFont, system-ui, sans-serif !important;
         }
         h1, h2, h3, h4, h5, h6, .font-heading {

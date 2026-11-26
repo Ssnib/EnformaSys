@@ -153,13 +153,24 @@ if ($selected_header_ay !== '' && !in_array($selected_header_ay, $header_ay_list
     <div class="hidden lg:flex lg:order-2 lg:flex-1"></div>
     <?php endif; ?>
 
-    <!-- Right Actions: Mobile Compact Search Icon + Notification Bell -->
+    <!-- Right Actions: Mobile Compact Search Icon + Theme Toggle + Notification Bell -->
     <div class="order-2 lg:order-3 flex items-center gap-1.5 sm:gap-2 shrink-0">
         <?php if ($canSearch): ?>
             <button id="mobileSearchToggle" type="button" class="inline-flex lg:hidden h-10 w-10 items-center justify-center rounded-full bg-[#fcfaf8] hover:bg-white text-[#5c3a31] border border-[#5c3a31]/12 hover:border-[#5c3a31]/25 transition shadow-2xs cursor-pointer" aria-label="Toggle search" aria-expanded="false" aria-controls="headerSearchWrap">
                 <i class="fa-solid fa-magnifying-glass text-xs"></i>
             </button>
         <?php endif; ?>
+        <button id="enformasysThemeToggle"
+                type="button"
+                data-theme-toggle="1"
+                class="enformasys-theme-toggle inline-flex h-9 w-9 items-center justify-center rounded-full bg-[#F8EEEE] hover:bg-white text-[#59443F] border border-[#E8C7C5]/70 hover:border-[#D6A6A6] transition shadow-2xs hover:shadow-xs cursor-pointer shrink-0"
+                aria-label="Toggle dark mode"
+                aria-pressed="false"
+                title="Switch to dark mode">
+            <i class="fa-regular fa-moon text-sm theme-icon-moon" aria-hidden="true"></i>
+            <i class="fa-regular fa-sun text-sm theme-icon-sun" aria-hidden="true"></i>
+            <span class="sr-only">Toggle color theme</span>
+        </button>
         <?php require __DIR__ . '/notification_bell.php'; ?>
     </div>
 

@@ -256,6 +256,138 @@ if (empty($GLOBALS['__enformasys_toast_fired'])) {
         };
     })();
     </script>
+    <script>
+    (function () {
+        if (window.__enformasysThemeInit) return;
+        window.__enformasysThemeInit = true;
+
+        var STORAGE_KEY = 'enformasys_theme';
+
+        function isDarkTheme() {
+            return document.documentElement.getAttribute('data-theme') === 'dark';
+        }
+
+        function updateToggleButtons(dark) {
+            document.querySelectorAll('[data-theme-toggle]').forEach(function (btn) {
+                btn.setAttribute('aria-pressed', dark ? 'true' : 'false');
+                var label = dark ? 'Switch to light mode' : 'Switch to dark mode';
+                btn.setAttribute('aria-label', label);
+                btn.setAttribute('title', label);
+            });
+        }
+
+        function syncChartJs(dark) {
+            if (typeof window.Chart === 'undefined') return;
+            var textColor = dark ? '#b8aea7' : '#64748b';
+            var headingColor = dark ? '#f5f0ec' : '#3f2822';
+            var gridColor = dark ? 'rgba(245, 240, 236, 0.09)' : 'rgba(92, 58, 49, 0.10)';
+            var tooltipBg = dark ? '#231f1d' : '#1e293b';
+            var tooltipBorder = dark ? 'rgba(245, 240, 236, 0.14)' : 'rgba(15, 23, 42, 0.08)';
+
+            try {
+                if (window.Chart.defaults) {
+                    window.Chart.defaults.color = textColor;
+                    window.Chart.defaults.borderColor = gridColor;
+                }
+                var instances = window.Chart.instances ? Object.values(window.Chart.instances) : [];
+                instances.forEach(function (chart) {
+                    if (!chart || !chart.options) return;
+                    var opts = chart.options;
+                    if (opts.plugins) {
+                        if (opts.plugins.legend && opts.plugins.legend.labels) {
+                            opts.plugins.legend.labels.color = textColor;
+                        }
+                        if (opts.plugins.title) {
+                            opts.plugins.title.color = headingColor;
+                        }
+                        if (opts.plugins.tooltip) {
+                            opts.plugins.tooltip.backgroundColor = tooltipBg;
+                            opts.plugins.tooltip.titleColor = '#f5f0ec';
+                            opts.plugins.tooltip.bodyColor = '#f5f0ec';
+                            opts.plugins.tooltip.borderColor = tooltipBorder;
+                            opts.plugins.tooltip.borderWidth = 1;
+                        }
+                    }
+                    if (opts.scales) {
+                        Object.keys(opts.scales).forEach(function (sk) {
+                            var sc = opts.scales[sk];
+                            if (!sc) return;
+                            if (sc.ticks) sc.ticks.color = textColor;
+                            if (sc.title) sc.title.color = textColor;
+                            if (sc.grid) sc.grid.color = gridColor;
+                            if (sc.angleLines) sc.angleLines.color = gridColor;
+                            if (sc.pointLabels) sc.pointLabels.color = textColor;
+                        });
+                    }
+                    if (typeof chart.update === 'function') {
+                        chart.update('none');
+                    }
+                });
+            } catch (_) {}
+        }
+
+        function applyTheme(theme, persist) {
+            var dark = theme === 'dark';
+            if (dark) {
+                document.documentElement.setAttribute('data-theme', 'dark');
+            } else {
+                document.documentElement.removeAttribute('data-theme');
+            }
+            var meta = document.querySelector('meta[name="color-scheme"]');
+            if (meta) meta.setAttribute('content', dark ? 'dark' : 'light');
+
+            if (persist) {
+                try {
+                    localStorage.setItem(STORAGE_KEY, dark ? 'dark' : 'light');
+                } catch (_) {}
+            }
+
+            updateToggleButtons(dark);
+            syncChartJs(dark);
+
+            try {
+                window.dispatchEvent(new CustomEvent('enformasys:themechange', {
+                    detail: { theme: dark ? 'dark' : 'light', isDark: dark }
+                }));
+            } catch (_) {}
+        }
+
+        document.addEventListener('click', function (e) {
+            var btn = e.target && e.target.closest ? e.target.closest('[data-theme-toggle]') : null;
+            if (!btn) return;
+            e.preventDefault();
+            applyTheme(isDarkTheme() ? 'light' : 'dark', true);
+        });
+
+        window.addEventListener('storage', function (e) {
+            if (e.key === STORAGE_KEY) {
+                applyTheme(e.newValue === 'dark' ? 'dark' : 'light', false);
+            }
+        });
+
+        function initSync() {
+            var dark = isDarkTheme();
+            updateToggleButtons(dark);
+            syncChartJs(dark);
+        }
+
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', initSync);
+        } else {
+            initSync();
+        }
+        window.addEventListener('load', function () {
+            syncChartJs(isDarkTheme());
+        });
+
+        window.EnformaSysTheme = {
+            isDark: isDarkTheme,
+            set: function (theme) { applyTheme(theme, true); },
+            toggle: function () { applyTheme(isDarkTheme() ? 'light' : 'dark', true); },
+            syncCharts: function () { syncChartJs(isDarkTheme()); }
+        };
+    })();
+    </script>
     <script defer src="<?php echo htmlspecialchars(capstone_url('assets/app_layout.js')); ?>?v=<?php echo (int)@filemtime(__DIR__ . '/../assets/app_layout.js'); ?>"></script>
     <script defer src="<?php echo htmlspecialchars(capstone_url('assets/ajax.js')); ?>?v=<?php echo (int)@filemtime(__DIR__ . '/../assets/ajax.js'); ?>"></script>
 </body>

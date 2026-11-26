@@ -240,6 +240,7 @@ require_once __DIR__ . '/../includes/layout_app_start.php';
             ]);
             ?>
 
+            <?php if (($_SESSION['role'] ?? '') !== 'Student') { ?>
             <div class="data-card print:bg-white print:shadow-none print:break-inside-avoid" style="margin-top: 1rem;">
                 <div class="data-card-header print:bg-white">
                     <h3><i class="fas fa-list"></i> Questionnaire Responses</h3>
@@ -267,6 +268,7 @@ require_once __DIR__ . '/../includes/layout_app_start.php';
                     </table>
                 </div>
             </div>
+            <?php } ?>
 
             <div class="data-card print:bg-white print:shadow-none print:break-inside-avoid" style="margin-top: 1rem;">
                 <div class="data-card-header print:bg-white">

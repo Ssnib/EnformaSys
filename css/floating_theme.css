@@ -1647,4 +1647,1021 @@ button:not(:disabled):active,
     }
 }
 
+/* ==========================================================================
+   Theme Switcher Control & UI Design Pro Max Dark Mode
+   ========================================================================== */
+html:not([data-theme="dark"]) .enformasys-theme-toggle .theme-icon-sun {
+    display: none;
+}
+
+html[data-theme="dark"] .enformasys-theme-toggle .theme-icon-moon {
+    display: none;
+}
+
+.enformasys-theme-toggle {
+    transition: background-color 180ms ease, border-color 180ms ease, color 180ms ease, transform 150ms ease, box-shadow 180ms ease;
+}
+
+.enformasys-theme-toggle:hover {
+    transform: translateY(-1px);
+}
+
+/* Pro Max Warm Dark Palette Tokens (no pure #000000) */
+html[data-theme="dark"] {
+    color-scheme: dark;
+    --bg-canvas: #12100f;
+    --surface-card: #1b1817;
+    --surface-subtle: #231f1d;
+    --brand-primary: #c98a6b;
+    --brand-primary-hover: #d89b7d;
+    --brand-accent: #e0a943;
+    --border-hairline: rgba(245, 240, 236, 0.09);
+    --shadow-card: 0 4px 24px -2px rgba(0, 0, 0, 0.45);
+    --shadow-elevated: 0 14px 32px -6px rgba(0, 0, 0, 0.60);
+    --focus-ring: 0 0 0 3px rgba(201, 138, 107, 0.26);
+
+    /* Legacy & Component Aliases */
+    --bg-main: var(--bg-canvas);
+    --bg-card: var(--surface-card);
+    --text-primary: #f5f0ec;
+    --text-secondary: #b8aea7;
+    --color-rose: #c98a6b;
+    --color-dusty: rgba(201, 138, 107, 0.18);
+    --color-brown: var(--brand-primary);
+    --border-soft: var(--border-hairline);
+    --border-light: rgba(245, 240, 236, 0.06);
+}
+
+html[data-theme="dark"],
+html[data-theme="dark"] body {
+    background-color: var(--bg-canvas) !important;
+    color: var(--text-primary) !important;
+}
+
+html[data-theme="dark"] ::-webkit-scrollbar-track {
+    background: #12100f;
+}
+
+html[data-theme="dark"] ::-webkit-scrollbar-thumb {
+    background: rgba(245, 240, 236, 0.18);
+}
+
+html[data-theme="dark"] ::-webkit-scrollbar-thumb:hover {
+    background: rgba(201, 138, 107, 0.48);
+}
+
+/* Frosted Floating Header & Controls */
+html[data-theme="dark"] #appShell > header.topbar {
+    background: rgba(27, 24, 23, 0.85) !important;
+    border-color: var(--border-hairline) !important;
+    color: var(--text-primary) !important;
+    box-shadow: var(--shadow-card) !important;
+}
+
+html[data-theme="dark"] #appShell > header.topbar h1 {
+    color: var(--text-primary) !important;
+}
+
+html[data-theme="dark"] #appShell > header.topbar p,
+html[data-theme="dark"] #appShell > header.topbar .fa-magnifying-glass,
+html[data-theme="dark"] #appShell > header.topbar .fa-chevron-down {
+    color: var(--text-secondary) !important;
+}
+
+html[data-theme="dark"] #appShell > header.topbar #topbarSearch,
+html[data-theme="dark"] #appShell > header.topbar #topbarFilterForm select {
+    background-color: var(--surface-subtle) !important;
+    border-color: rgba(245, 240, 236, 0.12) !important;
+    color: var(--text-primary) !important;
+}
+
+html[data-theme="dark"] #appShell > header.topbar #topbarSearch::placeholder {
+    color: rgba(184, 174, 167, 0.65) !important;
+}
+
+html[data-theme="dark"] #appShell > header.topbar #topbarSearch:focus,
+html[data-theme="dark"] #appShell > header.topbar #topbarFilterForm select:hover,
+html[data-theme="dark"] #appShell > header.topbar #topbarFilterForm select:focus {
+    background-color: #2a2422 !important;
+    border-color: var(--brand-primary) !important;
+}
+
+html[data-theme="dark"] #appShell > header.topbar kbd {
+    background-color: var(--surface-card) !important;
+    border-color: var(--border-hairline) !important;
+    color: var(--text-secondary) !important;
+}
+
+html[data-theme="dark"] #openSidebar,
+html[data-theme="dark"] #mobileSearchToggle,
+html[data-theme="dark"] .enformasys-theme-toggle,
+html[data-theme="dark"] .js-notif-bell-btn {
+    background-color: var(--surface-subtle) !important;
+    border-color: rgba(245, 240, 236, 0.12) !important;
+    color: var(--text-primary) !important;
+}
+
+html[data-theme="dark"] #openSidebar:hover,
+html[data-theme="dark"] #mobileSearchToggle:hover,
+html[data-theme="dark"] .enformasys-theme-toggle:hover,
+html[data-theme="dark"] .js-notif-bell-btn:hover {
+    background-color: #2d2724 !important;
+    border-color: rgba(201, 138, 107, 0.45) !important;
+}
+
+html[data-theme="dark"] .enformasys-theme-toggle .theme-icon-sun {
+    color: var(--brand-accent) !important;
+}
+
+/* Floating Sidebar */
+html[data-theme="dark"] #sidebar,
+html[data-theme="dark"] .floating-sidebar-container {
+    background: var(--surface-card) !important;
+    border-color: var(--border-hairline) !important;
+    color: var(--text-primary) !important;
+    box-shadow: var(--shadow-elevated) !important;
+}
+
+html[data-theme="dark"] #sidebar > div:first-child,
+html[data-theme="dark"] #sidebar > div:last-child {
+    background-color: var(--surface-card) !important;
+    border-color: var(--border-hairline) !important;
+}
+
+html[data-theme="dark"] #sidebar .sidebar-text,
+html[data-theme="dark"] #sidebar #sidebarUsernameText {
+    color: var(--text-primary);
+}
+
+html[data-theme="dark"] #sidebar .text-\[\#59443F\],
+html[data-theme="dark"] #sidebar .text-\[\#5c3a31\] {
+    color: var(--text-primary) !important;
+}
+
+html[data-theme="dark"] #sidebar .text-\[\#8B7168\],
+html[data-theme="dark"] #sidebar .text-\[\#7b6158\],
+html[data-theme="dark"] #sidebar [class*="text-[#7b6158]"] {
+    color: var(--text-secondary) !important;
+}
+
+html[data-theme="dark"] #sidebar .sidebar-nav-item {
+    color: var(--text-secondary) !important;
+}
+
+html[data-theme="dark"] #sidebar .sidebar-nav-item:hover {
+    background-color: rgba(245, 240, 236, 0.06) !important;
+    color: var(--text-primary) !important;
+}
+
+html[data-theme="dark"] #sidebar .sidebar-nav-item:hover i {
+    color: var(--brand-primary) !important;
+}
+
+html[data-theme="dark"] #sidebar .sidebar-nav-active {
+    background: linear-gradient(135deg, rgba(201, 138, 107, 0.22) 0%, rgba(224, 169, 67, 0.10) 100%) !important;
+    color: var(--text-primary) !important;
+    box-shadow: 0 2px 12px -2px rgba(0, 0, 0, 0.35) !important;
+}
+
+html[data-theme="dark"] #sidebar .sidebar-nav-active i,
+html[data-theme="dark"] #sidebar .sidebar-nav-active .fa-chevron-down {
+    color: var(--brand-accent) !important;
+}
+
+html[data-theme="dark"] #sidebar .sidebar-dropdown-inner > div {
+    background-color: var(--surface-subtle) !important;
+    border-color: rgba(201, 138, 107, 0.35) !important;
+}
+
+html[data-theme="dark"] #sidebar > div:last-child > div {
+    background-color: var(--surface-subtle) !important;
+    border-color: var(--border-hairline) !important;
+}
+
+html[data-theme="dark"] #sidebar > div:last-child > div:hover {
+    background-color: #2a2422 !important;
+}
+
+html[data-theme="dark"] #sidebar > div:last-child .rounded-full.bg-\[\#E8C7C5\] {
+    background-color: rgba(201, 138, 107, 0.22) !important;
+    border-color: rgba(201, 138, 107, 0.38) !important;
+    color: var(--text-primary) !important;
+}
+
+html[data-theme="dark"] #sidebar > div:last-child a:hover {
+    background-color: rgba(244, 63, 94, 0.16) !important;
+    color: #fda4af !important;
+}
+
+html[data-theme="dark"] #sidebar > nav[aria-label="Sidebar Navigation"] {
+    scrollbar-color: rgba(245, 240, 236, 0.16) transparent;
+}
+
+/* Notification Bell Popover */
+html[data-theme="dark"] .js-notif-badge {
+    --tw-ring-color: var(--surface-card) !important;
+}
+
+html[data-theme="dark"] .js-notif-popover {
+    background-color: var(--surface-card) !important;
+    border-color: rgba(245, 240, 236, 0.12) !important;
+    box-shadow: 0 20px 44px -8px rgba(0, 0, 0, 0.65) !important;
+}
+
+html[data-theme="dark"] .js-notif-popover .bg-\[\#FAF8F6\],
+html[data-theme="dark"] .js-notif-popover .bg-gray-50,
+html[data-theme="dark"] .js-notif-popover [class*="bg-gray-50/"] {
+    background-color: var(--surface-subtle) !important;
+}
+
+html[data-theme="dark"] .js-notif-popover .bg-white {
+    background-color: var(--surface-card) !important;
+}
+
+html[data-theme="dark"] .js-notif-popover .js-notif-alert-item {
+    background-color: rgba(201, 138, 107, 0.08) !important;
+}
+
+html[data-theme="dark"] .js-notif-popover .js-notif-item.bg-amber-50\/30 {
+    background-color: rgba(224, 169, 67, 0.09) !important;
+}
+
+html[data-theme="dark"] .js-notif-popover .js-notif-item:hover,
+html[data-theme="dark"] .js-notif-popover .js-notif-alert-item:hover {
+    background-color: rgba(245, 240, 236, 0.05) !important;
+}
+
+html[data-theme="dark"] .js-notif-popover .text-\[\#59443F\],
+html[data-theme="dark"] .js-notif-popover .text-gray-600 {
+    color: var(--text-primary) !important;
+}
+
+html[data-theme="dark"] .js-notif-popover .text-\[\#8B7168\],
+html[data-theme="dark"] .js-notif-popover .text-gray-500,
+html[data-theme="dark"] .js-notif-popover .text-gray-400 {
+    color: var(--text-secondary) !important;
+}
+
+html[data-theme="dark"] .js-notif-popover .text-\[\#0f766e\] {
+    color: #5eead4 !important;
+}
+
+html[data-theme="dark"] .js-notif-popover .border-gray-100,
+html[data-theme="dark"] .js-notif-popover .border-gray-200,
+html[data-theme="dark"] .js-notif-popover .divide-gray-100 > * {
+    border-color: var(--border-hairline) !important;
+}
+
+/* Cards, Surfaces & Generic Containers */
+html[data-theme="dark"] .card,
+html[data-theme="dark"] .data-card,
+html[data-theme="dark"] .stat-card,
+html[data-theme="dark"] .bubble-card,
+html[data-theme="dark"] .bubble-card-lg,
+html[data-theme="dark"] .eval-summary-card,
+html[data-theme="dark"] .bubble-table-container {
+    background: var(--surface-card) !important;
+    border-color: var(--border-hairline) !important;
+    color: var(--text-primary) !important;
+    box-shadow: var(--shadow-card) !important;
+}
+
+html[data-theme="dark"] .stat-card:hover,
+html[data-theme="dark"] .eval-summary-card:hover,
+html[data-theme="dark"] .kpi-card-link:hover {
+    border-color: rgba(201, 138, 107, 0.35) !important;
+    box-shadow: var(--shadow-elevated) !important;
+}
+
+html[data-theme="dark"] .stat-card .stat-icon {
+    background: var(--surface-subtle) !important;
+    border-color: var(--border-hairline) !important;
+    color: var(--brand-primary) !important;
+}
+
+html[data-theme="dark"] .data-card-header {
+    background: linear-gradient(180deg, #211d1b 0%, var(--surface-card) 100%) !important;
+    border-bottom-color: var(--border-hairline) !important;
+    color: var(--text-primary) !important;
+}
+
+html[data-theme="dark"] .data-card-header h3,
+html[data-theme="dark"] .eval-summary-value,
+html[data-theme="dark"] .stat-value,
+html[data-theme="dark"] .kpi-value {
+    color: var(--text-primary) !important;
+}
+
+html[data-theme="dark"] .eval-summary-label,
+html[data-theme="dark"] .stat-label,
+html[data-theme="dark"] .kpi-label,
+html[data-theme="dark"] .eval-filter-field label,
+html[data-theme="dark"] .eval-scale-meta,
+html[data-theme="dark"] .eval-scale-title {
+    color: var(--text-secondary) !important;
+}
+
+html[data-theme="dark"] .eval-scale-bar,
+html[data-theme="dark"] .empty-state {
+    background: var(--surface-subtle) !important;
+    border-color: var(--border-hairline) !important;
+    color: var(--text-secondary) !important;
+}
+
+html[data-theme="dark"] .eval-scale-pill {
+    background: var(--surface-card) !important;
+    border-color: rgba(245, 240, 236, 0.12) !important;
+    color: var(--text-primary) !important;
+}
+
+html[data-theme="dark"] .eval-scale-num {
+    color: var(--brand-accent) !important;
+}
+
+/* Tailwind Surface, Border & Text Adaptations inside App Main & Modals */
+html[data-theme="dark"] #appShell main .bg-white,
+html[data-theme="dark"] #appShell main [class*="bg-white/"],
+html[data-theme="dark"] [data-global-modal="1"] .bg-white {
+    background-color: var(--surface-card) !important;
+}
+
+html[data-theme="dark"] #appShell main .bg-gray-50,
+html[data-theme="dark"] #appShell main .bg-slate-50,
+html[data-theme="dark"] #appShell main .bg-stone-50,
+html[data-theme="dark"] #appShell main [class*="bg-gray-50/"],
+html[data-theme="dark"] #appShell main [class*="bg-slate-50/"],
+html[data-theme="dark"] #appShell main .bg-gray-100,
+html[data-theme="dark"] #appShell main .bg-slate-100,
+html[data-theme="dark"] #appShell main [class*="bg-[#F8EEEE"],
+html[data-theme="dark"] #appShell main [class*="bg-[#FAF6F4"],
+html[data-theme="dark"] #appShell main [class*="bg-[#FAF8F6"],
+html[data-theme="dark"] #appShell main [class*="bg-[#FCF9F7"],
+html[data-theme="dark"] #appShell main [class*="bg-[#fcfaf8"],
+html[data-theme="dark"] #appShell main [class*="bg-[#FDF9F9"],
+html[data-theme="dark"] #appShell main [class*="bg-[#faf6f3"],
+html[data-theme="dark"] #appShell main [class*="bg-[#f8f5f2"],
+html[data-theme="dark"] #appShell main [class*="bg-[#FBF7F5"],
+html[data-theme="dark"] [data-global-modal="1"] .bg-gray-50,
+html[data-theme="dark"] [data-global-modal="1"] [class*="bg-[#F8EEEE"] {
+    background-color: var(--surface-subtle) !important;
+}
+
+html[data-theme="dark"] #appShell main .hover\:bg-gray-50:hover,
+html[data-theme="dark"] #appShell main .hover\:bg-slate-50:hover,
+html[data-theme="dark"] #appShell main .hover\:bg-white:hover,
+html[data-theme="dark"] #appShell main [class*="hover:bg-[#F8EEEE]"]:hover,
+html[data-theme="dark"] #appShell main [class*="hover:bg-[#faf6f3]"]:hover {
+    background-color: #2a2422 !important;
+}
+
+html[data-theme="dark"] #appShell main .border-gray-100,
+html[data-theme="dark"] #appShell main .border-gray-200,
+html[data-theme="dark"] #appShell main .border-gray-300,
+html[data-theme="dark"] #appShell main .border-slate-100,
+html[data-theme="dark"] #appShell main .border-slate-200,
+html[data-theme="dark"] #appShell main .border-slate-300,
+html[data-theme="dark"] #appShell main [class*="border-gray-200/"],
+html[data-theme="dark"] #appShell main [class*="border-slate-200/"],
+html[data-theme="dark"] #appShell main [class*="border-[#E8C7C5"],
+html[data-theme="dark"] #appShell main [class*="border-[#E2C9C8"],
+html[data-theme="dark"] #appShell main [class*="border-[#EBD3CC"],
+html[data-theme="dark"] #appShell main [class*="border-[#D6A6A6"],
+html[data-theme="dark"] #appShell main [class*="border-[#5c3a31"],
+html[data-theme="dark"] [data-global-modal="1"] .border-gray-100,
+html[data-theme="dark"] [data-global-modal="1"] .border-gray-200,
+html[data-theme="dark"] [data-global-modal="1"] [class*="border-[#E8C7C5"] {
+    border-color: var(--border-hairline) !important;
+}
+
+html[data-theme="dark"] #appShell main .divide-gray-100 > :not([hidden]) ~ :not([hidden]),
+html[data-theme="dark"] #appShell main .divide-gray-200 > :not([hidden]) ~ :not([hidden]),
+html[data-theme="dark"] #appShell main .divide-slate-100 > :not([hidden]) ~ :not([hidden]),
+html[data-theme="dark"] #appShell main .divide-slate-200 > :not([hidden]) ~ :not([hidden]) {
+    border-color: var(--border-hairline) !important;
+}
+
+html[data-theme="dark"] #appShell main .text-\[\#59443F\],
+html[data-theme="dark"] #appShell main .text-\[\#3f2822\],
+html[data-theme="dark"] #appShell main .text-\[\#4A3731\],
+html[data-theme="dark"] #appShell main .text-\[\#5c3a31\],
+html[data-theme="dark"] #appShell main .text-slate-900,
+html[data-theme="dark"] #appShell main .text-slate-800,
+html[data-theme="dark"] #appShell main .text-gray-900,
+html[data-theme="dark"] #appShell main .text-gray-800,
+html[data-theme="dark"] #appShell main .text-slate-700,
+html[data-theme="dark"] #appShell main .text-gray-700,
+html[data-theme="dark"] [data-global-modal="1"] .text-\[\#59443F\],
+html[data-theme="dark"] [data-global-modal="1"] .text-slate-900,
+html[data-theme="dark"] [data-global-modal="1"] .text-gray-900 {
+    color: var(--text-primary) !important;
+}
+
+html[data-theme="dark"] #appShell main .text-\[\#8B7168\],
+html[data-theme="dark"] #appShell main .text-\[\#7b6158\],
+html[data-theme="dark"] #appShell main .text-\[\#785E56\],
+html[data-theme="dark"] #appShell main .text-slate-600,
+html[data-theme="dark"] #appShell main .text-slate-500,
+html[data-theme="dark"] #appShell main .text-gray-600,
+html[data-theme="dark"] #appShell main .text-gray-500,
+html[data-theme="dark"] #appShell main .text-slate-400,
+html[data-theme="dark"] #appShell main .text-gray-400,
+html[data-theme="dark"] [data-global-modal="1"] .text-\[\#8B7168\],
+html[data-theme="dark"] [data-global-modal="1"] .text-slate-500,
+html[data-theme="dark"] [data-global-modal="1"] .text-gray-500 {
+    color: var(--text-secondary) !important;
+}
+
+/* Inline dark text on report remarks / cards */
+html[data-theme="dark"] #appShell main [style*="color: #0f172a"],
+html[data-theme="dark"] #appShell main [style*="color:#0f172a"],
+html[data-theme="dark"] #appShell main [style*="color: #334155"],
+html[data-theme="dark"] #appShell main [style*="color:#334155"],
+html[data-theme="dark"] #appShell main [style*="color: #1e293b"],
+html[data-theme="dark"] #appShell main [style*="color:#1e293b"] {
+    color: var(--text-primary) !important;
+}
+
+html[data-theme="dark"] #appShell main [style*="color: #64748b"],
+html[data-theme="dark"] #appShell main [style*="color:#64748b"],
+html[data-theme="dark"] #appShell main [style*="color: #475569"],
+html[data-theme="dark"] #appShell main [style*="color:#475569"] {
+    color: var(--text-secondary) !important;
+}
+
+/* Active Pill Tabs & Dusty Rose Accents */
+html[data-theme="dark"] #appShell main .tab-btn.active,
+html[data-theme="dark"] #appShell main .bg-\[\#E8C7C5\] {
+    background-color: rgba(201, 138, 107, 0.24) !important;
+    border-color: rgba(201, 138, 107, 0.42) !important;
+    color: var(--text-primary) !important;
+}
+
+/* Data Tables */
+html[data-theme="dark"] .data-card thead th,
+html[data-theme="dark"] .bubble-table-container thead th,
+html[data-theme="dark"] #appShell main table:not(.soa-table) thead th {
+    background: var(--surface-subtle) !important;
+    color: var(--text-secondary) !important;
+    border-bottom-color: var(--border-hairline) !important;
+}
+
+html[data-theme="dark"] .data-card tbody td,
+html[data-theme="dark"] .bubble-table-container tbody td,
+html[data-theme="dark"] #appShell main table:not(.soa-table) tbody td {
+    color: var(--text-primary) !important;
+    border-bottom-color: rgba(245, 240, 236, 0.07) !important;
+}
+
+html[data-theme="dark"] .data-card tbody tr:hover td,
+html[data-theme="dark"] .bubble-table-container tbody tr:hover td,
+html[data-theme="dark"] #appShell main table:not(.soa-table) tbody tr:hover td {
+    background-color: rgba(245, 240, 236, 0.04) !important;
+}
+
+/* Form Inputs, Selects, Textareas & Likert Controls */
+html[data-theme="dark"] #appShell input[type="text"],
+html[data-theme="dark"] #appShell input[type="email"],
+html[data-theme="dark"] #appShell input[type="password"],
+html[data-theme="dark"] #appShell input[type="number"],
+html[data-theme="dark"] #appShell input[type="date"],
+html[data-theme="dark"] #appShell input[type="time"],
+html[data-theme="dark"] #appShell input[type="search"],
+html[data-theme="dark"] #appShell select,
+html[data-theme="dark"] #appShell textarea,
+html[data-theme="dark"] .eval-filter-grid select,
+html[data-theme="dark"] .eval-filter-grid input,
+html[data-theme="dark"] .eval-meta-grid select,
+html[data-theme="dark"] .eval-meta-grid input,
+html[data-theme="dark"] [data-global-modal="1"] input,
+html[data-theme="dark"] [data-global-modal="1"] select,
+html[data-theme="dark"] [data-global-modal="1"] textarea {
+    background-color: var(--surface-subtle) !important;
+    border-color: rgba(245, 240, 236, 0.13) !important;
+    color: var(--text-primary) !important;
+}
+
+html[data-theme="dark"] select option {
+    background-color: #1b1817;
+    color: #f5f0ec;
+}
+
+html[data-theme="dark"] #appShell input::placeholder,
+html[data-theme="dark"] #appShell textarea::placeholder {
+    color: rgba(184, 174, 167, 0.58) !important;
+}
+
+html[data-theme="dark"] .likert-btn {
+    background: var(--surface-subtle) !important;
+    border-color: rgba(245, 240, 236, 0.13) !important;
+    color: var(--text-primary) !important;
+}
+
+html[data-theme="dark"] .likert-btn .likert-label {
+    color: var(--text-secondary) !important;
+}
+
+html[data-theme="dark"] .likert-btn:hover {
+    background: #2c2623 !important;
+    border-color: var(--brand-primary) !important;
+}
+
+html[data-theme="dark"] .likert-btn.active {
+    background: var(--brand-primary) !important;
+    border-color: var(--brand-primary) !important;
+    color: #181210 !important;
+}
+
+html[data-theme="dark"] .likert-btn.active .likert-label {
+    color: #181210 !important;
+}
+
+/* Primary & Secondary Buttons in Dark Mode */
+html[data-theme="dark"] .btn-seminary-primary,
+html[data-theme="dark"] .action-btn-primary,
+html[data-theme="dark"] .btn-primary,
+html[data-theme="dark"] .btn-bubble-primary,
+html[data-theme="dark"] .eval-load-btn,
+html[data-theme="dark"] .eval-submit-btn,
+html[data-theme="dark"] #appShell main button.bg-\[\#59443F\],
+html[data-theme="dark"] #appShell main a.bg-\[\#59443F\],
+html[data-theme="dark"] #appShell main button.bg-\[\#5c3a31\],
+html[data-theme="dark"] #appShell main a.bg-\[\#5c3a31\] {
+    background: linear-gradient(135deg, var(--brand-primary) 0%, #b57556 100%) !important;
+    color: #181210 !important;
+    border-color: transparent !important;
+    box-shadow: 0 6px 18px -4px rgba(201, 138, 107, 0.35) !important;
+}
+
+html[data-theme="dark"] .btn-seminary-primary:hover,
+html[data-theme="dark"] .action-btn-primary:hover,
+html[data-theme="dark"] .btn-primary:hover,
+html[data-theme="dark"] .btn-bubble-primary:hover,
+html[data-theme="dark"] .eval-load-btn:hover,
+html[data-theme="dark"] .eval-submit-btn:hover,
+html[data-theme="dark"] #appShell main button.bg-\[\#59443F\]:hover,
+html[data-theme="dark"] #appShell main a.bg-\[\#59443F\]:hover,
+html[data-theme="dark"] #appShell main button.bg-\[\#5c3a31\]:hover,
+html[data-theme="dark"] #appShell main a.bg-\[\#5c3a31\]:hover {
+    background: linear-gradient(135deg, var(--brand-primary-hover) 0%, var(--brand-primary) 100%) !important;
+    color: #181210 !important;
+}
+
+html[data-theme="dark"] .action-btn-secondary,
+html[data-theme="dark"] .btn-secondary,
+html[data-theme="dark"] .btn-bubble-light,
+html[data-theme="dark"] .eval-back-btn,
+html[data-theme="dark"] .back-link {
+    background: var(--surface-subtle) !important;
+    color: var(--text-primary) !important;
+    border-color: rgba(245, 240, 236, 0.14) !important;
+}
+
+html[data-theme="dark"] .action-btn-secondary:hover,
+html[data-theme="dark"] .btn-secondary:hover,
+html[data-theme="dark"] .btn-bubble-light:hover,
+html[data-theme="dark"] .eval-back-btn:hover,
+html[data-theme="dark"] .back-link:hover {
+    background: #2d2724 !important;
+    border-color: rgba(201, 138, 107, 0.42) !important;
+    color: var(--text-primary) !important;
+}
+
+/* Translucent High-Contrast Dark Status Badges */
+html[data-theme="dark"] .badge-primary,
+html[data-theme="dark"] .status-info,
+html[data-theme="dark"] .badge-bubble {
+    background: rgba(201, 138, 107, 0.18) !important;
+    color: #f3c6ae !important;
+    border-color: rgba(201, 138, 107, 0.34) !important;
+}
+
+html[data-theme="dark"] .badge-success,
+html[data-theme="dark"] .status-cleared,
+html[data-theme="dark"] #appShell main .bg-emerald-50,
+html[data-theme="dark"] #appShell main .bg-emerald-100,
+html[data-theme="dark"] #appShell main .bg-green-50,
+html[data-theme="dark"] #appShell main .bg-green-100 {
+    background-color: rgba(16, 185, 129, 0.16) !important;
+    border-color: rgba(16, 185, 129, 0.30) !important;
+    color: #6ee7b7 !important;
+}
+
+html[data-theme="dark"] #appShell main .text-emerald-700,
+html[data-theme="dark"] #appShell main .text-emerald-800,
+html[data-theme="dark"] #appShell main .text-green-700,
+html[data-theme="dark"] #appShell main .text-green-800 {
+    color: #6ee7b7 !important;
+}
+
+html[data-theme="dark"] .badge-warning,
+html[data-theme="dark"] .status-warning,
+html[data-theme="dark"] #appShell main .bg-amber-50,
+html[data-theme="dark"] #appShell main .bg-amber-100,
+html[data-theme="dark"] #appShell main .bg-yellow-50,
+html[data-theme="dark"] #appShell main .bg-yellow-100 {
+    background-color: rgba(245, 158, 11, 0.16) !important;
+    border-color: rgba(245, 158, 11, 0.30) !important;
+    color: #fcd34d !important;
+}
+
+html[data-theme="dark"] #appShell main .text-amber-700,
+html[data-theme="dark"] #appShell main .text-amber-800,
+html[data-theme="dark"] #appShell main .text-yellow-700,
+html[data-theme="dark"] #appShell main .text-yellow-800 {
+    color: #fcd34d !important;
+}
+
+html[data-theme="dark"] .badge-danger,
+html[data-theme="dark"] .status-danger,
+html[data-theme="dark"] #appShell main .bg-rose-50,
+html[data-theme="dark"] #appShell main .bg-rose-100,
+html[data-theme="dark"] #appShell main .bg-red-50,
+html[data-theme="dark"] #appShell main .bg-red-100 {
+    background-color: rgba(244, 63, 94, 0.16) !important;
+    border-color: rgba(244, 63, 94, 0.30) !important;
+    color: #fda4af !important;
+}
+
+html[data-theme="dark"] #appShell main .text-rose-700,
+html[data-theme="dark"] #appShell main .text-rose-800,
+html[data-theme="dark"] #appShell main .text-red-700,
+html[data-theme="dark"] #appShell main .text-red-800 {
+    color: #fda4af !important;
+}
+
+html[data-theme="dark"] #appShell main .bg-blue-50,
+html[data-theme="dark"] #appShell main .bg-blue-100,
+html[data-theme="dark"] #appShell main .bg-sky-50,
+html[data-theme="dark"] #appShell main .bg-sky-100,
+html[data-theme="dark"] #appShell main .bg-indigo-50,
+html[data-theme="dark"] #appShell main .bg-indigo-100 {
+    background-color: rgba(56, 189, 248, 0.15) !important;
+    border-color: rgba(56, 189, 248, 0.28) !important;
+    color: #7dd3fc !important;
+}
+
+html[data-theme="dark"] #appShell main .text-blue-700,
+html[data-theme="dark"] #appShell main .text-blue-800,
+html[data-theme="dark"] #appShell main .text-sky-700,
+html[data-theme="dark"] #appShell main .text-indigo-700,
+html[data-theme="dark"] #appShell main .text-indigo-800 {
+    color: #7dd3fc !important;
+}
+
+html[data-theme="dark"] #appShell main .bg-purple-50,
+html[data-theme="dark"] #appShell main .bg-purple-100,
+html[data-theme="dark"] #appShell main .bg-violet-50,
+html[data-theme="dark"] #appShell main .bg-violet-100 {
+    background-color: rgba(167, 139, 250, 0.15) !important;
+    border-color: rgba(167, 139, 250, 0.28) !important;
+    color: #c4b5fd !important;
+}
+
+html[data-theme="dark"] #appShell main .text-purple-700,
+html[data-theme="dark"] #appShell main .text-violet-700 {
+    color: #c4b5fd !important;
+}
+
+html[data-theme="dark"] #appShell main .bg-teal-50,
+html[data-theme="dark"] #appShell main .bg-teal-100 {
+    background-color: rgba(20, 184, 166, 0.16) !important;
+    border-color: rgba(20, 184, 166, 0.30) !important;
+    color: #5eead4 !important;
+}
+
+html[data-theme="dark"] #appShell main .text-teal-700,
+html[data-theme="dark"] #appShell main .text-teal-800,
+html[data-theme="dark"] #appShell main .text-\[\#0f766e\] {
+    color: #5eead4 !important;
+}
+
+html[data-theme="dark"] .status-muted {
+    background: rgba(245, 240, 236, 0.08) !important;
+    color: var(--text-secondary) !important;
+    border-color: var(--border-hairline) !important;
+}
+
+/* Modals, Confirmation Dialogs, Toasts & Preloader Overlay */
+html[data-theme="dark"] .enformasys-confirm-overlay,
+html[data-theme="dark"] .global-modal-overlay,
+html[data-theme="dark"] .modal-overlay {
+    background: rgba(8, 6, 5, 0.74) !important;
+}
+
+html[data-theme="dark"] .enformasys-confirm-dialog,
+html[data-theme="dark"] .global-modal-panel,
+html[data-theme="dark"] .modal-content {
+    background: var(--surface-card) !important;
+    border-color: rgba(245, 240, 236, 0.12) !important;
+    color: var(--text-primary) !important;
+    box-shadow: 0 28px 60px -12px rgba(0, 0, 0, 0.72) !important;
+}
+
+html[data-theme="dark"] .enformasys-confirm-title {
+    color: var(--text-primary) !important;
+}
+
+html[data-theme="dark"] .enformasys-confirm-message {
+    color: var(--text-secondary) !important;
+}
+
+html[data-theme="dark"] .enformasys-confirm-icon {
+    border-color: rgba(245, 240, 236, 0.14) !important;
+    background: var(--surface-subtle) !important;
+}
+
+html[data-theme="dark"] .enformasys-confirm-actions {
+    border-top-color: var(--border-hairline) !important;
+}
+
+html[data-theme="dark"] .enformasys-confirm-btn-cancel {
+    background: var(--surface-subtle) !important;
+    color: var(--text-primary) !important;
+    border-color: rgba(245, 240, 236, 0.14) !important;
+}
+
+html[data-theme="dark"] .enformasys-confirm-btn-cancel:hover {
+    background: #2e2825 !important;
+}
+
+html[data-theme="dark"] .enformasys-confirm-btn-primary {
+    background: var(--brand-primary) !important;
+    border-color: var(--brand-primary) !important;
+    color: #181210 !important;
+}
+
+html[data-theme="dark"] .toast-bubble {
+    box-shadow: 0 18px 40px -8px rgba(0, 0, 0, 0.65) !important;
+}
+
+html[data-theme="dark"] .toast-bubble-success {
+    background-color: #162620 !important;
+    border-color: rgba(16, 185, 129, 0.35) !important;
+    color: var(--text-primary) !important;
+}
+
+html[data-theme="dark"] .toast-bubble-error {
+    background-color: #2b1a1c !important;
+    border-color: rgba(244, 63, 94, 0.38) !important;
+    color: var(--text-primary) !important;
+}
+
+html[data-theme="dark"] .toast-bubble-error .toast-icon-wrap {
+    background-color: rgba(244, 63, 94, 0.20) !important;
+    color: #fda4af !important;
+}
+
+html[data-theme="dark"] .toast-bubble-info {
+    background-color: var(--surface-card) !important;
+    border-color: rgba(201, 138, 107, 0.32) !important;
+    color: var(--text-primary) !important;
+}
+
+html[data-theme="dark"] #enformasys-top-progress {
+    background: linear-gradient(90deg, var(--brand-primary) 0%, var(--brand-accent) 70%, #f5cf7a 100%);
+    box-shadow: 0 0 12px rgba(224, 169, 67, 0.55);
+}
+
+html[data-theme="dark"] #enformasys-preloader {
+    background: rgba(18, 16, 15, 0.82) !important;
+}
+
+html[data-theme="dark"] .enformasys-preloader-spinner {
+    border-color: rgba(245, 240, 236, 0.14);
+    border-top-color: var(--brand-primary);
+    border-right-color: var(--brand-accent);
+}
+
+html[data-theme="dark"] .enformasys-preloader-crest,
+html[data-theme="dark"] .enformasys-preloader-fallback {
+    border-color: rgba(245, 240, 236, 0.18);
+    background: var(--surface-card);
+    color: var(--brand-primary);
+}
+
+html[data-theme="dark"] .enformasys-preloader-text {
+    color: var(--text-primary);
+}
+
+/* Login Page Dark Mode */
+html[data-theme="dark"] body.login-page {
+    background-color: var(--bg-canvas) !important;
+    color: var(--text-primary) !important;
+}
+
+html[data-theme="dark"] body.login-page .login-backdrop {
+    background: linear-gradient(135deg, #12100f 0%, #191513 50%, #221b18 100%) !important;
+}
+
+html[data-theme="dark"] body.login-page .login-right > .blur-3xl {
+    opacity: 0.16;
+}
+
+html[data-theme="dark"] body.login-page .login-card {
+    background-color: var(--surface-card) !important;
+    border-color: rgba(245, 240, 236, 0.11) !important;
+    box-shadow: 0 28px 56px -12px rgba(0, 0, 0, 0.65), 0 8px 24px -6px rgba(0, 0, 0, 0.45) !important;
+}
+
+html[data-theme="dark"] body.login-page .welcome-title,
+html[data-theme="dark"] body.login-page .form-title,
+html[data-theme="dark"] body.login-page .text-\[\#4A3731\],
+html[data-theme="dark"] body.login-page [class*="text-[#4A3731]"] {
+    color: var(--text-primary) !important;
+}
+
+html[data-theme="dark"] body.login-page .welcome-quote,
+html[data-theme="dark"] body.login-page .form-subtitle,
+html[data-theme="dark"] body.login-page .form-label,
+html[data-theme="dark"] body.login-page .help-subtitle,
+html[data-theme="dark"] body.login-page .forgot-link,
+html[data-theme="dark"] body.login-page label[for="rememberMe"],
+html[data-theme="dark"] body.login-page .text-\[\#8B7168\],
+html[data-theme="dark"] body.login-page .text-\[\#785E56\] {
+    color: var(--text-secondary) !important;
+}
+
+html[data-theme="dark"] body.login-page .forgot-link:hover,
+html[data-theme="dark"] body.login-page label[for="rememberMe"]:hover {
+    color: var(--brand-primary) !important;
+}
+
+html[data-theme="dark"] body.login-page .welcome-quote {
+    border-left-color: var(--brand-primary) !important;
+}
+
+html[data-theme="dark"] body.login-page .brand-subtitle-tag,
+html[data-theme="dark"] body.login-page .pill-badge {
+    background-color: var(--surface-subtle) !important;
+    border-color: rgba(201, 138, 107, 0.28) !important;
+    color: var(--text-primary) !important;
+}
+
+html[data-theme="dark"] body.login-page .brand-subtitle-tag > span:first-child {
+    background-color: var(--brand-accent) !important;
+}
+
+html[data-theme="dark"] body.login-page .pill-badge i {
+    color: var(--brand-primary) !important;
+}
+
+html[data-theme="dark"] body.login-page .form-input {
+    background-color: var(--surface-subtle) !important;
+    border-color: rgba(245, 240, 236, 0.13) !important;
+    color: var(--text-primary) !important;
+}
+
+html[data-theme="dark"] body.login-page .form-input:focus {
+    background-color: #2a2422 !important;
+    border-color: var(--brand-primary) !important;
+}
+
+html[data-theme="dark"] body.login-page .form-input::placeholder {
+    color: rgba(184, 174, 167, 0.58) !important;
+}
+
+html[data-theme="dark"] body.login-page .toggle-password,
+html[data-theme="dark"] body.login-page .input-trailing-icon {
+    color: var(--text-secondary) !important;
+}
+
+html[data-theme="dark"] body.login-page .toggle-password:hover {
+    color: var(--text-primary) !important;
+    background-color: rgba(245, 240, 236, 0.08) !important;
+}
+
+html[data-theme="dark"] body.login-page .form-footer {
+    border-top-color: var(--border-hairline) !important;
+}
+
+html[data-theme="dark"] body.login-page .error-box {
+    background-color: rgba(244, 63, 94, 0.14) !important;
+    border-color: rgba(244, 63, 94, 0.34) !important;
+    color: #fda4af !important;
+}
+
+html[data-theme="dark"] body.login-page .success-box {
+    background-color: rgba(16, 185, 129, 0.14) !important;
+    border-color: rgba(16, 185, 129, 0.34) !important;
+    color: #6ee7b7 !important;
+}
+
+/* ==========================================================================
+   Official Statement of Account (Light Paper Fortress) & Print Protection
+   ========================================================================== */
+html[data-theme="dark"] .soa-document,
+html[data-theme="dark"] .soa-document-sheet {
+    color-scheme: only light;
+    background: #ffffff !important;
+    color: #0f172a !important;
+    border-color: #1e3a5f !important;
+    box-shadow: 0 10px 34px rgba(0, 0, 0, 0.45) !important;
+}
+
+html[data-theme="dark"] .soa-document .soa-header,
+html[data-theme="dark"] .soa-document-sheet .soa-header {
+    background: #1e3a5f !important;
+    color: #ffffff !important;
+}
+
+html[data-theme="dark"] .soa-document .soa-header h1,
+html[data-theme="dark"] .soa-document-sheet .soa-header h1 {
+    color: #ffffff !important;
+}
+
+html[data-theme="dark"] .soa-document .soa-body,
+html[data-theme="dark"] .soa-document-sheet .soa-body {
+    background: #ffffff !important;
+    color: #0f172a !important;
+}
+
+html[data-theme="dark"] .soa-document .soa-box,
+html[data-theme="dark"] .soa-document .soa-summary-box,
+html[data-theme="dark"] .soa-document-sheet .soa-box,
+html[data-theme="dark"] .soa-document-sheet .soa-summary-box {
+    background: #f8fafc !important;
+    border-color: #cbd5e1 !important;
+    color: #0f172a !important;
+}
+
+html[data-theme="dark"] .soa-document .soa-box h4,
+html[data-theme="dark"] .soa-document .soa-label,
+html[data-theme="dark"] .soa-document .soa-summary-item .lbl {
+    color: #475569 !important;
+}
+
+html[data-theme="dark"] .soa-document .soa-val,
+html[data-theme="dark"] .soa-document .soa-summary-item .val,
+html[data-theme="dark"] .soa-document .soa-table td,
+html[data-theme="dark"] .soa-document .soa-table tbody td {
+    color: #0f172a !important;
+}
+
+html[data-theme="dark"] .soa-document .soa-table th,
+html[data-theme="dark"] .soa-document .soa-table thead th {
+    background: #f1f5f9 !important;
+    color: #1e3a5f !important;
+    border-color: #cbd5e1 !important;
+}
+
+html[data-theme="dark"] .soa-document .soa-table td,
+html[data-theme="dark"] .soa-document .soa-table tr {
+    background: #ffffff !important;
+    border-color: #e2e8f0 !important;
+}
+
+html[data-theme="dark"] .soa-document .soa-table tr:hover td {
+    background: #f8fafc !important;
+}
+
+html[data-theme="dark"] .soa-document .soa-footer,
+html[data-theme="dark"] .soa-document .soa-signatories {
+    color: #334155 !important;
+    border-color: #cbd5e1 !important;
+}
+
+@media print {
+    html[data-theme="dark"],
+    html[data-theme="dark"] body {
+        color-scheme: light !important;
+        --bg-canvas: #ffffff;
+        --surface-card: #ffffff;
+        --surface-subtle: #f8fafc;
+        --text-primary: #0f172a;
+        --text-secondary: #475569;
+        --border-hairline: #cbd5e1;
+        background: #ffffff !important;
+        color: #0f172a !important;
+    }
+
+    html[data-theme="dark"] .card,
+    html[data-theme="dark"] .data-card,
+    html[data-theme="dark"] .stat-card,
+    html[data-theme="dark"] .bubble-card,
+    html[data-theme="dark"] .eval-summary-card,
+    html[data-theme="dark"] #appShell main .bg-white,
+    html[data-theme="dark"] #appShell main .bg-gray-50,
+    html[data-theme="dark"] #appShell main .bg-slate-50 {
+        background: #ffffff !important;
+        color: #0f172a !important;
+        border-color: #cbd5e1 !important;
+        box-shadow: none !important;
+    }
+
+    html[data-theme="dark"] #appShell main * {
+        color: #0f172a !important;
+    }
+
+    html[data-theme="dark"] .soa-document .soa-header,
+    html[data-theme="dark"] .soa-document .soa-header * {
+        background: #1e3a5f !important;
+        color: #ffffff !important;
+    }
+
+    .enformasys-theme-toggle {
+        display: none !important;
+    }
+}
+
+
 

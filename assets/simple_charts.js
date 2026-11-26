@@ -88,17 +88,36 @@
 
   const defaultPalette = ['#fda4af', '#fcd34d', '#93c5fd', '#6366f1', '#312e81'];
 
+  const isDarkTheme = () => document.documentElement.getAttribute('data-theme') === 'dark';
+
+  const getThemeColors = () => {
+    const dark = isDarkTheme();
+    return {
+      dark,
+      axisBase: dark ? 'rgba(245, 240, 236, 0.22)' : '#cbd5e1',
+      axisGrid: dark ? 'rgba(245, 240, 236, 0.08)' : '#f1f5f9',
+      axisTick: dark ? '#b8aea7' : '#64748b',
+      label: dark ? '#b8aea7' : '#475569',
+      value: dark ? '#f5f0ec' : '#334155',
+      centerValue: dark ? '#f5f0ec' : '#0f172a',
+      centerLabel: dark ? '#b8aea7' : '#64748b',
+      surface: dark ? '#1b1817' : '#ffffff',
+      emptyTrack: dark ? '#2a2422' : '#f1f5f9'
+    };
+  };
+
   const drawAxes = (ctx, rect, yMin, yMax, steps) => {
+    const tc = getThemeColors();
     const { x, y, w, h } = rect;
     const s = Math.max(1, steps || 5);
     for (let i = 0; i <= s; i += 1) {
       const t = i / s;
       const v = yMin + (yMax - yMin) * t;
       const yy = y + h - t * h;
-      drawLine(ctx, x, yy, x + w, yy, i === 0 ? '#cbd5e1' : '#f1f5f9', 1, i === 0 ? null : [4, 4]);
+      drawLine(ctx, x, yy, x + w, yy, i === 0 ? tc.axisBase : tc.axisGrid, 1, i === 0 ? null : [4, 4]);
       drawText(ctx, v.toFixed(1), x - 10, yy + 4, {
         align: 'right',
-        color: '#64748b',
+        color: tc.axisTick,
         font: '600 11px Inter, system-ui, sans-serif'
       });
     }
@@ -107,6 +126,7 @@
   const bar = (canvas, labels, values, opts) => {
     opts = opts || {};
     const draw = () => {
+      const tc = getThemeColors();
       const { ctx, width, height } = fitCanvas(canvas);
       clear(ctx, width, height);
       const padding = { top: 18, right: 16, bottom: 46, left: 42 };
@@ -133,7 +153,7 @@
           drawRoundedTopBar(ctx, x, y1, barW, Math.max(0, y0 - y1), 8, grad);
           drawText(ctx, v.toFixed(2), cx, y1 - 6, {
             align: 'center',
-            color: '#334155',
+            color: tc.value,
             font: '700 10px Inter, system-ui, sans-serif'
           });
         }
@@ -143,7 +163,7 @@
           lines.forEach((lineStr, lineIdx) => {
             drawText(ctx, lineStr, cx, rect.y + rect.h + 16 + lineIdx * 13, {
               align: 'center',
-              color: '#475569',
+              color: tc.label,
               font: '600 10.5px Inter, system-ui, sans-serif'
             });
           });
@@ -152,11 +172,13 @@
     };
     draw();
     window.addEventListener('resize', draw, { passive: true });
+    window.addEventListener('enformasys:themechange', draw);
   };
 
   const line = (canvas, labels, values, opts) => {
     opts = opts || {};
     const draw = () => {
+      const tc = getThemeColors();
       const { ctx, width, height } = fitCanvas(canvas);
       clear(ctx, width, height);
       const padding = { top: 18, right: 20, bottom: 42, left: 42 };
@@ -184,7 +206,7 @@
       } else if (pts.length >= 2) {
         const grad = ctx.createLinearGradient(0, rect.y, 0, rect.y + rect.h);
         grad.addColorStop(0, fillTop);
-        grad.addColorStop(1, 'rgba(255, 255, 255, 0.0)');
+        grad.addColorStop(1, tc.dark ? 'rgba(27, 24, 23, 0.0)' : 'rgba(255, 255, 255, 0.0)');
 
         ctx.save();
         ctx.beginPath();
@@ -209,7 +231,7 @@
         ctx.save();
         ctx.beginPath();
         ctx.arc(p.x, p.y, pts.length === 1 ? 7 : 4.5, 0, Math.PI * 2);
-        ctx.fillStyle = '#ffffff';
+        ctx.fillStyle = tc.surface;
         ctx.fill();
         ctx.lineWidth = 2.5;
         ctx.strokeStyle = stroke;
@@ -222,18 +244,20 @@
         if (label === '') continue;
         drawText(ctx, label, getX(i), rect.y + rect.h + 20, {
           align: 'center',
-          color: '#475569',
+          color: tc.label,
           font: '600 11px Inter, system-ui, sans-serif'
         });
       }
     };
     draw();
     window.addEventListener('resize', draw, { passive: true });
+    window.addEventListener('enformasys:themechange', draw);
   };
 
   const doughnut = (canvas, labels, values, opts) => {
     opts = opts || {};
     const draw = () => {
+      const tc = getThemeColors();
       const { ctx, width, height } = fitCanvas(canvas);
       clear(ctx, width, height);
       const cx = width / 2;
@@ -249,7 +273,7 @@
         ctx.save();
         ctx.beginPath();
         ctx.arc(cx, cy, r, 0, Math.PI * 2);
-        ctx.fillStyle = '#f1f5f9';
+        ctx.fillStyle = tc.emptyTrack;
         ctx.fill();
         ctx.restore();
       } else {
@@ -273,7 +297,7 @@
       ctx.save();
       ctx.beginPath();
       ctx.arc(cx, cy, cutout, 0, Math.PI * 2);
-      ctx.fillStyle = '#ffffff';
+      ctx.fillStyle = tc.surface;
       ctx.fill();
       ctx.restore();
 
@@ -281,19 +305,20 @@
         drawText(ctx, String(opts.centerValue), cx, cy - 2, {
           align: 'center',
           baseline: 'middle',
-          color: '#0f172a',
+          color: tc.centerValue,
           font: '800 22px "Plus Jakarta Sans", Inter, sans-serif'
         });
         drawText(ctx, String(opts.centerLabel || 'AVG RATING'), cx, cy + 18, {
           align: 'center',
           baseline: 'middle',
-          color: '#64748b',
+          color: tc.centerLabel,
           font: '700 9.5px Inter, sans-serif'
         });
       }
     };
     draw();
     window.addEventListener('resize', draw, { passive: true });
+    window.addEventListener('enformasys:themechange', draw);
   };
 
   window.SimpleCharts = { bar, line, doughnut, wrapLabelLines };

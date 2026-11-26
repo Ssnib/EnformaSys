@@ -110,6 +110,10 @@ if (isset($_POST['login'])) {
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="color-scheme" content="light">
+    <script>
+    (function(){try{if(localStorage.getItem('enformasys_theme')==='dark'){document.documentElement.setAttribute('data-theme','dark');var m=document.querySelector('meta[name="color-scheme"]');if(m)m.setAttribute('content','dark');}}catch(e){}})();
+    </script>
     <title>Login - EnformaSys | Littleway College Seminary</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -150,7 +154,20 @@ if (isset($_POST['login'])) {
     </div>
 
     <!-- Subtle Warm Atmospheric Backdrop -->
-    <div class="fixed inset-0 bg-gradient-to-br from-[#FCF9F7] via-[#F7EFEA] to-[#EFE0D9]/70 pointer-events-none z-0" aria-hidden="true"></div>
+    <div class="login-backdrop fixed inset-0 bg-gradient-to-br from-[#FCF9F7] via-[#F7EFEA] to-[#EFE0D9]/70 pointer-events-none z-0" aria-hidden="true"></div>
+
+    <!-- Floating Theme Switcher -->
+    <button id="enformasysThemeToggle"
+            type="button"
+            data-theme-toggle="1"
+            class="enformasys-theme-toggle fixed top-4 right-4 sm:top-6 sm:right-6 z-30 inline-flex h-10 w-10 items-center justify-center rounded-full bg-white/85 backdrop-blur-md hover:bg-white text-[#59443F] border border-[#EBD3CC] shadow-sm hover:shadow transition cursor-pointer"
+            aria-label="Toggle dark mode"
+            aria-pressed="false"
+            title="Switch to dark mode">
+        <i class="fa-regular fa-moon text-sm theme-icon-moon" aria-hidden="true"></i>
+        <i class="fa-regular fa-sun text-sm theme-icon-sun" aria-hidden="true"></i>
+        <span class="sr-only">Toggle color theme</span>
+    </button>
 
     <main class="login-wrapper w-full max-w-5xl mx-auto grid grid-cols-1 lg:grid-cols-12 gap-10 lg:gap-14 items-center z-10 relative">
         <!-- Left Column: Institutional Crest, Refined Badges & Seminary Typography -->
@@ -305,6 +322,41 @@ if (isset($_POST['login'])) {
 
     <script>
         (function () {
+            // Theme Toggle with Zero-FOUC Persistence
+            var THEME_KEY = 'enformasys_theme';
+            function isDarkMode() {
+                return document.documentElement.getAttribute('data-theme') === 'dark';
+            }
+            function syncThemeButtons(dark) {
+                document.querySelectorAll('[data-theme-toggle]').forEach(function (b) {
+                    b.setAttribute('aria-pressed', dark ? 'true' : 'false');
+                    var lbl = dark ? 'Switch to light mode' : 'Switch to dark mode';
+                    b.setAttribute('aria-label', lbl);
+                    b.setAttribute('title', lbl);
+                });
+            }
+            function setLoginTheme(theme, persist) {
+                var dark = theme === 'dark';
+                if (dark) document.documentElement.setAttribute('data-theme', 'dark');
+                else document.documentElement.removeAttribute('data-theme');
+                var meta = document.querySelector('meta[name="color-scheme"]');
+                if (meta) meta.setAttribute('content', dark ? 'dark' : 'light');
+                if (persist) {
+                    try { localStorage.setItem(THEME_KEY, dark ? 'dark' : 'light'); } catch (_) {}
+                }
+                syncThemeButtons(dark);
+            }
+            document.addEventListener('click', function (e) {
+                var tbtn = e.target && e.target.closest ? e.target.closest('[data-theme-toggle]') : null;
+                if (!tbtn) return;
+                e.preventDefault();
+                setLoginTheme(isDarkMode() ? 'light' : 'dark', true);
+            });
+            window.addEventListener('storage', function (e) {
+                if (e.key === THEME_KEY) setLoginTheme(e.newValue === 'dark' ? 'dark' : 'light', false);
+            });
+            syncThemeButtons(isDarkMode());
+
             const passwordInput = document.getElementById('loginPassword');
             const toggleBtn = document.getElementById('toggleLoginPassword');
             if (passwordInput && toggleBtn) {
