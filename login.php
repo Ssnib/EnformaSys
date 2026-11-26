@@ -347,11 +347,63 @@ if (isset($_POST['login'])) {
                 }
                 syncThemeButtons(dark);
             }
+            var loginThemeFallbackTimer = null;
+            function toggleLoginThemeWithTransition(e, btn) {
+                var next = isDarkMode() ? 'light' : 'dark';
+                if (window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+                    setLoginTheme(next, true);
+                    return;
+                }
+                var x = window.innerWidth / 2;
+                var y = window.innerHeight / 2;
+                if (e && typeof e.clientX === 'number' && (e.clientX !== 0 || e.clientY !== 0)) {
+                    x = e.clientX;
+                    y = e.clientY;
+                } else if (btn && btn.getBoundingClientRect) {
+                    var rect = btn.getBoundingClientRect();
+                    x = rect.left + rect.width / 2;
+                    y = rect.top + rect.height / 2;
+                }
+                if (typeof document.startViewTransition === 'function') {
+                    var endRadius = Math.hypot(
+                        Math.max(x, window.innerWidth - x),
+                        Math.max(y, window.innerHeight - y)
+                    );
+                    try {
+                        var transition = document.startViewTransition(function () {
+                            setLoginTheme(next, true);
+                        });
+                        transition.ready.then(function () {
+                            document.documentElement.animate(
+                                {
+                                    clipPath: [
+                                        'circle(0px at ' + x + 'px ' + y + 'px)',
+                                        'circle(' + endRadius + 'px at ' + x + 'px ' + y + 'px)'
+                                    ]
+                                },
+                                {
+                                    duration: 420,
+                                    easing: 'cubic-bezier(0.22, 1, 0.36, 1)',
+                                    pseudoElement: '::view-transition-new(root)'
+                                }
+                            );
+                        }).catch(function () {});
+                        return;
+                    } catch (_) {}
+                }
+                if (loginThemeFallbackTimer) clearTimeout(loginThemeFallbackTimer);
+                document.documentElement.classList.add('theme-animating');
+                setLoginTheme(next, true);
+                loginThemeFallbackTimer = setTimeout(function () {
+                    document.documentElement.classList.remove('theme-animating');
+                    loginThemeFallbackTimer = null;
+                }, 340);
+            }
             document.addEventListener('click', function (e) {
                 var tbtn = e.target && e.target.closest ? e.target.closest('[data-theme-toggle]') : null;
                 if (!tbtn) return;
                 e.preventDefault();
-                setLoginTheme(isDarkMode() ? 'light' : 'dark', true);
+                toggleLoginThemeWithTransition(e, tbtn);
             });
             window.addEventListener('storage', function (e) {
                 if (e.key === THEME_KEY) setLoginTheme(e.newValue === 'dark' ? 'dark' : 'light', false);

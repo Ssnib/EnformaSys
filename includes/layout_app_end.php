@@ -352,11 +352,70 @@ if (empty($GLOBALS['__enformasys_toast_fired'])) {
             } catch (_) {}
         }
 
+        var fallbackTimer = null;
+
+        function toggleThemeWithTransition(event, triggerBtn) {
+            var nextTheme = isDarkTheme() ? 'light' : 'dark';
+            var prefersReduced = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+            if (prefersReduced) {
+                applyTheme(nextTheme, true);
+                return;
+            }
+
+            var x = window.innerWidth / 2;
+            var y = window.innerHeight / 2;
+            if (event && typeof event.clientX === 'number' && (event.clientX !== 0 || event.clientY !== 0)) {
+                x = event.clientX;
+                y = event.clientY;
+            } else if (triggerBtn && triggerBtn.getBoundingClientRect) {
+                var rect = triggerBtn.getBoundingClientRect();
+                x = rect.left + rect.width / 2;
+                y = rect.top + rect.height / 2;
+            }
+
+            if (typeof document.startViewTransition === 'function') {
+                var endRadius = Math.hypot(
+                    Math.max(x, window.innerWidth - x),
+                    Math.max(y, window.innerHeight - y)
+                );
+                try {
+                    var transition = document.startViewTransition(function () {
+                        applyTheme(nextTheme, true);
+                    });
+                    transition.ready.then(function () {
+                        document.documentElement.animate(
+                            {
+                                clipPath: [
+                                    'circle(0px at ' + x + 'px ' + y + 'px)',
+                                    'circle(' + endRadius + 'px at ' + x + 'px ' + y + 'px)'
+                                ]
+                            },
+                            {
+                                duration: 420,
+                                easing: 'cubic-bezier(0.22, 1, 0.36, 1)',
+                                pseudoElement: '::view-transition-new(root)'
+                            }
+                        );
+                    }).catch(function () {});
+                    return;
+                } catch (_) {}
+            }
+
+            // Smooth fallback for browsers without View Transitions API
+            if (fallbackTimer) clearTimeout(fallbackTimer);
+            document.documentElement.classList.add('theme-animating');
+            applyTheme(nextTheme, true);
+            fallbackTimer = setTimeout(function () {
+                document.documentElement.classList.remove('theme-animating');
+                fallbackTimer = null;
+            }, 340);
+        }
+
         document.addEventListener('click', function (e) {
             var btn = e.target && e.target.closest ? e.target.closest('[data-theme-toggle]') : null;
             if (!btn) return;
             e.preventDefault();
-            applyTheme(isDarkTheme() ? 'light' : 'dark', true);
+            toggleThemeWithTransition(e, btn);
         });
 
         window.addEventListener('storage', function (e) {
@@ -383,7 +442,7 @@ if (empty($GLOBALS['__enformasys_toast_fired'])) {
         window.EnformaSysTheme = {
             isDark: isDarkTheme,
             set: function (theme) { applyTheme(theme, true); },
-            toggle: function () { applyTheme(isDarkTheme() ? 'light' : 'dark', true); },
+            toggle: function (event, btn) { toggleThemeWithTransition(event, btn); },
             syncCharts: function () { syncChartJs(isDarkTheme()); }
         };
     })();

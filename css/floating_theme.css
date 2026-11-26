@@ -1650,20 +1650,95 @@ button:not(:disabled):active,
 /* ==========================================================================
    Theme Switcher Control & UI Design Pro Max Dark Mode
    ========================================================================== */
-html:not([data-theme="dark"]) .enformasys-theme-toggle .theme-icon-sun {
-    display: none;
-}
-
-html[data-theme="dark"] .enformasys-theme-toggle .theme-icon-moon {
-    display: none;
+:where(.enformasys-theme-toggle) {
+    position: relative;
 }
 
 .enformasys-theme-toggle {
-    transition: background-color 180ms ease, border-color 180ms ease, color 180ms ease, transform 150ms ease, box-shadow 180ms ease;
+    overflow: hidden;
+    transition: background-color 200ms ease, border-color 200ms ease, color 200ms ease, transform 200ms cubic-bezier(0.22, 1, 0.36, 1), box-shadow 200ms ease;
 }
 
 .enformasys-theme-toggle:hover {
-    transform: translateY(-1px);
+    transform: translateY(-1px) scale(1.04);
+}
+
+.enformasys-theme-toggle:active {
+    transform: scale(0.92) !important;
+}
+
+.enformasys-theme-toggle .theme-icon-moon,
+.enformasys-theme-toggle .theme-icon-sun {
+    position: absolute;
+    inset: 0;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    pointer-events: none;
+    transform-origin: center;
+    transition: transform 350ms cubic-bezier(0.34, 1.56, 0.64, 1), opacity 240ms ease;
+    will-change: transform, opacity;
+}
+
+html:not([data-theme="dark"]) .enformasys-theme-toggle .theme-icon-moon {
+    opacity: 1;
+    transform: rotate(0deg) scale(1);
+}
+
+html:not([data-theme="dark"]) .enformasys-theme-toggle .theme-icon-sun {
+    opacity: 0;
+    transform: rotate(-90deg) scale(0.45);
+}
+
+html[data-theme="dark"] .enformasys-theme-toggle .theme-icon-moon {
+    opacity: 0;
+    transform: rotate(90deg) scale(0.45);
+}
+
+html[data-theme="dark"] .enformasys-theme-toggle .theme-icon-sun {
+    opacity: 1;
+    transform: rotate(0deg) scale(1);
+}
+
+/* Circular Radial Reveal via View Transitions API */
+::view-transition-old(root),
+::view-transition-new(root) {
+    animation: none;
+    mix-blend-mode: normal;
+}
+
+::view-transition-old(root) {
+    z-index: 1;
+}
+
+::view-transition-new(root) {
+    z-index: 9999;
+}
+
+/* Smooth Fallback Theme Transition for Browsers without startViewTransition */
+html.theme-animating,
+html.theme-animating *,
+html.theme-animating *::before,
+html.theme-animating *::after {
+    transition: background-color 320ms ease, color 320ms ease, border-color 320ms ease, box-shadow 320ms ease, fill 320ms ease, stroke 320ms ease !important;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    ::view-transition-group(*),
+    ::view-transition-old(*),
+    ::view-transition-new(*) {
+        animation: none !important;
+    }
+    .enformasys-theme-toggle .theme-icon-moon,
+    .enformasys-theme-toggle .theme-icon-sun {
+        transition: none !important;
+    }
+    html.theme-animating,
+    html.theme-animating *,
+    html.theme-animating *::before,
+    html.theme-animating *::after {
+        transition: none !important;
+    }
 }
 
 /* Pro Max Warm Dark Palette Tokens (no pure #000000) */
