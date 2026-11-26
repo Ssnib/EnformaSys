@@ -660,18 +660,27 @@ if ($is_student) {
             }
         }
         :root {
-            --bg-main: #f9fafb;
-            --bg-card: #FFFFFF;
-            --text-primary: #59443F;
-            --text-secondary: #8B7168;
-            --color-rose: #D6A6A6;
-            --color-dusty: #E8C7C5;
-            --color-brown: #59443F;
+            --bg-canvas: #f8f5f2;
+            --surface-card: #ffffff;
+            --surface-subtle: #fcfaf8;
+            --brand-primary: #5c3a31;
+            --brand-primary-hover: #462a23;
+            --brand-accent: #b8860b;
+            --border-hairline: rgba(92, 58, 49, 0.10);
+            --shadow-card: 0 4px 20px -2px rgba(45, 27, 22, 0.05);
+            --shadow-elevated: 0 12px 28px -6px rgba(45, 27, 22, 0.10);
+            --bg-main: #f8f5f2;
+            --bg-card: #ffffff;
+            --text-primary: #3f2822;
+            --text-secondary: #7b6158;
+            --color-rose: #d6a6a6;
+            --color-dusty: #e8c7c5;
+            --color-brown: #5c3a31;
         }
         body {
-            background-color: #f9fafb !important;
-            color: #59443F !important;
-            font-family: 'Inter', sans-serif !important;
+            background-color: #f8f5f2 !important;
+            color: #3f2822 !important;
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, system-ui, sans-serif !important;
         }
         h1, h2, h3, h4, h5, h6, .font-heading {
             font-family: 'Plus Jakarta Sans', 'Inter', sans-serif !important;
@@ -706,7 +715,7 @@ if ($is_student) {
         }
     </style>
 </head>
-<body class="bg-gray-50 text-[#59443F] font-['Inter',sans-serif] antialiased min-h-screen print:bg-white print:shadow-none">
+<body class="bg-[#f8f5f2] text-[#3f2822] font-['Inter',sans-serif] antialiased min-h-screen print:bg-white print:shadow-none">
     <!-- Global Non-Blocking Progress Bar & Branded Preloader -->
     <div id="enformasys-top-progress" class="print:hidden" aria-hidden="true"></div>
     <div id="enformasys-preloader" class="print:hidden" role="status" aria-live="polite" aria-hidden="true">
@@ -732,10 +741,10 @@ if ($is_student) {
             </button>
         </div>
 
-        <nav class="flex-1 min-h-0 overflow-y-auto px-3 pt-3 pb-12 space-y-1.5" aria-label="Sidebar Navigation">
+        <nav class="flex-1 min-h-0 overflow-y-auto px-3 pt-3 pb-14 space-y-1.5" aria-label="Sidebar Navigation">
             <?php foreach ($nav as $item) { ?>
                 <?php if (isset($item['type']) && $item['type'] === 'header') { ?>
-                    <div class="pt-3 pb-1 px-3.5 text-[10px] font-extrabold uppercase tracking-widest text-[#8B7168]/75 sidebar-text">
+                    <div class="pt-3 pb-1 px-3.5 text-[11px] font-bold uppercase tracking-[0.06em] text-[#7b6158]/75 sidebar-text">
                         <?php echo htmlspecialchars($item['label']); ?>
                     </div>
                 <?php } elseif (isset($item['sub']) && is_array($item['sub'])) { 
@@ -747,14 +756,14 @@ if ($is_student) {
                         }
                     }
                     $btn_class = $has_active_sub
-                        ? 'bg-[#E8C7C5] text-[#59443F] font-bold shadow-xs'
-                        : 'text-[#8B7168] hover:bg-[#F8EEEE]/80 hover:text-[#59443F]';
+                        ? 'sidebar-nav-active bg-[#E8C7C5]/60 text-[#5c3a31] font-bold shadow-xs'
+                        : 'text-[#7b6158] hover:bg-[#faf6f3] hover:text-[#5c3a31]';
                 ?>
                     <div class="sidebar-dropdown-group mb-1">
                         <button type="button" 
-                                class="group sidebar-dropdown-toggle w-full <?php echo $btn_class; ?> flex items-center gap-3.5 rounded-2xl px-3.5 py-2.5 text-sm font-semibold transition-all duration-200" 
+                                class="group sidebar-nav-item sidebar-dropdown-toggle w-full <?php echo $btn_class; ?> flex items-center gap-3.5 rounded-2xl px-3.5 py-2.5 text-sm font-semibold transition-all duration-200" 
                                 aria-expanded="<?php echo $has_active_sub ? 'true' : 'false'; ?>">
-                            <i class="<?php echo htmlspecialchars($item['icon']); ?> w-5 text-center text-base flex-shrink-0 <?php echo $has_active_sub ? 'text-[#59443F]' : 'text-[#8B7168] group-hover:text-[#59443F]'; ?> transition-colors"></i>
+                            <i class="<?php echo htmlspecialchars($item['icon']); ?> w-5 text-center text-base flex-shrink-0 <?php echo $has_active_sub ? 'text-[#5c3a31]' : 'text-[#7b6158] group-hover:text-[#5c3a31]'; ?> transition-colors"></i>
                             <span class="sidebar-text flex-1 text-left tracking-wide"><?php echo htmlspecialchars($item['label']); ?></span>
                             <?php 
                             $grp_badge = 0;
@@ -768,19 +777,19 @@ if ($is_student) {
                                     <?php echo $grp_badge; ?>
                                 </span>
                             <?php endif; ?>
-                            <i class="sidebar-text fa-solid fa-chevron-down text-xs transition-transform duration-300 ml-auto <?php echo $has_active_sub ? 'rotate-180 text-[#59443F]' : 'text-[#8B7168] group-hover:text-[#59443F]'; ?>"></i>
+                            <i class="sidebar-text fa-solid fa-chevron-down text-xs transition-transform duration-300 ml-auto <?php echo $has_active_sub ? 'rotate-180 text-[#5c3a31]' : 'text-[#7b6158] group-hover:text-[#5c3a31]'; ?>"></i>
                         </button>
                         <div class="sidebar-dropdown-menu <?php echo $has_active_sub ? 'open' : ''; ?>">
                             <div class="sidebar-dropdown-inner">
-                                <div class="sidebar-text bg-[#F8EEEE]/60 border-l-2 border-[#E8C7C5] my-1 ml-4 pl-3 pr-2 py-1.5 space-y-1 rounded-xl">
+                                <div class="sidebar-text bg-[#fcfaf8] border-l-2 border-[#E8C7C5] my-1 ml-4 pl-3 pr-2 py-1.5 space-y-1 rounded-xl">
                                     <?php foreach ($item['sub'] as $sub) { 
                                         $is_active = $activeNav !== '' && $activeNav === $sub['key'];
                                         $a_class = $is_active
-                                            ? 'bg-[#E8C7C5] text-[#59443F] font-bold shadow-xs'
-                                            : 'text-[#8B7168] hover:bg-white hover:text-[#59443F]';
-                                        $icon_class = $is_active ? 'text-[#59443F]' : 'text-[#8B7168] group-hover:text-[#59443F]';
+                                            ? 'sidebar-nav-active bg-[#E8C7C5]/60 text-[#5c3a31] font-bold shadow-xs'
+                                            : 'text-[#7b6158] hover:bg-white hover:text-[#5c3a31]';
+                                        $icon_class = $is_active ? 'text-[#5c3a31]' : 'text-[#7b6158] group-hover:text-[#5c3a31]';
                                     ?>
-                                        <a href="<?php echo htmlspecialchars($sub['href']); ?>" data-nav-key="<?php echo htmlspecialchars($sub['key']); ?>" class="group flex items-center gap-2.5 rounded-xl px-2.5 py-1.5 text-xs font-semibold transition-all duration-150 <?php echo $a_class; ?>">
+                                        <a href="<?php echo htmlspecialchars($sub['href']); ?>" data-nav-key="<?php echo htmlspecialchars($sub['key']); ?>" class="group sidebar-nav-item flex items-center gap-2.5 rounded-xl px-2.5 py-2 text-xs font-semibold transition-all duration-150 <?php echo $a_class; ?>">
                                             <i class="<?php echo htmlspecialchars($sub['icon'] ?? 'fa-solid fa-circle text-[6px]'); ?> text-xs w-4 text-center opacity-85 group-hover:opacity-100 <?php echo $icon_class; ?>"></i>
                                             <span class="truncate"><?php echo htmlspecialchars($sub['label']); ?></span>
                                             <?php 
@@ -818,13 +827,13 @@ if ($is_student) {
                         }
                         $is_logout = ($item['key'] ?? '') === 'logout';
                         $a_class = $is_active
-                            ? 'bg-[#E8C7C5] text-[#59443F] font-bold shadow-xs'
+                            ? 'sidebar-nav-active bg-[#E8C7C5]/60 text-[#5c3a31] font-bold shadow-xs'
                             : ($is_logout 
-                                ? 'text-[#8B7168] hover:bg-rose-50/60 hover:text-rose-600' 
-                                : 'text-[#8B7168] hover:bg-[#F8EEEE]/80 hover:text-[#59443F]');
-                        $icon_color = $is_active ? 'text-[#59443F]' : ($is_logout ? 'text-[#8B7168]' : 'text-[#8B7168] group-hover:text-[#59443F]');
+                                ? 'text-[#7b6158] hover:bg-rose-50/70 hover:text-rose-600' 
+                                : 'text-[#7b6158] hover:bg-[#faf6f3] hover:text-[#5c3a31]');
+                        $icon_color = $is_active ? 'text-[#5c3a31]' : ($is_logout ? 'text-[#7b6158]' : 'text-[#7b6158] group-hover:text-[#5c3a31]');
                     ?>
-                    <a href="<?php echo htmlspecialchars($item['href']); ?>" data-nav-key="<?php echo htmlspecialchars($item['key'] ?? ''); ?>" class="<?php echo $a_class; ?> group flex items-center gap-3.5 rounded-2xl px-3.5 py-2.5 text-sm font-semibold transition-all duration-150">
+                    <a href="<?php echo htmlspecialchars($item['href']); ?>" data-nav-key="<?php echo htmlspecialchars($item['key'] ?? ''); ?>" class="sidebar-nav-item <?php echo $a_class; ?> group flex items-center gap-3.5 rounded-2xl px-3.5 py-2.5 text-sm font-semibold transition-all duration-150">
                         <i class="<?php echo htmlspecialchars($item['icon']); ?> w-5 text-center text-base flex-shrink-0 <?php echo $icon_color; ?> transition-colors"></i>
                         <span class="sidebar-text tracking-wide"><?php echo htmlspecialchars($item['label']); ?></span>
                         <?php if (!empty($item['badge']) && (int)$item['badge'] > 0): 

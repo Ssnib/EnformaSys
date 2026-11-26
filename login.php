@@ -114,9 +114,9 @@ if (isset($_POST['login'])) {
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Lora:ital,wght@0,500;0,600;0,700;1,400;1,500&family=Plus+Jakarta+Sans:wght@600;700;800&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="css/style.css">
-    <link rel="stylesheet" href="css/motion.css">
-    <link rel="stylesheet" href="css/floating_theme.css">
+    <link rel="stylesheet" href="css/style.css?v=<?php echo (int)@filemtime(__DIR__ . '/css/style.css'); ?>">
+    <link rel="stylesheet" href="css/motion.css?v=<?php echo (int)@filemtime(__DIR__ . '/css/motion.css'); ?>">
+    <link rel="stylesheet" href="css/floating_theme.css?v=<?php echo (int)@filemtime(__DIR__ . '/css/floating_theme.css'); ?>">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
@@ -290,7 +290,7 @@ if (isset($_POST['login'])) {
                         </a>
                     </div>
 
-                    <button type="submit" name="login" class="login-btn w-full py-3.5 px-6 mt-1.5 rounded-full bg-[#4A3731] hover:bg-[#3A2B26] hover:-translate-y-0.5 hover:shadow-lg active:translate-y-0 active:scale-[0.99] text-white font-semibold text-sm tracking-wide shadow-md transition-all duration-200 ease-out flex items-center justify-center gap-2 cursor-pointer border border-[#4A3731]">
+                    <button type="submit" name="login" class="login-btn btn-seminary-primary w-full py-3.5 px-6 mt-1.5 rounded-full text-white font-semibold text-sm tracking-wide shadow-md transition-all duration-200 ease-out flex items-center justify-center gap-2 cursor-pointer">
                         <span>Login</span>
                         <i class="fa-solid fa-arrow-right text-xs" aria-hidden="true"></i>
                     </button>

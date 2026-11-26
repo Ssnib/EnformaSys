@@ -73,7 +73,7 @@ if ($role === 'Student') {
     <noscript><link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"></noscript>
     <script src="https://cdn.tailwindcss.com"></script>
 </head>
-<body class="bg-gray-50 text-[#59443F] font-['Inter',sans-serif] antialiased min-h-screen">
+<body class="bg-[#f8f5f2] text-[#3f2822] font-['Inter',sans-serif] antialiased min-h-screen">
 
     <!-- Mobile Drawer Backdrop -->
     <div id="sidebarBackdrop" class="fixed inset-0 z-[1040] hidden bg-slate-900/45 backdrop-blur-xs lg:hidden transition-opacity" aria-hidden="true"></div>

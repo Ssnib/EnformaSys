@@ -305,9 +305,9 @@ $pageTitle = 'Subjects';
 $activeNav = 'afms_subjects';
 require_once __DIR__ . '/../includes/layout_app_start.php';
 
-$ctrlCls = 'w-full px-3 py-2 text-sm text-gray-900 bg-white border !border-gray-200 !rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition';
-$labelCls = 'block text-xs font-semibold uppercase tracking-wider text-gray-600 mb-1.5';
-$primaryBtnCls = 'inline-flex items-center justify-center gap-2 px-4 py-2.5 text-xs font-semibold text-white bg-gray-900 hover:bg-gray-800 rounded-lg shadow-xs focus:outline-none focus:ring-2 focus:ring-gray-900 focus:ring-offset-1 transition cursor-pointer border-0';
+$ctrlCls = 'w-full px-3 py-2 text-sm text-[#3f2822] bg-white border !border-[#5c3a31]/15 !rounded-xl focus:outline-none focus:ring-[3px] focus:ring-[#5c3a31]/15 focus:border-[#5c3a31] transition';
+$labelCls = 'block text-[11px] font-bold uppercase tracking-[0.06em] text-[#7b6158] mb-1.5';
+$primaryBtnCls = 'btn-seminary-primary inline-flex items-center justify-center gap-2 px-4 py-2.5 text-xs font-bold text-white rounded-xl shadow-xs transition cursor-pointer border-0';
 $theadThCls = 'bg-gray-50 text-xs font-semibold text-gray-500 uppercase tracking-wider py-3 px-4 whitespace-nowrap';
 $hasEditAccess = ($_SESSION['role'] != 'admin' && $_SESSION['role'] != 'rector' && $can_edit);
 ?>
@@ -886,7 +886,7 @@ $hasEditAccess = ($_SESSION['role'] != 'admin' && $_SESSION['role'] != 'rector' 
                 tabBtns.forEach(function (btn) {
                     const isActive = btn.getAttribute('data-subjects-tab') === target;
                     btn.setAttribute('aria-selected', isActive ? 'true' : 'false');
-                    btn.classList.toggle('bg-gray-900', isActive);
+                    btn.classList.toggle('bg-[#5c3a31]', isActive);
                     btn.classList.toggle('text-white', isActive);
                     btn.classList.toggle('shadow-xs', isActive);
                     btn.classList.toggle('text-gray-600', !isActive);
