@@ -632,7 +632,7 @@ if (!isset($nav) || !is_array($nav) || empty($nav)) {
                 <button type="button" 
                         class="group sidebar-nav-item sidebar-dropdown-toggle w-full <?= $btn_class ?> flex items-center gap-3.5 rounded-2xl px-3.5 py-2.5 text-sm font-semibold transition-all duration-200" 
                         aria-expanded="<?= $has_active_sub ? 'true' : 'false' ?>">
-                    <i class="<?= htmlspecialchars($item['icon']) ?> w-5 text-center text-base flex-shrink-0 <?= $has_active_sub ? 'text-[#5c3a31]' : 'text-[#7b6158] group-hover:text-[#5c3a31]' ?> transition-colors"></i>
+                    <i class="<?= htmlspecialchars($item['icon']) ?> sidebar-nav-icon w-5 text-center text-base flex-shrink-0 <?= $has_active_sub ? 'text-[#5c3a31]' : 'text-[#7b6158] group-hover:text-[#5c3a31]' ?> transition-transform duration-200"></i>
                     <span class="sidebar-text flex-1 text-left tracking-wide"><?= htmlspecialchars($item['label']) ?></span>
                     <?php 
                     $grp_badge = 0;
@@ -703,7 +703,7 @@ if (!isset($nav) || !is_array($nav) || empty($nav)) {
                 $icon_color = $is_active ? 'text-[#5c3a31]' : ($is_logout ? 'text-[#7b6158]' : 'text-[#7b6158] group-hover:text-[#5c3a31]');
             ?>
             <a href="<?= htmlspecialchars($item['href']) ?>" data-nav-key="<?= htmlspecialchars($item['key'] ?? '') ?>" class="sidebar-nav-item <?= $a_class ?> group flex items-center gap-3.5 rounded-2xl px-3.5 py-2.5 text-sm font-semibold transition-all duration-150">
-                <i class="<?= htmlspecialchars($item['icon']) ?> w-5 text-center text-base flex-shrink-0 <?= $icon_color ?> transition-colors"></i>
+                <i class="<?= htmlspecialchars($item['icon']) ?> sidebar-nav-icon w-5 text-center text-base flex-shrink-0 <?= $icon_color ?> transition-transform duration-200"></i>
                 <span class="sidebar-text tracking-wide"><?= htmlspecialchars($item['label']) ?></span>
                 <?php if (!empty($item['badge']) && (int)$item['badge'] > 0): 
                     $badge_bg = !empty($item['badge_class']) ? $item['badge_class'] : 'bg-emerald-500 text-white';

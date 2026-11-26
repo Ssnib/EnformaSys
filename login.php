@@ -135,6 +135,7 @@ if (isset($_POST['login'])) {
         }
         .login-card-elevated {
             box-shadow:
+                inset 0 1px 0 rgba(255, 255, 255, 0.7),
                 0 24px 48px -12px rgba(74, 55, 49, 0.11),
                 0 10px 24px -6px rgba(74, 55, 49, 0.06),
                 0 1px 3px rgba(74, 55, 49, 0.04);

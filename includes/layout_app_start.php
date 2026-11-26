@@ -645,7 +645,7 @@ if ($is_student) {
         .sidebar-dropdown-menu {
             display: grid;
             grid-template-rows: 0fr;
-            transition: grid-template-rows 280ms cubic-bezier(0.16, 1, 0.3, 1);
+            transition: grid-template-rows 260ms cubic-bezier(0.22, 1, 0.36, 1);
         }
         .sidebar-dropdown-menu.open {
             grid-template-rows: 1fr;
@@ -655,7 +655,7 @@ if ($is_student) {
             overflow: hidden;
         }
         .sidebar-dropdown-toggle .fa-chevron-down {
-            transition: transform 240ms cubic-bezier(0.16, 1, 0.3, 1), color 160ms ease;
+            transition: transform 240ms cubic-bezier(0.22, 1, 0.36, 1), color 160ms ease;
         }
         @media (prefers-reduced-motion: reduce) {
             .sidebar-dropdown-menu,
