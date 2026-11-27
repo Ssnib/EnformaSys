@@ -1009,6 +1009,20 @@ require_once __DIR__ . '/../includes/layout_app_start.php';
             .fs-dim-tab:not(.active):hover {
                 background: #F8EEEE !important;
             }
+            html[data-theme="dark"] .fs-status-card.is-active,
+            html[data-theme="dark"] .fs-pillar-card.is-active {
+                border-color: var(--brand-primary, #c98a6b) !important;
+                box-shadow: 0 0 0 2px var(--brand-primary, #c98a6b), 0 8px 20px rgba(0, 0, 0, 0.45) !important;
+                background: #2a2422 !important;
+            }
+            html[data-theme="dark"] .fs-dim-tab.active {
+                background: var(--brand-primary, #c98a6b) !important;
+                color: #181210 !important;
+            }
+            html[data-theme="dark"] .fs-dim-tab:not(.active):hover {
+                background: rgba(245, 240, 236, 0.08) !important;
+                color: #f5f0ec !important;
+            }
         </style>
 
         <div class="content-body" style="padding: 1.5rem 2rem;">

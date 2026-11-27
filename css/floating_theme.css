@@ -1786,42 +1786,42 @@ html[data-theme="dark"] ::-webkit-scrollbar-thumb:hover {
 }
 
 /* Frosted Floating Header & Controls */
-html[data-theme="dark"] #appShell > header.topbar {
+html[data-theme="dark"] #appShell header.topbar {
     background: rgba(27, 24, 23, 0.85) !important;
     border-color: var(--border-hairline) !important;
     color: var(--text-primary) !important;
     box-shadow: var(--shadow-card) !important;
 }
 
-html[data-theme="dark"] #appShell > header.topbar h1 {
+html[data-theme="dark"] #appShell header.topbar h1 {
     color: var(--text-primary) !important;
 }
 
-html[data-theme="dark"] #appShell > header.topbar p,
-html[data-theme="dark"] #appShell > header.topbar .fa-magnifying-glass,
-html[data-theme="dark"] #appShell > header.topbar .fa-chevron-down {
+html[data-theme="dark"] #appShell header.topbar p,
+html[data-theme="dark"] #appShell header.topbar .fa-magnifying-glass,
+html[data-theme="dark"] #appShell header.topbar .fa-chevron-down {
     color: var(--text-secondary) !important;
 }
 
-html[data-theme="dark"] #appShell > header.topbar #topbarSearch,
-html[data-theme="dark"] #appShell > header.topbar #topbarFilterForm select {
+html[data-theme="dark"] #appShell header.topbar #topbarSearch,
+html[data-theme="dark"] #appShell header.topbar #topbarFilterForm select {
     background-color: var(--surface-subtle) !important;
     border-color: rgba(245, 240, 236, 0.12) !important;
     color: var(--text-primary) !important;
 }
 
-html[data-theme="dark"] #appShell > header.topbar #topbarSearch::placeholder {
+html[data-theme="dark"] #appShell header.topbar #topbarSearch::placeholder {
     color: rgba(184, 174, 167, 0.65) !important;
 }
 
-html[data-theme="dark"] #appShell > header.topbar #topbarSearch:focus,
-html[data-theme="dark"] #appShell > header.topbar #topbarFilterForm select:hover,
-html[data-theme="dark"] #appShell > header.topbar #topbarFilterForm select:focus {
+html[data-theme="dark"] #appShell header.topbar #topbarSearch:focus,
+html[data-theme="dark"] #appShell header.topbar #topbarFilterForm select:hover,
+html[data-theme="dark"] #appShell header.topbar #topbarFilterForm select:focus {
     background-color: #2a2422 !important;
     border-color: var(--brand-primary) !important;
 }
 
-html[data-theme="dark"] #appShell > header.topbar kbd {
+html[data-theme="dark"] #appShell header.topbar kbd {
     background-color: var(--surface-card) !important;
     border-color: var(--border-hairline) !important;
     color: var(--text-secondary) !important;
@@ -3163,6 +3163,669 @@ html[data-theme="dark"] .toast-bubble-info {
     }
 }
 
+/* ==========================================================================
+   Comprehensive Dark Mode Coverage — Tables, Analytics Cards, Student Portal,
+   Inline Light Styles, Custom Module Views & Light-Paper SOA Fortress
+   ========================================================================== */
+
+/* 1. Universal Dark Mode Tables & Responsive Wrappers (excluding SOA) */
+html[data-theme="dark"] table:not(.soa-table),
+html[data-theme="dark"] .minimal-table,
+html[data-theme="dark"] .acad-table,
+html[data-theme="dark"] .enrollment-table {
+    background-color: #1b1817 !important;
+    color: #f5f0ec !important;
+    border-color: rgba(245, 240, 236, 0.08) !important;
+}
+
+html[data-theme="dark"] .table-responsive,
+html[data-theme="dark"] .table-container {
+    background-color: #1b1817 !important;
+    border-color: rgba(245, 240, 236, 0.08) !important;
+}
+
+html[data-theme="dark"] table:not(.soa-table) thead,
+html[data-theme="dark"] table:not(.soa-table) thead tr,
+html[data-theme="dark"] table:not(.soa-table) thead th,
+html[data-theme="dark"] .minimal-table th,
+html[data-theme="dark"] .acad-table th,
+html[data-theme="dark"] .enrollment-table th {
+    background-color: #231f1d !important;
+    background-image: none !important;
+    color: #d6cdc6 !important;
+    border-color: rgba(245, 240, 236, 0.08) !important;
+}
+
+html[data-theme="dark"] table:not(.soa-table) tbody,
+html[data-theme="dark"] table:not(.soa-table) tbody tr,
+html[data-theme="dark"] table:not(.soa-table) tbody td,
+html[data-theme="dark"] .minimal-table td,
+html[data-theme="dark"] .acad-table td,
+html[data-theme="dark"] .enrollment-table td {
+    background-color: #1b1817 !important;
+    color: #f5f0ec !important;
+    border-color: rgba(245, 240, 236, 0.08) !important;
+}
+
+html[data-theme="dark"] table:not(.soa-table) tbody tr:hover,
+html[data-theme="dark"] table:not(.soa-table) tbody tr:hover td,
+html[data-theme="dark"] .minimal-table tbody tr:hover td,
+html[data-theme="dark"] .acad-table tbody tr:hover td,
+html[data-theme="dark"] .enrollment-table tbody tr:hover td {
+    background-color: #26211f !important;
+}
+
+html[data-theme="dark"] table:not(.soa-table) tfoot,
+html[data-theme="dark"] table:not(.soa-table) tfoot tr,
+html[data-theme="dark"] table:not(.soa-table) tfoot td,
+html[data-theme="dark"] table:not(.soa-table) tfoot th,
+html[data-theme="dark"] .acad-table tfoot td {
+    background-color: #231f1d !important;
+    color: #f5f0ec !important;
+    border-color: rgba(245, 240, 236, 0.08) !important;
+}
+
+/* 2. Global Tailwind Surface, Border, Text & Badge Overrides across ALL Pages */
+html[data-theme="dark"] body .bg-white,
+html[data-theme="dark"] body [class*="bg-white/"],
+html[data-theme="dark"] body [class*="bg-[#fff"],
+html[data-theme="dark"] body [class*="bg-[#FFF"] {
+    background-color: #1b1817 !important;
+}
+
+html[data-theme="dark"] body .bg-gray-50,
+html[data-theme="dark"] body .bg-slate-50,
+html[data-theme="dark"] body .bg-stone-50,
+html[data-theme="dark"] body .bg-neutral-50,
+html[data-theme="dark"] body .bg-zinc-50,
+html[data-theme="dark"] body .bg-gray-100,
+html[data-theme="dark"] body .bg-slate-100,
+html[data-theme="dark"] body .bg-slate-200,
+html[data-theme="dark"] body [class*="bg-gray-50/"],
+html[data-theme="dark"] body [class*="bg-slate-50/"],
+html[data-theme="dark"] body [class*="bg-[#F8EEEE"],
+html[data-theme="dark"] body [class*="bg-[#f8eeee"],
+html[data-theme="dark"] body [class*="bg-[#FAF"],
+html[data-theme="dark"] body [class*="bg-[#faf"],
+html[data-theme="dark"] body [class*="bg-[#FCF"],
+html[data-theme="dark"] body [class*="bg-[#fcf"],
+html[data-theme="dark"] body [class*="bg-[#FDF"],
+html[data-theme="dark"] body [class*="bg-[#f8f5f2"],
+html[data-theme="dark"] body [class*="bg-[#FBF"],
+html[data-theme="dark"] body [class*="bg-[#f8fafc"],
+html[data-theme="dark"] body [class*="bg-[#f1f5f9"] {
+    background-color: #231f1d !important;
+}
+
+html[data-theme="dark"] body .hover\:bg-gray-50:hover,
+html[data-theme="dark"] body .hover\:bg-slate-50:hover,
+html[data-theme="dark"] body .hover\:bg-white:hover,
+html[data-theme="dark"] body [class*="hover:bg-[#F8EEEE]"]:hover,
+html[data-theme="dark"] body [class*="hover:bg-[#E8C7C5]"]:hover,
+html[data-theme="dark"] body [class*="hover:bg-[#EFE0DF]"]:hover,
+html[data-theme="dark"] body [class*="hover:bg-[#faf6f3]"]:hover {
+    background-color: #2a2422 !important;
+}
+
+html[data-theme="dark"] body .border-gray-100,
+html[data-theme="dark"] body .border-gray-200,
+html[data-theme="dark"] body .border-gray-300,
+html[data-theme="dark"] body .border-slate-100,
+html[data-theme="dark"] body .border-slate-200,
+html[data-theme="dark"] body .border-slate-300,
+html[data-theme="dark"] body [class*="border-gray-200/"],
+html[data-theme="dark"] body [class*="border-slate-200/"],
+html[data-theme="dark"] body [class*="border-[#E8C7C5"],
+html[data-theme="dark"] body [class*="border-[#E2C9C8"],
+html[data-theme="dark"] body [class*="border-[#EBD3CC"],
+html[data-theme="dark"] body [class*="border-[#D6A6A6"],
+html[data-theme="dark"] body [class*="border-[#5c3a31"] {
+    border-color: rgba(245, 240, 236, 0.09) !important;
+}
+
+html[data-theme="dark"] body .text-\[\#59443F\],
+html[data-theme="dark"] body .text-\[\#3f2822\],
+html[data-theme="dark"] body .text-\[\#4A3731\],
+html[data-theme="dark"] body .text-\[\#5c3a31\],
+html[data-theme="dark"] body .text-slate-900,
+html[data-theme="dark"] body .text-slate-800,
+html[data-theme="dark"] body .text-gray-900,
+html[data-theme="dark"] body .text-gray-800,
+html[data-theme="dark"] body .text-slate-700,
+html[data-theme="dark"] body .text-gray-700 {
+    color: #f5f0ec !important;
+}
+
+html[data-theme="dark"] body .text-\[\#8B7168\],
+html[data-theme="dark"] body .text-\[\#7b6158\],
+html[data-theme="dark"] body .text-\[\#785E56\],
+html[data-theme="dark"] body .text-slate-600,
+html[data-theme="dark"] body .text-slate-500,
+html[data-theme="dark"] body .text-gray-600,
+html[data-theme="dark"] body .text-gray-500,
+html[data-theme="dark"] body .text-slate-400,
+html[data-theme="dark"] body .text-gray-400 {
+    color: #b8aea7 !important;
+}
+
+/* Global Semantic Pills across ALL Pages (including Student Portal & Tables) */
+html[data-theme="dark"] body .bg-emerald-50,
+html[data-theme="dark"] body .bg-emerald-100,
+html[data-theme="dark"] body .bg-green-50,
+html[data-theme="dark"] body .bg-green-100 {
+    background-color: rgba(16, 185, 129, 0.16) !important;
+    border-color: rgba(16, 185, 129, 0.30) !important;
+    color: #6ee7b7 !important;
+}
+html[data-theme="dark"] body .text-emerald-700,
+html[data-theme="dark"] body .text-emerald-800,
+html[data-theme="dark"] body .text-green-700,
+html[data-theme="dark"] body .text-green-800 {
+    color: #6ee7b7 !important;
+}
+
+html[data-theme="dark"] body .bg-amber-50,
+html[data-theme="dark"] body .bg-amber-100,
+html[data-theme="dark"] body .bg-yellow-50,
+html[data-theme="dark"] body .bg-yellow-100 {
+    background-color: rgba(245, 158, 11, 0.16) !important;
+    border-color: rgba(245, 158, 11, 0.30) !important;
+    color: #fcd34d !important;
+}
+html[data-theme="dark"] body .text-amber-700,
+html[data-theme="dark"] body .text-amber-800,
+html[data-theme="dark"] body .text-yellow-700,
+html[data-theme="dark"] body .text-yellow-800 {
+    color: #fcd34d !important;
+}
+
+html[data-theme="dark"] body .bg-rose-50,
+html[data-theme="dark"] body .bg-rose-100,
+html[data-theme="dark"] body .bg-red-50,
+html[data-theme="dark"] body .bg-red-100 {
+    background-color: rgba(244, 63, 94, 0.16) !important;
+    border-color: rgba(244, 63, 94, 0.30) !important;
+    color: #fda4af !important;
+}
+html[data-theme="dark"] body .text-rose-700,
+html[data-theme="dark"] body .text-rose-800,
+html[data-theme="dark"] body .text-red-700,
+html[data-theme="dark"] body .text-red-800 {
+    color: #fda4af !important;
+}
+
+html[data-theme="dark"] body .bg-blue-50,
+html[data-theme="dark"] body .bg-blue-100,
+html[data-theme="dark"] body .bg-sky-50,
+html[data-theme="dark"] body .bg-sky-100,
+html[data-theme="dark"] body .bg-indigo-50,
+html[data-theme="dark"] body .bg-indigo-100 {
+    background-color: rgba(56, 189, 248, 0.15) !important;
+    border-color: rgba(56, 189, 248, 0.28) !important;
+    color: #7dd3fc !important;
+}
+html[data-theme="dark"] body .text-blue-700,
+html[data-theme="dark"] body .text-blue-800,
+html[data-theme="dark"] body .text-sky-700,
+html[data-theme="dark"] body .text-indigo-700,
+html[data-theme="dark"] body .text-indigo-800 {
+    color: #7dd3fc !important;
+}
+
+/* 3. Inline White / Light Style Overrides across Modules */
+html[data-theme="dark"] body [style*="background: #ffffff"],
+html[data-theme="dark"] body [style*="background:#ffffff"],
+html[data-theme="dark"] body [style*="background: #fff"],
+html[data-theme="dark"] body [style*="background:#fff"],
+html[data-theme="dark"] body [style*="background: white"],
+html[data-theme="dark"] body [style*="background:white"],
+html[data-theme="dark"] body [style*="background-color: #ffffff"],
+html[data-theme="dark"] body [style*="background-color:#ffffff"],
+html[data-theme="dark"] body [style*="background-color: #fff"],
+html[data-theme="dark"] body [style*="background-color: white"] {
+    background: #1b1817 !important;
+}
+
+html[data-theme="dark"] body [style*="background: #FAF8F6"],
+html[data-theme="dark"] body [style*="background: #faf8f6"],
+html[data-theme="dark"] body [style*="background: #F8EEEE"],
+html[data-theme="dark"] body [style*="background: #f8eeee"],
+html[data-theme="dark"] body [style*="background: #f8fafc"],
+html[data-theme="dark"] body [style*="background: #F8FAFC"],
+html[data-theme="dark"] body [style*="background: #f1f5f9"],
+html[data-theme="dark"] body [style*="background: #f9fafb"],
+html[data-theme="dark"] body [style*="background-color: #f8fafc"],
+html[data-theme="dark"] body [style*="background-color: #f1f5f9"],
+html[data-theme="dark"] body [style*="background-color: #f9fafb"] {
+    background: #231f1d !important;
+}
+
+html[data-theme="dark"] body [style*="color: #59443F"],
+html[data-theme="dark"] body [style*="color:#59443F"],
+html[data-theme="dark"] body [style*="color: #4A3731"],
+html[data-theme="dark"] body [style*="color: #3f2822"],
+html[data-theme="dark"] body [style*="color: #0f172a"],
+html[data-theme="dark"] body [style*="color:#0f172a"],
+html[data-theme="dark"] body [style*="color: #1e293b"],
+html[data-theme="dark"] body [style*="color: #334155"],
+html[data-theme="dark"] body [style*="color: #111827"] {
+    color: #f5f0ec !important;
+}
+
+html[data-theme="dark"] body [style*="color: #8B7168"],
+html[data-theme="dark"] body [style*="color:#8B7168"],
+html[data-theme="dark"] body [style*="color: #64748b"],
+html[data-theme="dark"] body [style*="color:#64748b"],
+html[data-theme="dark"] body [style*="color: #475569"] {
+    color: #b8aea7 !important;
+}
+
+html[data-theme="dark"] body [style*="border: 1px solid #E8C7C5"],
+html[data-theme="dark"] body [style*="border: 1px solid #e2e8f0"],
+html[data-theme="dark"] body [style*="border: 1px solid #f1f5f9"],
+html[data-theme="dark"] body [style*="border: 1px solid #cbd5e1"],
+html[data-theme="dark"] body [style*="border-bottom: 1px solid #f1e5e4"],
+html[data-theme="dark"] body [style*="border-bottom: 1px solid #f1f5f9"],
+html[data-theme="dark"] body [style*="border-top: 1px solid #f1e5e4"] {
+    border-color: rgba(245, 240, 236, 0.09) !important;
+}
+
+/* 4. Student / Seminarian Portal Dashboard Dark Mode Polish */
+html[data-theme="dark"] body.student-portal-page {
+    background-color: #12100f !important;
+    color: #f5f0ec !important;
+}
+
+html[data-theme="dark"] body.student-portal-page header.lg\:hidden {
+    background-color: rgba(27, 24, 23, 0.90) !important;
+    border-bottom-color: rgba(245, 240, 236, 0.09) !important;
+}
+
+html[data-theme="dark"] body.student-portal-page #sidebarDrawer {
+    background-color: #1b1817 !important;
+    border-color: rgba(245, 240, 236, 0.09) !important;
+    box-shadow: var(--inner-highlight), var(--shadow-elevated) !important;
+}
+
+html[data-theme="dark"] body.student-portal-page #sidebarDrawer nav a.bg-\[\#E8C7C5\] {
+    background: linear-gradient(135deg, rgba(201, 138, 107, 0.26) 0%, rgba(224, 169, 67, 0.12) 100%) !important;
+    color: #f5f0ec !important;
+    border: 1px solid rgba(201, 138, 107, 0.34) !important;
+}
+
+html[data-theme="dark"] body.student-portal-page #sidebarDrawer nav a.bg-\[\#E8C7C5\] i {
+    color: var(--brand-accent) !important;
+}
+
+html[data-theme="dark"] body.student-portal-page #sidebarDrawer nav a i.text-\[\#D6A6A6\] {
+    color: var(--brand-primary) !important;
+}
+
+/* Student Portal Help/Support Card */
+html[data-theme="dark"] body.student-portal-page #sidebarDrawer > div.bg-\[\#59443F\] {
+    background: linear-gradient(145deg, #27211f 0%, #1f1a18 100%) !important;
+    border: 1px solid rgba(201, 138, 107, 0.24) !important;
+}
+
+html[data-theme="dark"] body.student-portal-page .bg-white\/15 {
+    background-color: rgba(201, 138, 107, 0.16) !important;
+    color: var(--brand-accent) !important;
+}
+
+html[data-theme="dark"] body.student-portal-page #sidebarDrawer > div.bg-\[\#59443F\] a {
+    background-color: var(--brand-primary) !important;
+    color: #181210 !important;
+}
+
+html[data-theme="dark"] body.student-portal-page #sidebarDrawer > div.bg-\[\#59443F\] a:hover {
+    background-color: var(--brand-primary-hover) !important;
+}
+
+/* Student Portal Welcome Banner decorative circle & Profile Widget */
+html[data-theme="dark"] body.student-portal-page main > div:first-child > div.rounded-full.pointer-events-none {
+    background-color: rgba(201, 138, 107, 0.10) !important;
+}
+
+html[data-theme="dark"] body.student-portal-page #studentProfileWidget > div.bg-gradient-to-r {
+    background: linear-gradient(90deg, rgba(201, 138, 107, 0.30) 0%, rgba(224, 169, 67, 0.14) 100%) !important;
+    border-bottom-color: rgba(245, 240, 236, 0.08) !important;
+}
+
+html[data-theme="dark"] body.student-portal-page #studentProfileWidget .border-white,
+html[data-theme="dark"] body.student-portal-page #mobileProfileMenuBtn .border-white {
+    border-color: #1b1817 !important;
+}
+
+html[data-theme="dark"] body.student-portal-page .bg-\[\#E8C7C5\] {
+    background-color: rgba(201, 138, 107, 0.26) !important;
+    color: #f5f0ec !important;
+}
+
+html[data-theme="dark"] body.student-portal-page a.bg-\[\#59443F\],
+html[data-theme="dark"] body.student-portal-page button.bg-\[\#59443F\] {
+    background: linear-gradient(135deg, var(--brand-primary) 0%, #b57556 100%) !important;
+    color: #181210 !important;
+}
+
+html[data-theme="dark"] body.student-portal-page a.bg-\[\#59443F\] i,
+html[data-theme="dark"] body.student-portal-page button.bg-\[\#59443F\] i {
+    color: #181210 !important;
+}
+
+html[data-theme="dark"] body.student-portal-page #calendarDaysGrid > div.bg-\[\#E8C7C5\] {
+    background-color: rgba(201, 138, 107, 0.30) !important;
+    color: #f5f0ec !important;
+    box-shadow: inset 0 0 0 1px rgba(201, 138, 107, 0.55) !important;
+}
+
+html[data-theme="dark"] body.student-portal-page #calendarDaysGrid > div.bg-\[\#F8EEEE\] {
+    background-color: #2b2523 !important;
+    border-color: rgba(201, 138, 107, 0.35) !important;
+}
+
+html[data-theme="dark"] body.student-portal-page #calendarDaysGrid > div:hover {
+    background-color: #2a2422 !important;
+}
+
+html[data-theme="dark"] body.student-portal-page .student-cal-filter.bg-\[\#E8C7C5\] {
+    background-color: var(--brand-primary) !important;
+    color: #181210 !important;
+}
+
+html[data-theme="dark"] body.student-portal-page #mobileProfilePopover {
+    background-color: #1b1817 !important;
+    border-color: rgba(245, 240, 236, 0.12) !important;
+}
+
+/* 5. Formation Summary Analytics Dashboard Dark Mode Polish */
+html[data-theme="dark"] .fs-analytics-wrapper > div {
+    background: #1b1817 !important;
+    border-color: rgba(245, 240, 236, 0.09) !important;
+    box-shadow: var(--inner-highlight), var(--shadow-card) !important;
+}
+
+html[data-theme="dark"] .fs-dim-tabs {
+    background: #1b1817 !important;
+    border-color: rgba(245, 240, 236, 0.10) !important;
+}
+
+html[data-theme="dark"] .fs-dim-tab {
+    color: #d6cdc6 !important;
+}
+
+html[data-theme="dark"] .fs-dim-tab[data-dimension="needs_attention"]:not(.active) {
+    color: #fda4af !important;
+}
+
+html[data-theme="dark"] .fs-status-card,
+html[data-theme="dark"] .fs-pillar-card {
+    background: #231f1d !important;
+    border-color: rgba(245, 240, 236, 0.09) !important;
+    box-shadow: var(--inner-highlight) !important;
+}
+
+html[data-theme="dark"] .fs-status-card:hover,
+html[data-theme="dark"] .fs-pillar-card:hover {
+    background: #2a2422 !important;
+    border-color: rgba(201, 138, 107, 0.36) !important;
+}
+
+/* High-contrast luminous numbers & labels on Formation Status cards in Dark Mode */
+html[data-theme="dark"] .fs-status-card[data-status-filter="poor"] > div:nth-child(2),
+html[data-theme="dark"] .fs-status-card[data-status-filter="poor"] > div:first-child > span:first-child {
+    color: #fca5a5 !important;
+}
+html[data-theme="dark"] .fs-status-card[data-status-filter="needs_improvement"] > div:nth-child(2),
+html[data-theme="dark"] .fs-status-card[data-status-filter="needs_improvement"] > div:first-child > span:first-child {
+    color: #fcd34d !important;
+}
+html[data-theme="dark"] .fs-status-card[data-status-filter="satisfactory"] > div:nth-child(2),
+html[data-theme="dark"] .fs-status-card[data-status-filter="satisfactory"] > div:first-child > span:first-child {
+    color: #93c5fd !important;
+}
+html[data-theme="dark"] .fs-status-card[data-status-filter="very_good"] > div:nth-child(2),
+html[data-theme="dark"] .fs-status-card[data-status-filter="very_good"] > div:first-child > span:first-child {
+    color: #86efac !important;
+}
+html[data-theme="dark"] .fs-status-card[data-status-filter="outstanding"] > div:nth-child(2),
+html[data-theme="dark"] .fs-status-card[data-status-filter="outstanding"] > div:first-child > span:first-child {
+    color: #6ee7b7 !important;
+}
+
+html[data-theme="dark"] .fs-pillar-card > div:nth-child(3) {
+    background: rgba(245, 240, 236, 0.10) !important;
+}
+
+html[data-theme="dark"] .fs-pillar-card > div:first-child > span,
+html[data-theme="dark"] .fs-pillar-card > div:first-child > div > span {
+    background: rgba(245, 240, 236, 0.08) !important;
+    border-color: rgba(245, 240, 236, 0.14) !important;
+}
+
+html[data-theme="dark"] .fs-pillar-card[data-pillar="academic"] > div:first-child > span,
+html[data-theme="dark"] .fs-pillar-card[data-pillar="academic"] > div:first-child > div > span {
+    color: #93c5fd !important;
+}
+html[data-theme="dark"] .fs-pillar-card[data-pillar="spiritual"] > div:first-child > span,
+html[data-theme="dark"] .fs-pillar-card[data-pillar="spiritual"] > div:first-child > div > span {
+    color: #c4b5fd !important;
+}
+html[data-theme="dark"] .fs-pillar-card[data-pillar="human"] > div:first-child > span,
+html[data-theme="dark"] .fs-pillar-card[data-pillar="human"] > div:first-child > div > span {
+    color: #fcd34d !important;
+}
+html[data-theme="dark"] .fs-pillar-card[data-pillar="pastoral"] > div:first-child > span,
+html[data-theme="dark"] .fs-pillar-card[data-pillar="pastoral"] > div:first-child > div > span {
+    color: #6ee7b7 !important;
+}
+
+html[data-theme="dark"] .fs-pillar-subfilter {
+    background: rgba(245, 158, 11, 0.16) !important;
+    border-color: rgba(245, 158, 11, 0.32) !important;
+    color: #fcd34d !important;
+}
+
+html[data-theme="dark"] #fsFilterBadges .badge {
+    background: rgba(201, 138, 107, 0.16) !important;
+    border-color: rgba(201, 138, 107, 0.30) !important;
+    color: #f3c6ae !important;
+}
+
+html[data-theme="dark"] #fsActiveFilterBanner {
+    background: #231f1d !important;
+    border-color: rgba(201, 138, 107, 0.28) !important;
+}
+
+html[data-theme="dark"] #fsActiveFilterCountBadge,
+html[data-theme="dark"] #fsClearCardFilterBtn {
+    background: #1b1817 !important;
+    border-color: rgba(245, 240, 236, 0.14) !important;
+    color: #f5f0ec !important;
+}
+
+html[data-theme="dark"] #fsClearCardFilterBtn:hover {
+    background: #2c2623 !important;
+    border-color: var(--brand-primary) !important;
+}
+
+/* 6. Cashier Accounts, Seminarian Profile, Subject Enrollment & Pagination */
+html[data-theme="dark"] .minimal-card,
+html[data-theme="dark"] .minimal-toolbar,
+html[data-theme="dark"] .term-card,
+html[data-theme="dark"] .stat-box {
+    background: #1b1817 !important;
+    border-color: rgba(245, 240, 236, 0.09) !important;
+    color: #f5f0ec !important;
+}
+
+html[data-theme="dark"] .term-card-header,
+html[data-theme="dark"] .pill-group,
+html[data-theme="dark"] .profile-tabs-nav,
+html[data-theme="dark"] .enroll-tabs-nav {
+    background: #231f1d !important;
+    border-color: rgba(245, 240, 236, 0.09) !important;
+}
+
+html[data-theme="dark"] .term-card-header h3,
+html[data-theme="dark"] .stat-box-left .stat-val {
+    color: #f5f0ec !important;
+}
+
+html[data-theme="dark"] .stat-box-left h4,
+html[data-theme="dark"] .pill-btn,
+html[data-theme="dark"] .profile-tab-btn,
+html[data-theme="dark"] .enroll-tab-btn {
+    color: #b8aea7 !important;
+}
+
+html[data-theme="dark"] .pill-btn:hover,
+html[data-theme="dark"] .profile-tab-btn:hover,
+html[data-theme="dark"] .enroll-tab-btn:hover {
+    color: #f5f0ec !important;
+    background: rgba(245, 240, 236, 0.06) !important;
+}
+
+html[data-theme="dark"] .pill-btn.active,
+html[data-theme="dark"] .profile-tab-btn.active,
+html[data-theme="dark"] .enroll-tab-btn.active {
+    background: #1b1817 !important;
+    color: var(--brand-primary) !important;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.35) !important;
+}
+
+html[data-theme="dark"] .search-container input,
+html[data-theme="dark"] .minimal-select {
+    background: #231f1d !important;
+    border-color: rgba(245, 240, 236, 0.13) !important;
+    color: #f5f0ec !important;
+}
+
+html[data-theme="dark"] .search-kbd,
+html[data-theme="dark"] .tab-badge,
+html[data-theme="dark"] .tab-counter-muted {
+    background: #2e2825 !important;
+    color: #d6cdc6 !important;
+}
+
+html[data-theme="dark"] .tab-badge.badge-has-records,
+html[data-theme="dark"] .tab-counter-active,
+html[data-theme="dark"] .acad-badge-enrolled {
+    background: rgba(20, 184, 166, 0.18) !important;
+    color: #5eead4 !important;
+    border-color: rgba(20, 184, 166, 0.32) !important;
+}
+
+html[data-theme="dark"] .acad-badge-pass {
+    background: rgba(16, 185, 129, 0.16) !important;
+    color: #6ee7b7 !important;
+    border-color: rgba(16, 185, 129, 0.30) !important;
+}
+html[data-theme="dark"] .acad-badge-fail {
+    background: rgba(244, 63, 94, 0.16) !important;
+    color: #fda4af !important;
+    border-color: rgba(244, 63, 94, 0.30) !important;
+}
+html[data-theme="dark"] .acad-badge-inc {
+    background: rgba(245, 158, 11, 0.16) !important;
+    color: #fcd34d !important;
+    border-color: rgba(245, 158, 11, 0.30) !important;
+}
+html[data-theme="dark"] .acad-badge-drop,
+html[data-theme="dark"] .acad-badge-zero {
+    background: rgba(245, 240, 236, 0.08) !important;
+    color: #b8aea7 !important;
+    border-color: rgba(245, 240, 236, 0.14) !important;
+}
+
+html[data-theme="dark"] .pagination a,
+html[data-theme="dark"] .pagination span,
+html[data-theme="dark"] .page-link {
+    background: #231f1d !important;
+    border-color: rgba(245, 240, 236, 0.10) !important;
+    color: #f5f0ec !important;
+}
+
+html[data-theme="dark"] .pagination .active,
+html[data-theme="dark"] .page-link.active {
+    background: var(--brand-primary) !important;
+    border-color: var(--brand-primary) !important;
+    color: #181210 !important;
+}
+
+/* 7. Final Light-Paper Fortress for Official Statements of Account (SOA) */
+html[data-theme="dark"] .soa-document,
+html[data-theme="dark"] .soa-document-sheet {
+    color-scheme: only light;
+    background: #ffffff !important;
+    color: #0f172a !important;
+    border-color: #1e3a5f !important;
+}
+
+html[data-theme="dark"] .soa-document .soa-header,
+html[data-theme="dark"] .soa-document-sheet .soa-header {
+    background: #1e3a5f !important;
+    color: #ffffff !important;
+}
+
+html[data-theme="dark"] .soa-document .soa-header *,
+html[data-theme="dark"] .soa-document-sheet .soa-header * {
+    color: #ffffff !important;
+}
+
+html[data-theme="dark"] .soa-document .soa-badge,
+html[data-theme="dark"] .soa-document-sheet .soa-badge {
+    background: #e0f2fe !important;
+    color: #0369a1 !important;
+    border-color: #7dd3fc !important;
+}
+
+html[data-theme="dark"] .soa-document .soa-body,
+html[data-theme="dark"] .soa-document-sheet .soa-body {
+    background: #ffffff !important;
+    color: #0f172a !important;
+}
+
+html[data-theme="dark"] .soa-document .soa-box,
+html[data-theme="dark"] .soa-document .soa-summary-box,
+html[data-theme="dark"] .soa-document-sheet .soa-box,
+html[data-theme="dark"] .soa-document-sheet .soa-summary-box {
+    background: #f8fafc !important;
+    border-color: #cbd5e1 !important;
+    color: #0f172a !important;
+}
+
+html[data-theme="dark"] .soa-document table,
+html[data-theme="dark"] .soa-document .soa-table,
+html[data-theme="dark"] .soa-document .soa-table tbody,
+html[data-theme="dark"] .soa-document .soa-table tbody tr,
+html[data-theme="dark"] .soa-document .soa-table tbody td,
+html[data-theme="dark"] .soa-document-sheet table,
+html[data-theme="dark"] .soa-document-sheet .soa-table tbody td {
+    background: #ffffff !important;
+    color: #0f172a !important;
+    border-color: #e2e8f0 !important;
+}
+
+html[data-theme="dark"] .soa-document .soa-table thead,
+html[data-theme="dark"] .soa-document .soa-table thead tr,
+html[data-theme="dark"] .soa-document .soa-table thead th,
+html[data-theme="dark"] .soa-document-sheet .soa-table thead th {
+    background: #f1f5f9 !important;
+    color: #1e3a5f !important;
+    border-color: #cbd5e1 !important;
+}
+
+html[data-theme="dark"] .soa-document .soa-label,
+html[data-theme="dark"] .soa-document .soa-box h4,
+html[data-theme="dark"] .soa-document .soa-summary-item .lbl {
+    color: #475569 !important;
+}
+
+html[data-theme="dark"] .soa-document .soa-val,
+html[data-theme="dark"] .soa-document .soa-summary-item .val {
+    color: #0f172a !important;
+}
+
 @media print {
     .card,
     .data-card,
@@ -3170,6 +3833,15 @@ html[data-theme="dark"] .toast-bubble-info {
     .bubble-card,
     .eval-summary-card {
         box-shadow: none !important;
+    }
+    html[data-theme="dark"] table,
+    html[data-theme="dark"] thead th,
+    html[data-theme="dark"] tbody td,
+    html[data-theme="dark"] body .bg-white,
+    html[data-theme="dark"] body [style*="background: #ffffff"] {
+        background: #ffffff !important;
+        color: #0f172a !important;
+        border-color: #cbd5e1 !important;
     }
 }
 

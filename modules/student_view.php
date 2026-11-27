@@ -214,6 +214,10 @@ if ($total_enrolled_units <= 0) {
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="color-scheme" content="light">
+    <script>
+    (function(){try{if(localStorage.getItem('enformasys_theme')==='dark'){document.documentElement.setAttribute('data-theme','dark');var m=document.querySelector('meta[name="color-scheme"]');if(m)m.setAttribute('content','dark');}}catch(e){}})();
+    </script>
     <title>Seminarian Portal • EnformaSys</title>
     <!-- Modern Typography -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -259,8 +263,8 @@ if ($total_enrolled_units <= 0) {
             --color-brown: #59443F;
         }
         body {
-            background-color: #F8EEEE;
-            color: #59443F;
+            background-color: var(--bg-canvas, #F8EEEE);
+            color: var(--text-primary, #59443F);
             font-family: 'Inter', sans-serif;
             -webkit-font-smoothing: antialiased;
         }
@@ -289,7 +293,7 @@ if ($total_enrolled_units <= 0) {
         }
     </style>
 </head>
-<body class="bg-[#F8EEEE] text-[#59443F] min-h-screen">
+<body class="student-portal-page bg-[#F8EEEE] text-[#59443F] min-h-screen">
 
     <!-- Mobile Top Navigation Bar (< 1024px) -->
     <header class="lg:hidden bg-white/95 backdrop-blur-md sticky top-0 z-40 border-b border-[#E8C7C5]/50 px-4 py-3 flex items-center justify-between shadow-xs">
@@ -303,6 +307,16 @@ if ($total_enrolled_units <= 0) {
             </div>
         </div>
         <div class="flex items-center gap-2 relative" id="mobileProfileMenuWrap">
+            <button type="button"
+                    data-theme-toggle="1"
+                    class="enformasys-theme-toggle inline-flex h-9 w-9 items-center justify-center rounded-full bg-[#F8EEEE] hover:bg-white text-[#59443F] border border-[#E8C7C5]/70 hover:border-[#D6A6A6] transition shadow-2xs hover:shadow-xs cursor-pointer shrink-0"
+                    aria-label="Toggle dark mode"
+                    aria-pressed="false"
+                    title="Switch to dark mode">
+                <i class="fa-regular fa-moon text-sm theme-icon-moon" aria-hidden="true"></i>
+                <i class="fa-regular fa-sun text-sm theme-icon-sun" aria-hidden="true"></i>
+                <span class="sr-only">Toggle color theme</span>
+            </button>
             <?php require __DIR__ . '/../includes/notification_bell.php'; ?>
             <button id="mobileProfileMenuBtn"
                     type="button"
@@ -520,6 +534,17 @@ if ($total_enrolled_units <= 0) {
                     <!-- Quick Academic Program Pill & Desktop Notifications -->
                     <div class="relative z-20 self-start md:self-center flex flex-col items-start md:items-end gap-2">
                         <div class="hidden lg:flex items-center gap-2">
+                            <button id="enformasysThemeToggle"
+                                    type="button"
+                                    data-theme-toggle="1"
+                                    class="enformasys-theme-toggle inline-flex h-9 w-9 items-center justify-center rounded-full bg-[#F8EEEE] hover:bg-white text-[#59443F] border border-[#E8C7C5]/70 hover:border-[#D6A6A6] transition shadow-2xs hover:shadow-xs cursor-pointer shrink-0"
+                                    aria-label="Toggle dark mode"
+                                    aria-pressed="false"
+                                    title="Switch to dark mode">
+                                <i class="fa-regular fa-moon text-sm theme-icon-moon" aria-hidden="true"></i>
+                                <i class="fa-regular fa-sun text-sm theme-icon-sun" aria-hidden="true"></i>
+                                <span class="sr-only">Toggle color theme</span>
+                            </button>
                             <?php require __DIR__ . '/../includes/notification_bell.php'; ?>
                         </div>
                         <div class="flex flex-col items-start md:items-end">
@@ -1110,6 +1135,98 @@ if ($total_enrolled_units <= 0) {
             });
         }
     });
+    </script>
+    <script>
+    (function () {
+        if (window.__enformasysThemeInit) return;
+        window.__enformasysThemeInit = true;
+        var STORAGE_KEY = 'enformasys_theme';
+        var fallbackTimer = null;
+
+        function isDarkTheme() {
+            return document.documentElement.getAttribute('data-theme') === 'dark';
+        }
+        function updateToggleButtons(dark) {
+            document.querySelectorAll('[data-theme-toggle]').forEach(function (btn) {
+                btn.setAttribute('aria-pressed', dark ? 'true' : 'false');
+                var label = dark ? 'Switch to light mode' : 'Switch to dark mode';
+                btn.setAttribute('aria-label', label);
+                btn.setAttribute('title', label);
+            });
+        }
+        function applyTheme(theme, persist) {
+            var dark = theme === 'dark';
+            if (dark) document.documentElement.setAttribute('data-theme', 'dark');
+            else document.documentElement.removeAttribute('data-theme');
+            var meta = document.querySelector('meta[name="color-scheme"]');
+            if (meta) meta.setAttribute('content', dark ? 'dark' : 'light');
+            if (persist) {
+                try { localStorage.setItem(STORAGE_KEY, dark ? 'dark' : 'light'); } catch (_) {}
+            }
+            updateToggleButtons(dark);
+            try {
+                window.dispatchEvent(new CustomEvent('enformasys:themechange', { detail: { theme: dark ? 'dark' : 'light', isDark: dark } }));
+            } catch (_) {}
+        }
+        function toggleWithTransition(event, triggerBtn) {
+            var nextTheme = isDarkTheme() ? 'light' : 'dark';
+            if (window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+                applyTheme(nextTheme, true);
+                return;
+            }
+            var x = window.innerWidth / 2;
+            var y = window.innerHeight / 2;
+            if (event && typeof event.clientX === 'number' && (event.clientX !== 0 || event.clientY !== 0)) {
+                x = event.clientX;
+                y = event.clientY;
+            } else if (triggerBtn && triggerBtn.getBoundingClientRect) {
+                var rect = triggerBtn.getBoundingClientRect();
+                x = rect.left + rect.width / 2;
+                y = rect.top + rect.height / 2;
+            }
+            if (typeof document.startViewTransition === 'function') {
+                var endRadius = Math.hypot(Math.max(x, window.innerWidth - x), Math.max(y, window.innerHeight - y));
+                try {
+                    var tr = document.startViewTransition(function () {
+                        applyTheme(nextTheme, true);
+                    });
+                    tr.ready.then(function () {
+                        document.documentElement.animate(
+                            { clipPath: ['circle(0px at ' + x + 'px ' + y + 'px)', 'circle(' + endRadius + 'px at ' + x + 'px ' + y + 'px)'] },
+                            { duration: 420, easing: 'cubic-bezier(0.22, 1, 0.36, 1)', pseudoElement: '::view-transition-new(root)' }
+                        );
+                    }).catch(function () {});
+                    return;
+                } catch (_) {}
+            }
+            if (fallbackTimer) clearTimeout(fallbackTimer);
+            document.documentElement.classList.add('theme-animating');
+            applyTheme(nextTheme, true);
+            fallbackTimer = setTimeout(function () {
+                document.documentElement.classList.remove('theme-animating');
+                fallbackTimer = null;
+            }, 340);
+        }
+        document.addEventListener('click', function (e) {
+            var btn = e.target && e.target.closest ? e.target.closest('[data-theme-toggle]') : null;
+            if (!btn) return;
+            e.preventDefault();
+            toggleWithTransition(e, btn);
+        });
+        window.addEventListener('storage', function (e) {
+            if (e.key === STORAGE_KEY) applyTheme(e.newValue === 'dark' ? 'dark' : 'light', false);
+        });
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', function () { updateToggleButtons(isDarkTheme()); });
+        } else {
+            updateToggleButtons(isDarkTheme());
+        }
+        window.EnformaSysTheme = {
+            isDark: isDarkTheme,
+            set: function (theme) { applyTheme(theme, true); },
+            toggle: function (ev, btn) { toggleWithTransition(ev, btn); }
+        };
+    })();
     </script>
     <script defer src="../assets/app_layout.js?v=<?php echo (int)@filemtime(__DIR__ . '/../assets/app_layout.js'); ?>"></script>
 </body>
