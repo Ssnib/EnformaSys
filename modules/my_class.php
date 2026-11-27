@@ -57,10 +57,17 @@ if ($seminarian_id > 0) {
 rsort($ay_options);
 
 // 3. Today's Class Schedule (Vertical Timeline) - Filtered by selected Academic Year & Semester
+$has_schedule_teacher_col = false;
+$col_check = @$conn->query("SHOW COLUMNS FROM student_schedules LIKE 'teacher'");
+if ($col_check && $col_check->num_rows > 0) {
+    $has_schedule_teacher_col = true;
+}
+$teacher_select_sql = $has_schedule_teacher_col ? ', ss.teacher' : ', NULL AS teacher';
+
 $saved_schedules = [];
 if ($seminarian_id > 0) {
     // 1. Query schedules tied to enrolled subjects for the filtered term
-    $stmt_sched = $conn->prepare("SELECT ss.subject_code, ss.subject_name, ss.days, ss.start_time, ss.end_time, ss.room 
+    $stmt_sched = $conn->prepare("SELECT ss.subject_code, ss.subject_name, ss.days, ss.start_time, ss.end_time, ss.room{$teacher_select_sql}
         FROM student_schedules ss
         JOIN subjects s ON s.subject_code = ss.subject_code
         JOIN student_enrolled_subjects es ON es.subject_id = s.subject_id AND es.student_id = ss.seminarian_id
@@ -80,7 +87,7 @@ if ($seminarian_id > 0) {
 
     // 2. Secondary fallback for legacy enrollments table for this term
     if (empty($saved_schedules)) {
-        $stmt_sched_leg = $conn->prepare("SELECT ss.subject_code, ss.subject_name, ss.days, ss.start_time, ss.end_time, ss.room 
+        $stmt_sched_leg = $conn->prepare("SELECT ss.subject_code, ss.subject_name, ss.days, ss.start_time, ss.end_time, ss.room{$teacher_select_sql}
             FROM student_schedules ss
             JOIN subjects s ON s.subject_code = ss.subject_code
             JOIN enrollment_subjects es ON es.subject_id = s.subject_id
@@ -126,12 +133,15 @@ if ($seminarian_id > 0) {
         $stmt_sub->bind_param("iss", $seminarian_id, $filter_ay, $filter_sem);
         $stmt_sub->execute();
         $res_sub = $stmt_sub->get_result();
-        $dummy_progress = [75, 88, 62, 90, 80, 70];
-        $idx = 0;
         while ($r = $res_sub->fetch_assoc()) {
-            $r['progress'] = $dummy_progress[$idx % count($dummy_progress)];
             $code = $r['subject_code'] ?? '';
+            $official_teacher = trim((string)($r['instructor'] ?? ''));
+            if ($official_teacher === '') $official_teacher = 'TBA / Faculty';
+            $r['official_instructor'] = $official_teacher;
             if (isset($saved_schedules[$code])) {
+                $custom_teacher = trim((string)($saved_schedules[$code]['teacher'] ?? ''));
+                $r['raw_teacher'] = $custom_teacher !== '' ? $custom_teacher : ($official_teacher !== 'TBA / Faculty' ? $official_teacher : '');
+                $r['instructor'] = $custom_teacher !== '' ? $custom_teacher : $official_teacher;
                 $r['raw_days'] = $saved_schedules[$code]['days'] ?? 'MWF';
                 $r['raw_start'] = $saved_schedules[$code]['start_time'] ?? '08:00 AM';
                 $r['raw_end'] = $saved_schedules[$code]['end_time'] ?? '09:30 AM';
@@ -139,6 +149,8 @@ if ($seminarian_id > 0) {
                 $r['time'] = ($saved_schedules[$code]['days'] ?? 'MWF') . ' ' . ($saved_schedules[$code]['start_time'] ?? '08:00 AM') . ' - ' . ($saved_schedules[$code]['end_time'] ?? '09:30 AM');
                 $r['room'] = $saved_schedules[$code]['room'] ?? 'St. Thomas Hall 201';
             } else {
+                $r['raw_teacher'] = $official_teacher !== 'TBA / Faculty' ? $official_teacher : '';
+                $r['instructor'] = $official_teacher;
                 $r['raw_days'] = 'MWF';
                 $r['raw_start'] = '08:00 AM';
                 $r['raw_end'] = '09:30 AM';
@@ -147,7 +159,6 @@ if ($seminarian_id > 0) {
                 $r['room'] = 'St. Thomas Hall 201';
             }
             $enrolled_subjects[] = $r;
-            $idx++;
         }
     }
 
@@ -176,12 +187,15 @@ if ($seminarian_id > 0) {
             $stmt_leg->bind_param("iss", $seminarian_id, $filter_ay, $filter_sem);
             $stmt_leg->execute();
             $res_leg = $stmt_leg->get_result();
-            $dummy_progress = [75, 88, 62, 90, 80, 70];
-            $idx = 0;
             while ($r = $res_leg->fetch_assoc()) {
-                $r['progress'] = $dummy_progress[$idx % count($dummy_progress)];
                 $code = $r['subject_code'] ?? '';
+                $official_teacher = trim((string)($r['instructor'] ?? ''));
+                if ($official_teacher === '') $official_teacher = 'TBA / Faculty';
+                $r['official_instructor'] = $official_teacher;
                 if (isset($saved_schedules[$code])) {
+                    $custom_teacher = trim((string)($saved_schedules[$code]['teacher'] ?? ''));
+                    $r['raw_teacher'] = $custom_teacher !== '' ? $custom_teacher : ($official_teacher !== 'TBA / Faculty' ? $official_teacher : '');
+                    $r['instructor'] = $custom_teacher !== '' ? $custom_teacher : $official_teacher;
                     $r['raw_days'] = $saved_schedules[$code]['days'] ?? 'MWF';
                     $r['raw_start'] = $saved_schedules[$code]['start_time'] ?? '08:00 AM';
                     $r['raw_end'] = $saved_schedules[$code]['end_time'] ?? '09:30 AM';
@@ -189,6 +203,8 @@ if ($seminarian_id > 0) {
                     $r['time'] = ($saved_schedules[$code]['days'] ?? 'MWF') . ' ' . ($saved_schedules[$code]['start_time'] ?? '08:00 AM') . ' - ' . ($saved_schedules[$code]['end_time'] ?? '09:30 AM');
                     $r['room'] = $saved_schedules[$code]['room'] ?? 'St. Thomas Hall 201';
                 } else {
+                    $r['raw_teacher'] = $official_teacher !== 'TBA / Faculty' ? $official_teacher : '';
+                    $r['instructor'] = $official_teacher;
                     $r['raw_days'] = 'MWF';
                     $r['raw_start'] = '08:00 AM';
                     $r['raw_end'] = '09:30 AM';
@@ -197,7 +213,6 @@ if ($seminarian_id > 0) {
                     $r['room'] = 'St. Thomas Hall 201';
                 }
                 $enrolled_subjects[] = $r;
-                $idx++;
             }
         }
     }
@@ -297,10 +312,11 @@ require_once __DIR__ . '/../includes/layout_app_start.php';
                     $code = $subj['subject_code'] ?? 'SUBJ';
                     $title = $subj['subject_name'] ?? 'Subject Description';
                     $units = (float)($subj['units'] ?? 3.0);
-                    $progress = (int)($subj['progress'] ?? 75);
                     $time = $subj['time'] ?? 'MWF 08:00 AM - 09:30 AM';
                     $room = $subj['room'] ?? 'St. Thomas Hall 201';
                     $instructor = $subj['instructor'] ?? 'TBA / Faculty';
+                    $official_instructor = $subj['official_instructor'] ?? 'TBA / Faculty';
+                    $raw_teacher = $subj['raw_teacher'] ?? '';
                     $raw_days = $subj['raw_days'] ?? 'MWF';
                     $raw_start = $subj['raw_start'] ?? '08:00 AM';
                     $raw_end = $subj['raw_end'] ?? '09:30 AM';
@@ -331,7 +347,7 @@ require_once __DIR__ . '/../includes/layout_app_start.php';
                             <div class="mt-2.5 flex flex-wrap items-center gap-2">
                                 <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-xl text-xs font-semibold bg-[#F8EEEE] text-[#8B7168] border border-[#E8C7C5]/60 shadow-xs">
                                     <i class="fa-solid fa-chalkboard-user text-[#D6A6A6] text-xs"></i>
-                                    <span>Teacher: <strong class="text-[#59443F] font-bold"><?php echo htmlspecialchars($instructor); ?></strong></span>
+                                    <span>Teacher: <strong class="subject-teacher-label text-[#59443F] font-bold"><?php echo htmlspecialchars($instructor); ?></strong></span>
                                 </span>
                                 <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-xl text-xs font-medium text-[#8B7168] bg-white border border-[#E8C7C5]/40">
                                     <i class="fa-solid fa-location-dot text-[#D6A6A6] text-[11px]"></i>
@@ -344,34 +360,23 @@ require_once __DIR__ . '/../includes/layout_app_start.php';
                             </div>
                         </div>
 
-                        <!-- Progress Bar & Action Right Section -->
-                        <div class="lg:w-80 flex flex-col justify-between pt-3 lg:pt-0 border-t lg:border-t-0 border-[#E8C7C5]/30 shrink-0">
-                            <div class="mb-2.5 flex items-center justify-between text-xs">
-                                <span class="text-[#8B7168] font-bold">Subject Progress</span>
-                                <span class="font-extrabold text-[#59443F]"><?php echo $progress; ?>%</span>
-                            </div>
-                            <!-- Progress Bar Styled with Rose & Dusty Pink -->
-                            <div class="w-full h-2.5 rounded-full bg-[#F8EEEE] overflow-hidden p-0.5 border border-[#E8C7C5]/40 mb-3">
-                                <div class="h-full rounded-full bg-gradient-to-r from-[#D6A6A6] to-[#E8C7C5] transition-all duration-700" style="width: <?php echo $progress; ?>%;"></div>
-                            </div>
-                            <div class="flex items-center gap-2">
-                                <a href="student_academic.php?academic_year=<?php echo urlencode($filter_ay); ?>&semester=<?php echo urlencode($filter_sem); ?>" class="flex-1 text-center py-2 px-3 rounded-xl text-xs font-bold bg-[#F8EEEE] hover:bg-[#E8C7C5] text-[#59443F] transition-all border border-[#E8C7C5]/60 shadow-2xs">
-                                    Subject Details
-                                </a>
-                                <button type="button" 
-                                        class="open-edit-subject-btn px-3.5 py-2 rounded-xl text-xs font-bold bg-[#E8C7C5] hover:bg-[#D6A6A6] text-[#59443F] border border-[#D6A6A6]/60 transition-all shadow-2xs flex items-center justify-center gap-1.5 cursor-pointer shrink-0"
-                                        data-subject-id="<?php echo (int)($subj['subject_id'] ?? 0); ?>"
-                                        data-subject-code="<?php echo htmlspecialchars($code); ?>"
-                                        data-subject-name="<?php echo htmlspecialchars($title); ?>"
-                                        data-days="<?php echo htmlspecialchars($raw_days); ?>"
-                                        data-start="<?php echo htmlspecialchars($raw_start); ?>"
-                                        data-end="<?php echo htmlspecialchars($raw_end); ?>"
-                                        data-room="<?php echo htmlspecialchars($raw_room); ?>"
-                                        title="Edit Schedule for <?php echo htmlspecialchars($code); ?>">
-                                    <i class="fa-solid fa-calendar-pen text-xs"></i>
-                                    <span>Edit Schedule</span>
-                                </button>
-                            </div>
+                        <!-- Action Right Section (Vertically Centered) -->
+                        <div class="flex items-center justify-end lg:self-center pt-3 lg:pt-0 border-t lg:border-t-0 border-[#E8C7C5]/30 shrink-0">
+                            <button type="button" 
+                                    class="open-edit-subject-btn w-full sm:w-auto px-4 py-2.5 rounded-xl text-xs font-bold bg-[#E8C7C5] hover:bg-[#D6A6A6] text-[#59443F] border border-[#D6A6A6]/60 transition-all shadow-2xs flex items-center justify-center gap-1.5 cursor-pointer shrink-0"
+                                    data-subject-id="<?php echo (int)($subj['subject_id'] ?? 0); ?>"
+                                    data-subject-code="<?php echo htmlspecialchars($code); ?>"
+                                    data-subject-name="<?php echo htmlspecialchars($title); ?>"
+                                    data-days="<?php echo htmlspecialchars($raw_days); ?>"
+                                    data-start="<?php echo htmlspecialchars($raw_start); ?>"
+                                    data-end="<?php echo htmlspecialchars($raw_end); ?>"
+                                    data-room="<?php echo htmlspecialchars($raw_room); ?>"
+                                    data-teacher="<?php echo htmlspecialchars($raw_teacher); ?>"
+                                    data-default-teacher="<?php echo htmlspecialchars($official_instructor); ?>"
+                                    title="Edit Schedule for <?php echo htmlspecialchars($code); ?>">
+                                <i class="fa-solid fa-calendar-pen text-xs"></i>
+                                <span>Edit Schedule</span>
+                            </button>
                         </div>
                     </div>
                 </div>
@@ -457,6 +462,14 @@ require_once __DIR__ . '/../includes/layout_app_start.php';
                         </label>
                         <input type="text" id="modalEndTime" name="schedules[0][end_time]" placeholder="e.g. 09:30 AM" class="w-full px-3.5 py-2 rounded-xl border border-[#E8C7C5] bg-[#F8EEEE]/30 text-[#59443F] text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-[#D6A6A6]">
                     </div>
+
+                    <!-- Assigned Teacher Input (Full-Width) -->
+                    <div class="sm:col-span-2">
+                        <label for="modalTeacher" class="block text-[10px] font-bold text-[#8B7168] uppercase tracking-wider mb-1">
+                            Assigned Teacher
+                        </label>
+                        <input type="text" id="modalTeacher" name="schedules[0][teacher]" maxlength="150" placeholder="TBA / Faculty" class="w-full px-3.5 py-2 rounded-xl border border-[#E8C7C5] bg-[#F8EEEE]/30 text-[#59443F] text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-[#D6A6A6]">
+                    </div>
                 </div>
             </div>
 
@@ -506,6 +519,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const modalRoom = document.getElementById('modalRoom');
     const modalStartTime = document.getElementById('modalStartTime');
     const modalEndTime = document.getElementById('modalEndTime');
+    const modalTeacher = document.getElementById('modalTeacher');
     const editScheduleModalTitle = document.getElementById('editScheduleModalTitle');
 
     let activeTriggerBtn = null;
@@ -521,6 +535,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const start = btn.dataset.start || '08:00 AM';
         const end = btn.dataset.end || '09:30 AM';
         const room = btn.dataset.room || 'St. Thomas Hall 201';
+        const teacher = (btn.dataset.teacher || '').trim();
 
         if (modalSubjectId) modalSubjectId.value = subId;
         if (modalSubjectCode) modalSubjectCode.value = subCode;
@@ -531,6 +546,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (modalRoom) modalRoom.value = room;
         if (modalStartTime) modalStartTime.value = start;
         if (modalEndTime) modalEndTime.value = end;
+        if (modalTeacher) modalTeacher.value = teacher === 'TBA / Faculty' ? '' : teacher;
         if (editScheduleModalTitle) editScheduleModalTitle.textContent = 'Edit Schedule: ' + subCode;
         if (scheduleSaveStatus) scheduleSaveStatus.textContent = '';
 
@@ -600,6 +616,9 @@ document.addEventListener('DOMContentLoaded', () => {
                     const newStart = modalStartTime ? modalStartTime.value : '08:00 AM';
                     const newEnd = modalEndTime ? modalEndTime.value : '09:30 AM';
                     const newRoom = modalRoom ? modalRoom.value : 'St. Thomas Hall 201';
+                    const newTeacherRaw = modalTeacher ? modalTeacher.value.trim() : '';
+                    const defaultTeacher = (activeTriggerBtn && activeTriggerBtn.dataset.defaultTeacher) ? activeTriggerBtn.dataset.defaultTeacher : 'TBA / Faculty';
+                    const displayTeacher = newTeacherRaw !== '' ? newTeacherRaw : defaultTeacher;
                     const newTime = `${newDays} ${newStart} - ${newEnd}`;
 
                     const card = document.querySelector(`[data-card-code="${updatedCode}"]`);
@@ -608,6 +627,8 @@ document.addEventListener('DOMContentLoaded', () => {
                         if (roomLabel) roomLabel.textContent = newRoom;
                         const timeLabel = card.querySelector('.subject-time-label');
                         if (timeLabel) timeLabel.textContent = newTime;
+                        const teacherLabel = card.querySelector('.subject-teacher-label');
+                        if (teacherLabel) teacherLabel.textContent = displayTeacher;
                     }
 
                     if (activeTriggerBtn) {
@@ -615,6 +636,11 @@ document.addEventListener('DOMContentLoaded', () => {
                         activeTriggerBtn.dataset.start = newStart;
                         activeTriggerBtn.dataset.end = newEnd;
                         activeTriggerBtn.dataset.room = newRoom;
+                        activeTriggerBtn.dataset.teacher = newTeacherRaw;
+                    }
+
+                    if (typeof window.showToast === 'function') {
+                        window.showToast('Schedule saved successfully!', 'success', 2800);
                     }
 
                     setTimeout(() => {

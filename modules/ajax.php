@@ -1029,16 +1029,40 @@ try {
             ajax_error('Invalid schedule data payload.', 400);
         }
 
+        // Ensure student_schedules.teacher column exists (idempotent across Aiven & InfinityFree)
+        $has_teacher_col = false;
+        $col_res = @$conn->query("SHOW COLUMNS FROM student_schedules LIKE 'teacher'");
+        if ($col_res && $col_res->num_rows > 0) {
+            $has_teacher_col = true;
+        } else {
+            if (@$conn->query("ALTER TABLE student_schedules ADD COLUMN teacher VARCHAR(150) NULL DEFAULT NULL AFTER room")) {
+                $has_teacher_col = true;
+            }
+        }
+
         $saved = [];
-        $stmt_upsert = $conn->prepare("INSERT INTO student_schedules (seminarian_id, subject_code, subject_name, days, start_time, end_time, room, updated_at)
-            VALUES (?, ?, ?, ?, ?, ?, ?, NOW())
-            ON DUPLICATE KEY UPDATE 
-                subject_name = VALUES(subject_name),
-                days = VALUES(days),
-                start_time = VALUES(start_time),
-                end_time = VALUES(end_time),
-                room = VALUES(room),
-                updated_at = NOW()");
+        if ($has_teacher_col) {
+            $stmt_upsert = $conn->prepare("INSERT INTO student_schedules (seminarian_id, subject_code, subject_name, days, start_time, end_time, room, teacher, updated_at)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, NOW())
+                ON DUPLICATE KEY UPDATE 
+                    subject_name = VALUES(subject_name),
+                    days = VALUES(days),
+                    start_time = VALUES(start_time),
+                    end_time = VALUES(end_time),
+                    room = VALUES(room),
+                    teacher = VALUES(teacher),
+                    updated_at = NOW()");
+        } else {
+            $stmt_upsert = $conn->prepare("INSERT INTO student_schedules (seminarian_id, subject_code, subject_name, days, start_time, end_time, room, updated_at)
+                VALUES (?, ?, ?, ?, ?, ?, ?, NOW())
+                ON DUPLICATE KEY UPDATE 
+                    subject_name = VALUES(subject_name),
+                    days = VALUES(days),
+                    start_time = VALUES(start_time),
+                    end_time = VALUES(end_time),
+                    room = VALUES(room),
+                    updated_at = NOW()");
+        }
 
         foreach ($schedules as $item) {
             $code = trim((string)($item['subject_code'] ?? ''));
@@ -1047,10 +1071,19 @@ try {
             $start = trim((string)($item['start_time'] ?? '08:00 AM'));
             $end = trim((string)($item['end_time'] ?? '09:30 AM'));
             $room = trim((string)($item['room'] ?? 'St. Thomas Hall 201'));
+            $teacher_raw = trim((string)($item['teacher'] ?? ''));
+            if (strlen($teacher_raw) > 150) {
+                $teacher_raw = substr($teacher_raw, 0, 150);
+            }
+            $teacher_db = ($teacher_raw === '' || strcasecmp($teacher_raw, 'TBA / Faculty') === 0) ? null : $teacher_raw;
 
             if ($code === '') continue;
 
-            $stmt_upsert->bind_param('issssss', $seminarian_id, $code, $name, $days, $start, $end, $room);
+            if ($has_teacher_col) {
+                $stmt_upsert->bind_param('isssssss', $seminarian_id, $code, $name, $days, $start, $end, $room, $teacher_db);
+            } else {
+                $stmt_upsert->bind_param('issssss', $seminarian_id, $code, $name, $days, $start, $end, $room);
+            }
             $stmt_upsert->execute();
 
             $saved[] = [
@@ -1061,6 +1094,7 @@ try {
                 'end_time' => $end,
                 'time' => $start . ' - ' . $end,
                 'room' => $room,
+                'teacher' => $teacher_db ?? '',
             ];
         }
 
@@ -1083,7 +1117,13 @@ try {
 
         $schedules = [];
         if ($seminarian_id > 0) {
-            $stmt_get = $conn->prepare("SELECT subject_code, subject_name, days, start_time, end_time, room
+            $has_teacher_col = false;
+            $col_res = @$conn->query("SHOW COLUMNS FROM student_schedules LIKE 'teacher'");
+            if ($col_res && $col_res->num_rows > 0) {
+                $has_teacher_col = true;
+            }
+            $teacher_sel = $has_teacher_col ? ', teacher' : ', NULL AS teacher';
+            $stmt_get = $conn->prepare("SELECT subject_code, subject_name, days, start_time, end_time, room{$teacher_sel}
                 FROM student_schedules
                 WHERE seminarian_id = ?
                 ORDER BY start_time ASC");
@@ -1099,6 +1139,7 @@ try {
                     'end_time' => $r['end_time'],
                     'time' => $r['start_time'] . ' - ' . $r['end_time'],
                     'room' => $r['room'],
+                    'teacher' => (string)($r['teacher'] ?? ''),
                 ];
             }
         }
