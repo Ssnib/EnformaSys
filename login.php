@@ -121,6 +121,7 @@ if (isset($_POST['login'])) {
     <link rel="stylesheet" href="css/style.css?v=<?php echo (int)@filemtime(__DIR__ . '/css/style.css'); ?>">
     <link rel="stylesheet" href="css/motion.css?v=<?php echo (int)@filemtime(__DIR__ . '/css/motion.css'); ?>">
     <link rel="stylesheet" href="css/floating_theme.css?v=<?php echo (int)@filemtime(__DIR__ . '/css/floating_theme.css'); ?>">
+    <link id="enformasys-live-css-link" rel="stylesheet" href="css/custom_live.css?v=<?php echo (int)@filemtime(__DIR__ . '/css/custom_live.css'); ?>">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <script src="https://cdn.tailwindcss.com"></script>
     <style>

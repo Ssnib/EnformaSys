@@ -21,6 +21,60 @@ if ($action === '') {
 }
 
 try {
+    if ($action === 'save_live_css' || $action === 'reset_live_css') {
+        if (!isset($_SESSION['user'])) {
+            ajax_error('Authentication required.', 401);
+        }
+        $role = (string)($_SESSION['role'] ?? '');
+        if (!in_array($role, ['Admin', 'Dean', 'Rector'], true)) {
+            ajax_error('Forbidden: Administrator privileges required.', 403);
+        }
+        $csrf = (string)($_SERVER['HTTP_X_CSRF_TOKEN'] ?? ($_POST['csrf_token'] ?? ''));
+        if (!verify_csrf_token($csrf)) {
+            ajax_error('CSRF token validation failed.', 403);
+        }
+
+        $defaultCss = "/**\n * EnformaSys Live Custom CSS\n * Managed via the built-in Administrator Live CSS Editor & Theme Customizer.\n * Rules added here load after css/floating_theme.css across all portals.\n */\n";
+        $targetFile = __DIR__ . '/../css/custom_live.css';
+
+        if ($action === 'reset_live_css') {
+            $written = @file_put_contents($targetFile, $defaultCss, LOCK_EX);
+            if ($written === false) {
+                ajax_error('Unable to write css/custom_live.css. Ensure the css directory is writable.', 500);
+            }
+            if (function_exists('log_activity')) {
+                @log_activity((int)($_SESSION['user'] ?? 0), 'Reset Live Custom CSS (css/custom_live.css)');
+            }
+            ajax_ok([
+                'reset' => true,
+                'css' => $defaultCss,
+                'mtime' => (int)@filemtime($targetFile),
+                'message' => 'Live CSS reset to default.',
+            ]);
+        }
+
+        $rawCss = (string)($_POST['css'] ?? '');
+        if (strlen($rawCss) > 131072) {
+            ajax_error('Custom CSS exceeds maximum size limit (128 KB).', 400);
+        }
+        $cleanCss = str_replace(["\r\n", "\r"], "\n", $rawCss);
+        $cleanCss = (string)preg_replace('/<\s*\/\s*style/i', '/* blocked */', $cleanCss);
+
+        $written = @file_put_contents($targetFile, $cleanCss, LOCK_EX);
+        if ($written === false) {
+            ajax_error('Unable to write css/custom_live.css. Ensure the css directory is writable.', 500);
+        }
+        if (function_exists('log_activity')) {
+            @log_activity((int)($_SESSION['user'] ?? 0), 'Updated Live Custom CSS (' . strlen($cleanCss) . ' bytes)');
+        }
+        ajax_ok([
+            'saved' => true,
+            'bytes' => strlen($cleanCss),
+            'mtime' => (int)@filemtime($targetFile),
+            'message' => 'Live CSS saved and applied globally.',
+        ]);
+    }
+
     if ($action === 'upcoming_events_notifications') {
         if (!isset($_SESSION['user'])) {
             ajax_error('Authentication required.', 401);

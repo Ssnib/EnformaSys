@@ -67,5 +67,6 @@ require_once __DIR__ . '/url.php';
     </script>
     <script defer src="<?= htmlspecialchars(capstone_url('assets/app_layout.js')) ?>?v=<?= (int)@filemtime(__DIR__ . '/../assets/app_layout.js') ?>"></script>
     <script defer src="<?= htmlspecialchars(capstone_url('assets/ajax.js')) ?>?v=<?= (int)@filemtime(__DIR__ . '/../assets/ajax.js') ?>"></script>
+<?php require __DIR__ . '/live_css_editor.php'; ?>
 </body>
 </html>

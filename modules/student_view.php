@@ -229,6 +229,7 @@ if ($total_enrolled_units <= 0) {
     <noscript><link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css"></noscript>
     <link rel="stylesheet" href="../css/motion.css?v=<?php echo (int)@filemtime(__DIR__ . '/../css/motion.css'); ?>">
     <link rel="stylesheet" href="../css/floating_theme.css?v=<?php echo (int)@filemtime(__DIR__ . '/../css/floating_theme.css'); ?>">
+    <link id="enformasys-live-css-link" rel="stylesheet" href="../css/custom_live.css?v=<?php echo (int)@filemtime(__DIR__ . '/../css/custom_live.css'); ?>">
     <!-- Tailwind CSS CDN -->
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
@@ -1229,5 +1230,6 @@ if ($total_enrolled_units <= 0) {
     })();
     </script>
     <script defer src="../assets/app_layout.js?v=<?php echo (int)@filemtime(__DIR__ . '/../assets/app_layout.js'); ?>"></script>
+<?php require __DIR__ . '/../includes/live_css_editor.php'; ?>
 </body>
 </html>

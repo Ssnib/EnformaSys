@@ -71,6 +71,7 @@ if ($role === 'Student') {
     <link rel="stylesheet" href="<?= htmlspecialchars(capstone_url('css/style.css')) ?>?v=<?= (int)@filemtime(__DIR__ . '/../css/style.css') ?>">
     <link rel="stylesheet" href="<?= htmlspecialchars(capstone_url('css/motion.css')) ?>?v=<?= (int)@filemtime(__DIR__ . '/../css/motion.css') ?>">
     <link rel="stylesheet" href="<?= htmlspecialchars(capstone_url('css/floating_theme.css')) ?>?v=<?= (int)@filemtime(__DIR__ . '/../css/floating_theme.css') ?>">
+    <link id="enformasys-live-css-link" rel="stylesheet" href="<?= htmlspecialchars(capstone_url('css/custom_live.css')) ?>?v=<?= (int)@filemtime(__DIR__ . '/../css/custom_live.css') ?>">
     
     <!-- Icons & Utility Framework -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" media="print" onload="this.media='all'">
@@ -207,6 +208,7 @@ if ($role === 'Student') {
     </script>
     <script defer src="<?= htmlspecialchars(capstone_url('assets/app_layout.js')) ?>?v=<?= (int)@filemtime(__DIR__ . '/../assets/app_layout.js') ?>"></script>
     <script defer src="<?= htmlspecialchars(capstone_url('assets/ajax.js')) ?>?v=<?= (int)@filemtime(__DIR__ . '/../assets/ajax.js') ?>"></script>
+<?php require __DIR__ . '/live_css_editor.php'; ?>
 </body>
 </html>
 <?php endif; ?>
