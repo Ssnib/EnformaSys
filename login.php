@@ -8,6 +8,11 @@ if (!enformasys_is_production()) {
     ini_set('display_errors', '0');
 }
 
+if (!empty($_SESSION['flash_success'])) {
+    $success = (string)$_SESSION['flash_success'];
+    unset($_SESSION['flash_success']);
+}
+
 if (isset($_POST['login'])) {
     if (!verify_csrf_token((string)($_POST['csrf_token'] ?? ''))) {
         http_response_code(403);

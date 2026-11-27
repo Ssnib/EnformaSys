@@ -110,6 +110,7 @@ if (!function_exists('enformasys_load_php_config')) {
             'DB_HOST', 'DB_PORT', 'DB_USER', 'DB_PASS', 'DB_PASSWORD', 'DB_NAME',
             'DB_SSL', 'DB_SSL_CA', 'DB_PERSISTENT', 'DB_SKIP_SCHEMA_SYNC',
             'DB_SESSION_HANDLER', 'SESSION_DRIVER', 'SESSION_LIFETIME',
+            'SMTP_HOST', 'SMTP_PORT', 'SMTP_ENCRYPTION', 'SMTP_USER', 'SMTP_PASS', 'SMTP_FROM_EMAIL', 'SMTP_FROM_NAME',
         ];
         foreach ($knownConsts as $cname) {
             if (defined($cname)) {
